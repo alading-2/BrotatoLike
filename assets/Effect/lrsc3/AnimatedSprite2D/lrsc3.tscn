@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://cfjp1v7dcv76c"]
+
+[ext_resource type="SpriteFrames" uid="uid://d0jr0yc2fwjke" path="res://assets/Effect/lrsc3/AnimatedSprite2D/lrsc3.tres" id="1_xfdhg"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_bksgr"]
+radius = 64.0
+height = 128.0
+
+[node name="lrsc3" type="AnimatedSprite2D" unique_id=429406412]
+sprite_frames = ExtResource("1_xfdhg")
+animation = &"Effect"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2042430111]
+position = Vector2(5, 46)
+shape = SubResource("CapsuleShape2D_bksgr")

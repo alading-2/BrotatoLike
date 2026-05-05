@@ -1,0 +1,14 @@
+; Engine configuration file.
+; This project is generated as the first SkilmeAI game repository shell.
+
+config_version=5
+
+[application]
+
+config/name="BrotatoLike"
+run/main_scene="res://Scenes/Main.tscn"
+config/features=PackedStringArray("4.6", "C#", "Forward Plus")
+
+[dotnet]
+
+project/assembly_name="BrotatoLike"

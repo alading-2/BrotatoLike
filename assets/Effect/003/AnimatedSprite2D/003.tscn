@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://dju0murovtl7b"]
+
+[ext_resource type="SpriteFrames" uid="uid://brts8vgi15eni" path="res://assets/Effect/003/AnimatedSprite2D/003.tres" id="1_bpnvc"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ejbpd"]
+radius = 30.0
+height = 70.0
+
+[node name="003" type="AnimatedSprite2D" unique_id=1024584771]
+scale = Vector2(1.2, 1.2)
+sprite_frames = ExtResource("1_bpnvc")
+animation = &"Effect"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=110565320]
+shape = SubResource("CapsuleShape2D_ejbpd")

@@ -1,0 +1,9 @@
+# Godot / .NET build outputs
+.godot/
+bin/
+obj/
+DataOS/.generated/
+
+# Editor and OS noise
+.DS_Store
+*.swp

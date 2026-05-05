@@ -1,0 +1,387 @@
+//------------------------------------------------------------------------------
+//* <ResourceGenerator>
+//*     ResourceGenerator 资源路径生成器工具
+//*
+//*     不要修改本文件，因为每次运行ResourceGenerator都会覆盖本文件。
+//* </ResourceGenerator>
+//------------------------------------------------------------------------------
+
+using System.Collections.Generic;
+
+public struct ResourceData
+{
+    public string Path;
+    public ResourceCategory Category;
+    public ResourceData(ResourceCategory category, string path)
+    {
+        Category = category;
+        Path = path;
+    }
+}
+
+public static class ResourcePaths
+{
+    // --- Entity ---
+    public const string Entity_AbilityEntity = "AbilityEntity";
+    public const string Entity_EffectEntity = "EffectEntity";
+    public const string Entity_EnemyEntity = "EnemyEntity";
+    public const string Entity_LightningLineEffect = "LightningLineEffect";
+    public const string Entity_PlayerEntity = "PlayerEntity";
+    public const string Entity_ProjectileEntity = "ProjectileEntity";
+    public const string Entity_TargetingIndicatorEntity = "TargetingIndicatorEntity";
+    public const string Entity_VisualPreviewEntity = "VisualPreviewEntity";
+
+    // --- Component ---
+    public const string Component_AbilityPreset = "AbilityPreset";
+    public const string Component_ActiveSkillInputComponent = "ActiveSkillInputComponent";
+    public const string Component_AIComponent = "AIComponent";
+    public const string Component_AttackComponent = "AttackComponent";
+    public const string Component_ChargeComponent = "ChargeComponent";
+    public const string Component_CollisionComponent = "CollisionComponent";
+    public const string Component_ContactDamageComponent = "ContactDamageComponent";
+    public const string Component_CooldownComponent = "CooldownComponent";
+    public const string Component_CostComponent = "CostComponent";
+    public const string Component_DataInitComponent = "DataInitComponent";
+    public const string Component_EffectComponent = "EffectComponent";
+    public const string Component_EnemyPreset = "EnemyPreset";
+    public const string Component_EntityMovementComponent = "EntityMovementComponent";
+    public const string Component_EntityOrientationComponent = "EntityOrientationComponent";
+    public const string Component_HealthComponent = "HealthComponent";
+    public const string Component_HurtboxComponent = "HurtboxComponent";
+    public const string Component_LifecycleComponent = "LifecycleComponent";
+    public const string Component_PickupComponent = "PickupComponent";
+    public const string Component_PlayerPreset = "PlayerPreset";
+    public const string Component_RecoveryComponent = "RecoveryComponent";
+    public const string Component_TargetingIndicatorControlComponent = "TargetingIndicatorControlComponent";
+    public const string Component_TriggerComponent = "TriggerComponent";
+    public const string Component_UnitAnimationComponent = "UnitAnimationComponent";
+    public const string Component_UnitCorePreset = "UnitCorePreset";
+    public const string Component_UnitStateComponent = "UnitStateComponent";
+
+    // --- UI ---
+    public const string UI_ActiveSkillBarUI = "ActiveSkillBarUI";
+    public const string UI_ActiveSkillSlotUI = "ActiveSkillSlotUI";
+    public const string UI_DamageNumberUI = "DamageNumberUI";
+    public const string UI_HealthBarUI = "HealthBarUI";
+    public const string UI_UIManager = "UIManager";
+
+    // --- Asset ---
+
+    // --- AssetEffect ---
+    public const string AssetEffect_003 = "003";
+    public const string AssetEffect_004龙卷风 = "004龙卷风";
+    public const string AssetEffect_020 = "020";
+    public const string AssetEffect_lrsc3 = "lrsc3";
+
+    // --- AssetUnit ---
+
+    // --- AssetUnitEnemy ---
+    public const string AssetUnitEnemy_chailangren = "chailangren";
+    public const string AssetUnitEnemy_yuren = "yuren";
+
+    // --- AssetUnitPlayer ---
+    public const string AssetUnitPlayer_bubing = "bubing";
+    public const string AssetUnitPlayer_deluyi = "deluyi";
+    public const string AssetUnitPlayer_guangfa = "guangfa";
+
+    // --- AssetProjectile ---
+    public const string AssetProjectile_ArrowNeedle = "ArrowNeedle";
+    public const string AssetProjectile_BoomerangChevron = "BoomerangChevron";
+    public const string AssetProjectile_BulletDiamond = "BulletDiamond";
+    public const string AssetProjectile_LaserBolt = "LaserBolt";
+
+    // --- System ---
+    public const string System_AbilityCatalogItem = "AbilityCatalogItem";
+    public const string System_AbilityGroupSection = "AbilityGroupSection";
+    public const string System_AbilityOwnedItem = "AbilityOwnedItem";
+    public const string System_AbilityTestModule = "AbilityTestModule";
+    public const string System_AttributeCheckEditor = "AttributeCheckEditor";
+    public const string System_AttributeEditorRow = "AttributeEditorRow";
+    public const string System_AttributeModifierEditor = "AttributeModifierEditor";
+    public const string System_AttributeNumericEditor = "AttributeNumericEditor";
+    public const string System_AttributeOptionEditor = "AttributeOptionEditor";
+    public const string System_AttributeTestModule = "AttributeTestModule";
+    public const string System_AttributeTextEditor = "AttributeTextEditor";
+    public const string System_DamageService = "DamageService";
+    public const string System_DamageStatisticsSystem = "DamageStatisticsSystem";
+    public const string System_MouseSelectionSystem = "MouseSelectionSystem";
+    public const string System_ObjectPoolInfoModule = "ObjectPoolInfoModule";
+    public const string System_PauseMenuSystem = "PauseMenuSystem";
+    public const string System_RecoverySystem = "RecoverySystem";
+    public const string System_ResourceCatalogTestModule = "ResourceCatalogTestModule";
+    public const string System_ResourcePickerControl = "ResourcePickerControl";
+    public const string System_SpawnSystem = "SpawnSystem";
+    public const string System_SpawnTestModule = "SpawnTestModule";
+    public const string System_SystemInfoTestModule = "SystemInfoTestModule";
+    public const string System_TestSystem = "TestSystem";
+
+    // --- Tools ---
+    public const string Tools_ObjectPoolInit = "ObjectPoolInit";
+    public const string Tools_TimerManager = "TimerManager";
+
+    // --- Data ---
+
+    // --- DataAbility ---
+    public const string DataAbility_ArcShotConfig = "ArcShotConfig";
+    public const string DataAbility_BezierShotConfig = "BezierShotConfig";
+    public const string DataAbility_BoomerangThrowConfig = "BoomerangThrowConfig";
+    public const string DataAbility_ChainLightningConfig = "ChainLightningConfig";
+    public const string DataAbility_CircleDamageConfig = "CircleDamageConfig";
+    public const string DataAbility_DashConfig = "DashConfig";
+    public const string DataAbility_OrbitSkillConfig = "OrbitSkillConfig";
+    public const string DataAbility_ParabolaShotConfig = "ParabolaShotConfig";
+    public const string DataAbility_SineWaveShotConfig = "SineWaveShotConfig";
+    public const string DataAbility_SlamConfig = "SlamConfig";
+    public const string DataAbility_TargetPointSkillConfig = "TargetPointSkillConfig";
+
+    // --- DataUnit ---
+    public const string DataUnit_chailangren = "chailangren";
+    public const string DataUnit_deluyi = "deluyi";
+    public const string DataUnit_TargetingIndicatorConfig = "TargetingIndicatorConfig";
+    public const string DataUnit_yuren = "yuren";
+
+    // --- ConfigSystem ---
+    public const string ConfigSystem_DamageNumberRuntimeBridge = "DamageNumberRuntimeBridge";
+    public const string ConfigSystem_DamageService = "DamageService";
+    public const string ConfigSystem_DamageStatisticsSystem = "DamageStatisticsSystem";
+    public const string ConfigSystem_EntityManager = "EntityManager";
+    public const string ConfigSystem_MouseSelectionSystem = "MouseSelectionSystem";
+    public const string ConfigSystem_ObjectPoolInit = "ObjectPoolInit";
+    public const string ConfigSystem_PauseMenuSystem = "PauseMenuSystem";
+    public const string ConfigSystem_ProjectStateBridge = "ProjectStateBridge";
+    public const string ConfigSystem_RecoverySystem = "RecoverySystem";
+    public const string ConfigSystem_SpawnSystem = "SpawnSystem";
+    public const string ConfigSystem_TargetingManagerRuntime = "TargetingManagerRuntime";
+    public const string ConfigSystem_TestSystem = "TestSystem";
+    public const string ConfigSystem_TimerManager = "TimerManager";
+    public const string ConfigSystem_UIManager = "UIManager";
+
+    // --- ConfigSystemPreset ---
+    public const string ConfigSystemPreset_DefaultPreset = "DefaultPreset";
+
+    // --- Test ---
+    public const string Test_AbilitySystemPipelineTest = "AbilitySystemPipelineTest";
+    public const string Test_ActiveSkillInputTest = "ActiveSkillInputTest";
+    public const string Test_DamageSystemTest = "DamageSystemTest";
+    public const string Test_DataTestScene = "DataTestScene";
+    public const string Test_ECSTestScene = "ECSTestScene";
+    public const string Test_InputTest = "InputTest";
+    public const string Test_LogTest = "LogTest";
+    public const string Test_MainTest = "MainTest";
+    public const string Test_MovementCollisionRuntimeTest = "MovementCollisionRuntimeTest";
+    public const string Test_MovementComponentTestScene = "MovementComponentTestScene";
+    public const string Test_MovementTestEntity = "MovementTestEntity";
+    public const string Test_MyMathTest = "MyMathTest";
+    public const string Test_ObjectPoolManagerTest = "ObjectPoolManagerTest";
+    public const string Test_ObjectPoolVisualTest = "ObjectPoolVisualTest";
+    public const string Test_SpawnTestScene = "SpawnTestScene";
+    public const string Test_SystemCoreRuntimeTest = "SystemCoreRuntimeTest";
+    public const string Test_TargetSelectorTest = "TargetSelectorTest";
+    public const string Test_TestDataKeyMapping = "TestDataKeyMapping";
+    public const string Test_TestEntity = "TestEntity";
+    public const string Test_VisualPreviewScene = "VisualPreviewScene";
+
+    // --- Other ---
+
+    public static readonly Dictionary<ResourceCategory, Dictionary<string, ResourceData>> Resources = new()
+    {
+        { ResourceCategory.Entity, new Dictionary<string, ResourceData>
+            {
+                { Entity_AbilityEntity, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Ability/AbilityEntity.tscn") },
+                { Entity_EffectEntity, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Effect/EffectEntity.tscn") },
+                { Entity_EnemyEntity, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Unit/Enemy/EnemyEntity.tscn") },
+                { Entity_LightningLineEffect, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Effect/LightningLineEffect/LightningLineEffect.tscn") },
+                { Entity_PlayerEntity, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Unit/Player/PlayerEntity.tscn") },
+                { Entity_ProjectileEntity, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Projectile/ProjectileEntity.tscn") },
+                { Entity_TargetingIndicatorEntity, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Unit/TargetingIndicator/TargetingIndicatorEntity.tscn") },
+                { Entity_VisualPreviewEntity, new ResourceData(ResourceCategory.Entity, "res://Src/ECS/Base/Entity/Preview/VisualPreviewEntity.tscn") },
+            }
+        },
+        { ResourceCategory.Component, new Dictionary<string, ResourceData>
+            {
+                { Component_AbilityPreset, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Presets/Ability/AbilityPreset.tscn") },
+                { Component_ActiveSkillInputComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Player/ActiveSkillInputComponent/ActiveSkillInputComponent.tscn") },
+                { Component_AIComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Enemy/AI/AIComponent.tscn") },
+                { Component_AttackComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Common/AttackComponent/AttackComponent.tscn") },
+                { Component_ChargeComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Ability/ChargeComponent/ChargeComponent.tscn") },
+                { Component_CollisionComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Collision/CollisionComponent/CollisionComponent.tscn") },
+                { Component_ContactDamageComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Collision/ContactDamageComponent/ContactDamageComponent.tscn") },
+                { Component_CooldownComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Ability/CooldownComponent/CooldownComponent.tscn") },
+                { Component_CostComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Ability/CostComponent/CostComponent.tscn") },
+                { Component_DataInitComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Common/DataInitComponent/DataInitComponent.tscn") },
+                { Component_EffectComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Effect/EffectComponent/EffectComponent.tscn") },
+                { Component_EnemyPreset, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Presets/Unit/EnemyPreset.tscn") },
+                { Component_EntityMovementComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Movement/EntityMovementComponent.tscn") },
+                { Component_EntityOrientationComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Movement/EntityOrientationComponent.tscn") },
+                { Component_HealthComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Common/HealthComponent/HealthComponent.tscn") },
+                { Component_HurtboxComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Collision/HurtboxComponent/HurtboxComponent.tscn") },
+                { Component_LifecycleComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Common/LifecycleComponent/LifecycleComponent.tscn") },
+                { Component_PickupComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Collision/PickupComponent/PickupComponent.tscn") },
+                { Component_PlayerPreset, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Presets/Unit/PlayerPreset.tscn") },
+                { Component_RecoveryComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Common/RecoveryComponent/RecoveryComponent.tscn") },
+                { Component_TargetingIndicatorControlComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/TargetingIndicatorControlComponent/TargetingIndicatorControlComponent.tscn") },
+                { Component_TriggerComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Ability/TriggerComponent/TriggerComponent.tscn") },
+                { Component_UnitAnimationComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Common/UnitAnimationComponent/UnitAnimationComponent.tscn") },
+                { Component_UnitCorePreset, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Presets/Unit/UnitCorePreset.tscn") },
+                { Component_UnitStateComponent, new ResourceData(ResourceCategory.Component, "res://Src/ECS/Base/Component/Unit/Common/UnitStateComponent/UnitStateComponent.tscn") },
+            }
+        },
+        { ResourceCategory.UI, new Dictionary<string, ResourceData>
+            {
+                { UI_ActiveSkillBarUI, new ResourceData(ResourceCategory.UI, "res://Src/ECS/UI/UI/SkillUI/ActiveSkillBarUI.tscn") },
+                { UI_ActiveSkillSlotUI, new ResourceData(ResourceCategory.UI, "res://Src/ECS/UI/UI/SkillUI/ActiveSkillSlotUI.tscn") },
+                { UI_DamageNumberUI, new ResourceData(ResourceCategory.UI, "res://Src/ECS/UI/UI/DamageNumberUI/DamageNumberUI.tscn") },
+                { UI_HealthBarUI, new ResourceData(ResourceCategory.UI, "res://Src/ECS/UI/UI/HealthBarUI/HealthBarUI.tscn") },
+                { UI_UIManager, new ResourceData(ResourceCategory.UI, "res://Src/ECS/UI/Core/UIManager.tscn") },
+            }
+        },
+        { ResourceCategory.Asset, new Dictionary<string, ResourceData>
+            {
+            }
+        },
+        { ResourceCategory.AssetEffect, new Dictionary<string, ResourceData>
+            {
+                { AssetEffect_003, new ResourceData(ResourceCategory.AssetEffect, "res://assets/Effect/003/AnimatedSprite2D/003.tscn") },
+                { AssetEffect_004龙卷风, new ResourceData(ResourceCategory.AssetEffect, "res://assets/Effect/004龙卷风/AnimatedSprite2D/004龙卷风.tscn") },
+                { AssetEffect_020, new ResourceData(ResourceCategory.AssetEffect, "res://assets/Effect/020/AnimatedSprite2D/020.tscn") },
+                { AssetEffect_lrsc3, new ResourceData(ResourceCategory.AssetEffect, "res://assets/Effect/lrsc3/AnimatedSprite2D/lrsc3.tscn") },
+            }
+        },
+        { ResourceCategory.AssetUnit, new Dictionary<string, ResourceData>
+            {
+            }
+        },
+        { ResourceCategory.AssetUnitEnemy, new Dictionary<string, ResourceData>
+            {
+                { AssetUnitEnemy_chailangren, new ResourceData(ResourceCategory.AssetUnitEnemy, "res://assets/Unit/Enemy/chailangren/AnimatedSprite2D/chailangren.tscn") },
+                { AssetUnitEnemy_yuren, new ResourceData(ResourceCategory.AssetUnitEnemy, "res://assets/Unit/Enemy/yuren/AnimatedSprite2D/yuren.tscn") },
+            }
+        },
+        { ResourceCategory.AssetUnitPlayer, new Dictionary<string, ResourceData>
+            {
+                { AssetUnitPlayer_bubing, new ResourceData(ResourceCategory.AssetUnitPlayer, "res://assets/Unit/Player/bubing/AnimatedSprite2D/bubing.tscn") },
+                { AssetUnitPlayer_deluyi, new ResourceData(ResourceCategory.AssetUnitPlayer, "res://assets/Unit/Player/deluyi/AnimatedSprite2D/deluyi.tscn") },
+                { AssetUnitPlayer_guangfa, new ResourceData(ResourceCategory.AssetUnitPlayer, "res://assets/Unit/Player/guangfa/AnimatedSprite2D/guangfa.tscn") },
+            }
+        },
+        { ResourceCategory.AssetProjectile, new Dictionary<string, ResourceData>
+            {
+                { AssetProjectile_ArrowNeedle, new ResourceData(ResourceCategory.AssetProjectile, "res://assets/Projectile/Projectile/Polygon2D/ArrowNeedle.tscn") },
+                { AssetProjectile_BoomerangChevron, new ResourceData(ResourceCategory.AssetProjectile, "res://assets/Projectile/Projectile/Polygon2D/BoomerangChevron.tscn") },
+                { AssetProjectile_BulletDiamond, new ResourceData(ResourceCategory.AssetProjectile, "res://assets/Projectile/Projectile/Polygon2D/BulletDiamond.tscn") },
+                { AssetProjectile_LaserBolt, new ResourceData(ResourceCategory.AssetProjectile, "res://assets/Projectile/Projectile/Line2D/LaserBolt.tscn") },
+            }
+        },
+        { ResourceCategory.System, new Dictionary<string, ResourceData>
+            {
+                { System_AbilityCatalogItem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Ability/AbilityCatalogItem.tscn") },
+                { System_AbilityGroupSection, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Ability/AbilityGroupSection.tscn") },
+                { System_AbilityOwnedItem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Ability/AbilityOwnedItem.tscn") },
+                { System_AbilityTestModule, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Ability/AbilityTestModule.tscn") },
+                { System_AttributeCheckEditor, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Attribute/AttributeCheckEditor.tscn") },
+                { System_AttributeEditorRow, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Attribute/AttributeEditorRow.tscn") },
+                { System_AttributeModifierEditor, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Attribute/AttributeModifierEditor.tscn") },
+                { System_AttributeNumericEditor, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Attribute/AttributeNumericEditor.tscn") },
+                { System_AttributeOptionEditor, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Attribute/AttributeOptionEditor.tscn") },
+                { System_AttributeTestModule, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Attribute/AttributeTestModule.tscn") },
+                { System_AttributeTextEditor, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Attribute/AttributeTextEditor.tscn") },
+                { System_DamageService, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/DamageSystem/DamageService.tscn") },
+                { System_DamageStatisticsSystem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/DamageSystem/DamageStatisticsSystem.tscn") },
+                { System_MouseSelectionSystem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/MouseSelection/MouseSelectionSystem.tscn") },
+                { System_ObjectPoolInfoModule, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Info/ObjectPoolInfoModule.tscn") },
+                { System_PauseMenuSystem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/PauseMenu/PauseMenuSystem.tscn") },
+                { System_RecoverySystem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/RecoverySystem/RecoverySystem.tscn") },
+                { System_ResourceCatalogTestModule, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/ResourceCatalog/ResourceCatalogTestModule.tscn") },
+                { System_ResourcePickerControl, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/ResourceCatalog/ResourcePickerControl.tscn") },
+                { System_SpawnSystem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/Spawn/SpawnSystem.tscn") },
+                { System_SpawnTestModule, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/Spawn/SpawnTestModule.tscn") },
+                { System_SystemInfoTestModule, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/System/SystemInfoTestModule.tscn") },
+                { System_TestSystem, new ResourceData(ResourceCategory.System, "res://Src/ECS/Base/System/TestSystem/TestSystem.tscn") },
+            }
+        },
+        { ResourceCategory.Tools, new Dictionary<string, ResourceData>
+            {
+                { Tools_ObjectPoolInit, new ResourceData(ResourceCategory.Tools, "res://Src/ECS/Tools/ObjectPool/ObjectPoolInit.tscn") },
+                { Tools_TimerManager, new ResourceData(ResourceCategory.Tools, "res://Src/ECS/Tools/Timer/TimerManager.tscn") },
+            }
+        },
+        { ResourceCategory.Data, new Dictionary<string, ResourceData>
+            {
+            }
+        },
+        { ResourceCategory.DataAbility, new Dictionary<string, ResourceData>
+            {
+                { DataAbility_ArcShotConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/Movement/ArcShotConfig.tres") },
+                { DataAbility_BezierShotConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/Movement/BezierShotConfig.tres") },
+                { DataAbility_BoomerangThrowConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/Movement/BoomerangThrowConfig.tres") },
+                { DataAbility_ChainLightningConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Ability/ChainLightning/Data/ChainLightningConfig.tres") },
+                { DataAbility_CircleDamageConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/CircleDamageConfig.tres") },
+                { DataAbility_DashConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/Movement/DashConfig.tres") },
+                { DataAbility_OrbitSkillConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/OrbitSkillConfig.tres") },
+                { DataAbility_ParabolaShotConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/Movement/ParabolaShotConfig.tres") },
+                { DataAbility_SineWaveShotConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/Movement/SineWaveShotConfig.tres") },
+                { DataAbility_SlamConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/SlamConfig.tres") },
+                { DataAbility_TargetPointSkillConfig, new ResourceData(ResourceCategory.DataAbility, "res://Data/Data/Ability/Resource/TargetPointSkillConfig.tres") },
+            }
+        },
+        { ResourceCategory.DataUnit, new Dictionary<string, ResourceData>
+            {
+                { DataUnit_chailangren, new ResourceData(ResourceCategory.DataUnit, "res://Data/Data/Unit/Enemy/Resource/chailangren.tres") },
+                { DataUnit_deluyi, new ResourceData(ResourceCategory.DataUnit, "res://Data/Data/Unit/Player/Resource/deluyi.tres") },
+                { DataUnit_TargetingIndicatorConfig, new ResourceData(ResourceCategory.DataUnit, "res://Data/Data/Unit/Targeting/Resource/TargetingIndicatorConfig.tres") },
+                { DataUnit_yuren, new ResourceData(ResourceCategory.DataUnit, "res://Data/Data/Unit/Enemy/Resource/yuren.tres") },
+            }
+        },
+        { ResourceCategory.ConfigSystem, new Dictionary<string, ResourceData>
+            {
+                { ConfigSystem_DamageNumberRuntimeBridge, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/DamageNumberRuntimeBridge.tres") },
+                { ConfigSystem_DamageService, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/DamageService.tres") },
+                { ConfigSystem_DamageStatisticsSystem, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/DamageStatisticsSystem.tres") },
+                { ConfigSystem_EntityManager, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/EntityManager.tres") },
+                { ConfigSystem_MouseSelectionSystem, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/MouseSelectionSystem.tres") },
+                { ConfigSystem_ObjectPoolInit, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/ObjectPoolInit.tres") },
+                { ConfigSystem_PauseMenuSystem, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/PauseMenuSystem.tres") },
+                { ConfigSystem_ProjectStateBridge, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/ProjectStateBridge.tres") },
+                { ConfigSystem_RecoverySystem, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/RecoverySystem.tres") },
+                { ConfigSystem_SpawnSystem, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/SpawnSystem.tres") },
+                { ConfigSystem_TargetingManagerRuntime, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/TargetingManagerRuntime.tres") },
+                { ConfigSystem_TestSystem, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/TestSystem.tres") },
+                { ConfigSystem_TimerManager, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/TimerManager.tres") },
+                { ConfigSystem_UIManager, new ResourceData(ResourceCategory.ConfigSystem, "res://Data/Config/System/System/Resource/UIManager.tres") },
+            }
+        },
+        { ResourceCategory.ConfigSystemPreset, new Dictionary<string, ResourceData>
+            {
+                { ConfigSystemPreset_DefaultPreset, new ResourceData(ResourceCategory.ConfigSystemPreset, "res://Data/Config/System/Preset/Resource/DefaultPreset.tres") },
+            }
+        },
+        { ResourceCategory.Test, new Dictionary<string, ResourceData>
+            {
+                { Test_AbilitySystemPipelineTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/AbilitySystemTest/AbilitySystemPipelineTest.tscn") },
+                { Test_ActiveSkillInputTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/ActiveSkillInputTest/ActiveSkillInputTest.tscn") },
+                { Test_DamageSystemTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/DamageSystemTest/DamageSystemTest.tscn") },
+                { Test_DataTestScene, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/Data/DataTestScene.tscn") },
+                { Test_ECSTestScene, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/ECSTest/ECSTestScene.tscn") },
+                { Test_InputTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/Tools/Input/InputTest.tscn") },
+                { Test_LogTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/Tools/Log/LogTest.tscn") },
+                { Test_MainTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/GlobalTest/MainTest/MainTest.tscn") },
+                { Test_MovementCollisionRuntimeTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/Movement/MovementCollisionRuntimeTest.tscn") },
+                { Test_MovementComponentTestScene, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/Movement/MovementComponentTestScene.tscn") },
+                { Test_MovementTestEntity, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/Movement/MovementTestEntity.tscn") },
+                { Test_MyMathTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/Tools/Math/MyMathTest.tscn") },
+                { Test_ObjectPoolManagerTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/Tools/ObjectPool/ObjectPoolManagerTest.tscn") },
+                { Test_ObjectPoolVisualTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/Tools/ObjectPool/ObjectPoolVisualTest.tscn") },
+                { Test_SpawnTestScene, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/Spawn/SpawnTestScene.tscn") },
+                { Test_SystemCoreRuntimeTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/System/SystemCore/SystemCoreRuntimeTest.tscn") },
+                { Test_TargetSelectorTest, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/Tools/TargetSelector/TargetSelectorTest.tscn") },
+                { Test_TestDataKeyMapping, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/Data/TestDataKeyMapping.tscn") },
+                { Test_TestEntity, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/SingleTest/ECS/ECSTest/Entity/TestEntity.tscn") },
+                { Test_VisualPreviewScene, new ResourceData(ResourceCategory.Test, "res://Src/ECS/Test/GlobalTest/VisualPreview/VisualPreviewScene.tscn") },
+            }
+        },
+        { ResourceCategory.Other, new Dictionary<string, ResourceData>
+            {
+            }
+        },
+    };
+}

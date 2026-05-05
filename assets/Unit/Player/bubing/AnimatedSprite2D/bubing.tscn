@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://c6c32bc1og81q"]
+
+[ext_resource type="SpriteFrames" uid="uid://bob3dmkfeqxat" path="res://assets/Unit/Player/bubing/AnimatedSprite2D/bubing.tres" id="1_4e24t"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_4e24t"]
+radius = 30.0
+height = 70.0
+
+[node name="bubing" type="AnimatedSprite2D" unique_id=224977998]
+position = Vector2(-1, -7)
+sprite_frames = ExtResource("1_4e24t")
+animation = &"attack1"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1614598588]
+shape = SubResource("CapsuleShape2D_4e24t")

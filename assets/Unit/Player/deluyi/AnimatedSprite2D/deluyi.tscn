@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://bcoxs106bdeg4"]
+
+[ext_resource type="SpriteFrames" uid="uid://ec3yv3775dvb" path="res://assets/Unit/Player/deluyi/AnimatedSprite2D/deluyi.tres" id="1_6pt4h"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_8h6p4"]
+radius = 26.0
+height = 64.0
+
+[node name="deluyi" type="AnimatedSprite2D" unique_id=1205206502]
+position = Vector2(0, -15)
+sprite_frames = ExtResource("1_6pt4h")
+animation = &"attack1"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=680679883]
+position = Vector2(0, 22)
+shape = SubResource("CapsuleShape2D_8h6p4")

@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://b5e73s3qpm4pr"]
+
+[ext_resource type="SpriteFrames" uid="uid://dwn5fdqvvhsgs" path="res://assets/Unit/Player/guangfa/AnimatedSprite2D/guangfa.tres" id="1_tqmyq"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_tqmyq"]
+radius = 45.0
+height = 132.0
+
+[node name="guangfa" type="AnimatedSprite2D" unique_id=1932882315]
+position = Vector2(-44, -86)
+sprite_frames = ExtResource("1_tqmyq")
+animation = &"attack1"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=777914044]
+position = Vector2(43, 78)
+shape = SubResource("CapsuleShape2D_tqmyq")

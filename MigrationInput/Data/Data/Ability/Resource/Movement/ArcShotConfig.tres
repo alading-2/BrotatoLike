@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AbilityConfig" format=3 uid="uid://dac3gxt8ddrl1"]
+
+[ext_resource type="Script" uid="uid://djyj4vnndpdaq" path="res://Data/Data/Ability/AbilityConfig.cs" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://co376pqsoi2pv" path="res://assets/Projectile/Projectile/Polygon2D/BoomerangChevron.tscn" id="2_b33iq"]
+[ext_resource type="Texture2D" uid="uid://t23b5pxvj8jd" path="res://icon.svg" id="2_icon"]
+
+[resource]
+script = ExtResource("1_script")
+Name = "圆弧射击"
+FeatureGroupId = "技能.投射物"
+FeatureHandlerId = "技能.投射物.圆弧射击"
+Description = "发射沿圆弧轨迹飞行的投射物（验证 CircularArc 模式）"
+AbilityIcon = ExtResource("2_icon")
+AbilityTriggerMode = 1
+AbilityCooldown = 1.0
+AbilityTargetSelection = 1
+AbilityCastRange = 700.0
+ProjectileScene = ExtResource("2_b33iq")
+AbilityDamage = 26.0

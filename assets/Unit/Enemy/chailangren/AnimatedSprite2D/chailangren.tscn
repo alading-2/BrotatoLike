@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://b4aioasnwsfb0"]
+
+[ext_resource type="SpriteFrames" uid="uid://cg7vmf3gqtelw" path="res://assets/Unit/Enemy/chailangren/AnimatedSprite2D/chailangren.tres" id="1_8tuu2"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ww340"]
+radius = 34.0
+height = 74.0
+
+[node name="chailangren" type="AnimatedSprite2D" unique_id=181554631]
+sprite_frames = ExtResource("1_8tuu2")
+animation = &"attack1"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=991023944]
+position = Vector2(0, 8)
+shape = SubResource("CapsuleShape2D_ww340")
