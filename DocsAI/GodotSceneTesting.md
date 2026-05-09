@@ -18,6 +18,13 @@ Tools/run-godot-scene.sh list
 Tools/run-godot-scene.sh run res://Scenes/Main.tscn --build -- --gameos-smoke-exit
 ```
 
+运行普通主场景可玩切片验收：
+
+```bash
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh
+```
+
 运行当前主 smoke：
 
 ```bash
@@ -59,11 +66,21 @@ GODOT_SCENE_TEST_ARTIFACT_DIR
 
 后续场景测试需要截图、JSON trace、状态快照时，统一写到 `screenshots/` 或 `artifacts/`，不要写到仓库根目录。
 
+R07 可玩切片验收会写入：
+
+```text
+.ai-temp/scene-tests/runs/<date>/<time>/artifacts/scene-acceptance.json
+```
+
+该 artifact 记录 PASS/FAIL、检查项、观测到的 EntityId / HP / skill / damage log 等结构化证据。
+
 ## 失败判定
 
 优先看：
 
 - Godot 进程 exit code。
+- 可玩切片明确输出，例如 `BrotatoLike playable slice PASS` 或 `BrotatoLike playable slice FAIL`。
+- `artifacts/scene-acceptance.json` 中的 `status`。
 - smoke 明确输出，例如 `BrotatoLike GameOS smoke PASS`。
 - `Tools/analyze-godot-scene-logs.sh` 提取的 `ERROR:`、`[FAIL]`、`Exception`、`Cannot instantiate`、`Failed to load`。
 

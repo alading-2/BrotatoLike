@@ -31,7 +31,19 @@ public partial class Main : Node
     {
         if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--gameos-smoke-exit") < 0)
         {
-            StartGameRuntime();
+            var runtime = StartGameRuntime();
+            if (BrotatoLikePlayableSliceAcceptance.ShouldRun())
+            {
+                var result = BrotatoLikePlayableSliceAcceptance.Run(this, runtime);
+                GD.Print(result.Success ? "BrotatoLike playable slice PASS" : "BrotatoLike playable slice FAIL");
+                if (!result.Success)
+                {
+                    GD.Print($"BrotatoLike playable slice failures: {string.Join("; ", result.Failures)}");
+                }
+
+                GetTree().Quit(result.Success ? 0 : 1);
+            }
+
             return;
         }
 
@@ -92,7 +104,7 @@ public partial class Main : Node
         GetTree().Quit(success ? 0 : 1);
     }
 
-    private void StartGameRuntime()
+    private BrotatoLikeGameRuntime StartGameRuntime()
     {
         var runtime = GetNodeOrNull<BrotatoLikeGameRuntime>("GameRuntime");
         if (runtime == null)
@@ -117,6 +129,8 @@ public partial class Main : Node
                 new BrotatoLikeGameEventType.Game.StartedEventData(runtime, this, runtime.InitialWave));
             GD.Print("BrotatoLike main scene initialized");
         }
+
+        return runtime;
     }
 
     private MainEntryProbe RunMainEntryProbe()
