@@ -7,6 +7,7 @@
 框架接入基线已创建。框架仓库已有 `SkilmeAI.GameOS` Runtime 最小内核、DataOS SQLite schema / migration / generator / validator / Runtime snapshot loader、GodotBridge 第一版，以及 Movement / Collision / Damage / Ability / Projectile / Effect / Feature / AI / Attack 第一批能力。
 
 本轮追加：
+- **迁移台账**：新增 `DocsAI/MigrationLedger.md`，按旧 `Else/brotato-my` 主场景、Entity、Component、System、UI、Ability、DataNew、Config、ResourcePaths 和 Test 输入建立第一版映射；该台账用于审计和后续 R07 可玩切片追踪，明确 `DataOS-only` 与 `遗留引用` 不等于资源可加载或玩法完成。
 - **Movement Acceleration 平滑移动**：框架 `MovementDataKeys.Acceleration` + `InputDrivenMovement` Lerp 平滑支持；DataOS `unit.player/deluyi` 已写入 `Movement.Acceleration = 12`；backward-compatible（无 Acceleration 时退化为直接速度）。
 - **GodotPlayerInputComponent**：框架 GodotBridge 新增输入桥接组件，每帧 `_Process` 读取 Godot Input Map（MoveLeft/Right/Up/Down），写入 `MovementDataKeys.InputDirection`；支持 `CanMoveInput` 门控和 AI 共存；已定义 BrotatoLike `project.godot` 输入映射（WASD + 方向键 + 手柄左摇杆）。
 - **BrotatoLikeGameRuntime 玩家生成**：新增 `SpawnPlayer(recordId, spawnPosition)`，从 DataOS `unit.player/deluyi` 读取数据，创建 `GodotEntity2D`，挂载 `GodotPlayerInputComponent`，加载视觉场景（`deluyi.tscn`），启动 `MoveMode.PlayerInput` 常驻移动，共享 `GodotMovementDriver`。
