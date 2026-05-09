@@ -1,12 +1,19 @@
-# MigrationInput
+# MigrationInput（已归档）
 
-这里保存从旧 `brotato-my` 直接复制过来的迁移输入材料。
+> 状态：2026-05-06 已完成迁移，本目录下所有 C# 源码、.tres Resource 和场景文件已清理。
 
-当前内容：
+## 迁移去向
 
-- `Data/`：旧数据配置、DataNew、ResourceManagement 生成结果和历史 `.tres`。
-- `Src/Main/`：旧主场景入口脚本和场景。
+| 旧内容 | 新位置 |
+|--------|--------|
+| DataNew/*.cs（PlayerData, EnemyData, AbilityData 等） | `DataOS/Authoring/BrotatoLike.seed.sql` + `DataOS/Snapshots/runtime_snapshot.json` |
+| DataKey/*.cs | `SkilmeAI.GameOS.Capabilities.*/DataKeys.cs` |
+| EventType/*.cs | `SkilmeAI.GameOS.Runtime.Event` + Capability 分域事件 |
+| ResourceManagement/*.cs | `SkilmeAI.GameOS.Runtime.Resource` + `DataOS` resource_entry |
+| Config/*.cs | `DataOS/Authoring/BrotatoLike.seed.sql` system.config / system.preset |
+| Src/Main/Main.cs | `Src/Game/Main.cs` + `BrotatoLikeGameRuntime` |
+| .tres 文件 | SQLite seed 中对应的 data_field / data_record |
 
-这些文件暂时不参与编译，`BrotatoLike.csproj` 已排除 `MigrationInput/**/*.cs`。后续迁移时按模块复制到正式目录并适配 `SkilmeAI.GameOS` 契约。
+## 保留原因
 
-资产已按旧路径复制到仓库根目录的 `assets/`，保留 `res://assets/...` 路径兼容性。
+本目录保留作为迁移审计痕迹。如需查阅旧代码历史，见旧仓库 `brotato-my`。

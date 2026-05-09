@@ -1,6 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://Src/Game/Main.cs" id="1_main"]
+[ext_resource type="Script" uid="uid://vlj8d8xyxggg" path="res://Src/Game/BrotatoLikeGameRuntime.cs" id="2_runtime"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
+
+[node name="GameRuntime" type="Node" parent="."]
+script = ExtResource("2_runtime")
+AutoInitialize = false
+
+[node name="Camera2D" type="Camera2D" parent="."]

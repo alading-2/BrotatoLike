@@ -5,10 +5,10 @@ description: 在 BrotatoLike 游戏仓库中运行 Godot 场景测试时使用�
 
 # Godot 场景测试入口
 
-当前已有最小 Godot headless smoke：
+当前统一 Godot headless runner：
 
 ```bash
-Tools/run-godot-smoke.sh
+Tools/run-godot-scene.sh
 ```
 
 默认 Godot CLI：
@@ -17,22 +17,27 @@ Tools/run-godot-smoke.sh
 /home/slime/Code/Godot/GodotEngine/4.x/Godot_v4.6.2-stable_mono_linux_x86_64/Godot_v4.6.2-stable_mono_linux.x86_64
 ```
 
-`Tools/run-godot-smoke.sh` 会先执行：
+常用命令：
 
 ```bash
-godot --headless --build-solutions --quit --path . --no-header
+Tools/run-godot-scene.sh list
+Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 3 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh
 ```
 
-再运行：
-
-```bash
-godot --headless --path . --scene res://Scenes/Main.tscn --quit-after 10 --no-header -- --gameos-smoke-exit
-```
-
-`--gameos-smoke-exit` 会让 `Src/Game/Main.cs` 执行 Runtime / Movement / GodotMovementDriver / GodotBridge / GodotNodePool 断言，失败时返回非 0。
-
-统一测试 runner 尚未迁入。批量场景 runner 临时参考输入仓库：
+已迁 bundled scripts：
 
 ```text
-/home/slime/Code/Godot/Games/MyGames/brotato-my/.codex/skills/GodotSkill
+.codex/skills/godot-scene-test/scripts/run-test.sh
+.codex/skills/godot-scene-test/scripts/analyze-logs.sh
+.codex/skills/godot-scene-test/scripts/godot-scene-runner.mjs
 ```
+
+兼容入口仍可使用：
+
+```bash
+Tools/run-godot-smoke.sh
+```
+
+`run-main-smoke` 会覆盖 Runtime / DataOS bootstrap / Ability handler-specific 参数 / Movement / Collision / Damage / Attack / AI / Ability / Projectile / Effect / GodotBridge / NodePool / 主运行时入口，失败时返回非 0。
