@@ -1,7 +1,7 @@
 # BrotatoLike 迁移台账
 
 > 更新日期：2026-05-09
-> 来源：`Else/brotato-my` 旧项目输入、`Games/BrotatoLike` 当前实现、`Plans/BrotatoLike 迁移质量审计与重启建议.md`。
+> 来源：`Else/brotato-my` 旧项目输入、`Games/BrotatoLike` 当前实现和 `openspec/specs/brotatolike-migration-ledger/spec.md`。
 > 状态说明：本台账是迁移事实源，不是完成声明。`DataOS-only` 表示数据记录已进入 DataOS，但不代表资源可加载或玩法已完成。
 
 ## 状态词汇

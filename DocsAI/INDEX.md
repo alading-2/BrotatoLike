@@ -6,7 +6,6 @@
 - 框架引用：`DocsAI/ExternalFrameworkMap.md`
 - Godot 场景测试：`DocsAI/GodotSceneTesting.md`
 - 迁移台账：`DocsAI/MigrationLedger.md`
-- 整体迁移计划：`Plans/README.md`
 
 ## 当前阶段
 

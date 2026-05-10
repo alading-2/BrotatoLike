@@ -2,7 +2,7 @@
 
 > 状态：2026-05-06 已从本仓库清理本目录下的 C# 源码、.tres 与场景文件。
 > **本目录被清空 ≠ BrotatoLike 整体迁移完成。**
-> 真实迁移完成度以 `Games/BrotatoLike/Plans/README.md`、`/home/slime/Code/SkilmeAI/Plans/BrotatoLike 迁移质量审计与重启建议.md` 与后续 OpenSpec change `create-brotatolike-migration-ledger` 中的账本为准；可玩验证以 `Games/BrotatoLike/Scenes/Main.tscn` 普通运行路径（非 `--gameos-smoke-exit` 探针）输出的 PASS/FAIL marker 为准。
+> 真实迁移完成度以 `Games/BrotatoLike/DocsAI/MigrationLedger.md` 和 `openspec/specs/brotatolike-migration-ledger/spec.md` 为准；可玩验证以 `Games/BrotatoLike/Scenes/Main.tscn` 普通运行路径（非 `--gameos-smoke-exit` 探针）输出的 PASS/FAIL marker 为准。
 
 ## 第一阶段已迁移项（仅表示已有对应入口，不代表行为对齐）
 
