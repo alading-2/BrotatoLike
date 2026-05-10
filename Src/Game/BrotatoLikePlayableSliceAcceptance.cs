@@ -273,7 +273,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var slamHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var slamEffectsBefore = CountEffectEntities(slam.EntityId);
         player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
-        player.Events.Emit(GodotPlayerInputComponent.UseSkillEvent, new GodotPlayerInputComponent.UseSkillEventData(player));
+        player.Events.Emit(GameEventType.Input.UseSkill, new GameEventType.Input.UseSkillEventData(player));
         var slamHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var slamEffectsAfter = CountEffectEntities(slam.EntityId);
         var slamCooldown = slam.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
@@ -286,11 +286,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
         AbilityService.Instance.TickCooldowns([slam], slamCooldown + 0.1f);
 
-        player.Events.Emit(GodotPlayerInputComponent.NextSkillEvent, new GodotPlayerInputComponent.NextSkillEventData(player));
+        player.Events.Emit(GameEventType.Input.NextSkill, new GameEventType.Input.NextSkillEventData(player));
         var currentIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         AbilityTargetingTool.TryBuildContext(player, chain, out var chainContext);
         var chainHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
-        player.Events.Emit(GodotPlayerInputComponent.UseSkillEvent, new GodotPlayerInputComponent.UseSkillEventData(player));
+        player.Events.Emit(GameEventType.Input.UseSkill, new GameEventType.Input.UseSkillEventData(player));
         TimerManager.Instance.Tick(chain.Data.Get<float>(AbilityDataKeys.ChainDelay, 0f) + 0.05f);
         var chainHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var chainCooldown = chain.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);

@@ -1608,14 +1608,14 @@ public partial class Main : Node
 
         // 1. 测试技能切换：Next 应从 0 -> 1
         playerEntity.Events.Emit(
-            GodotPlayerInputComponent.NextSkillEvent,
-            new GodotPlayerInputComponent.NextSkillEventData(playerEntity));
+            GameEventType.Input.NextSkill,
+            new GameEventType.Input.NextSkillEventData(playerEntity));
         var indexAfterNext = playerEntity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         // 2. 测试技能切换：Previous 应从 1 -> 0
         playerEntity.Events.Emit(
-            GodotPlayerInputComponent.PreviousSkillEvent,
-            new GodotPlayerInputComponent.PreviousSkillEventData(playerEntity));
+            GameEventType.Input.PreviousSkill,
+            new GameEventType.Input.PreviousSkillEventData(playerEntity));
         var indexAfterPrevious = playerEntity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         var skillSwitched = indexAfterNext == 1 && indexAfterPrevious == 0;
@@ -1628,8 +1628,8 @@ public partial class Main : Node
                 && data.Context.Ability.EntityId == ability1.EntityId);
 
         playerEntity.Events.Emit(
-            GodotPlayerInputComponent.UseSkillEvent,
-            new GodotPlayerInputComponent.UseSkillEventData(playerEntity));
+            GameEventType.Input.UseSkill,
+            new GameEventType.Input.UseSkillEventData(playerEntity));
 
         var skillTriggered = abilityActivated;
 
