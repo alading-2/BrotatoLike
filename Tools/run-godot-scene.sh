@@ -3,7 +3,7 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 repo_root="$(cd "$project_root/../.." && pwd)"
-runner="$repo_root/SkilmeAI/Tools/godot-scene-runner.mjs"
+runner="$repo_root/.codex/skills/godot-scene-test/scripts/godot-scene-runner.mjs"
 default_godot="/home/slime/Code/Godot/GodotEngine/4.x/Godot_v4.6.2-stable_mono_linux_x86_64/Godot_v4.6.2-stable_mono_linux.x86_64"
 
 usage() {
@@ -56,7 +56,7 @@ convert_timeout_args() {
 
 run_runner() {
     if [ ! -f "$runner" ]; then
-        echo "Common Godot scene runner not found: $runner" >&2
+        echo "Godot scene skill runner not found: $runner" >&2
         exit 1
     fi
 

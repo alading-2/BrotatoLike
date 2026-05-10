@@ -30,7 +30,7 @@
 - `_Ready` 内 GodotBridge 探针覆盖 `GodotEntity / IGodotComponent / GameOSTimerDriver` 编译接入。
 - `_Ready` 内 GodotBridge 探针已追加 `GodotNodePool<Area2D>`，覆盖延迟激活、回池脱树、复用和 `GodotNodePoolManager.ReturnToPool` 编译接入。
 - `Tools/run-godot-smoke.sh` 已建立，使用 Godot 4.6.2 mono headless 运行 `Scenes/Main.tscn`，并通过 `--gameos-smoke-exit` 让探针失败时返回非 0。
-- `Tools/run-godot-scene.sh` 已委托 repo 通用场景测试 runner，支持 `list / run / run-many / run-all / run-main-smoke`、日志目录、超时、attempts 和 Observation / Debug / Trace 环境变量；`Tools/analyze-godot-scene-logs.sh` 读取 `index.json/result.json/combined.log` 和 artifact 摘要。
+- `Tools/run-godot-scene.sh` 已委托 skill 场景测试 runner，支持 `list / run / run-many / run-all / run-main-smoke`、日志目录、超时、attempts 和 Observation / Debug / Trace 环境变量；`Tools/analyze-godot-scene-logs.sh` 读取 `index.json/result.json/combined.log` 和 artifact 摘要。
 - `BrotatoLikeDataOSBootstrap` 已建立，Godot smoke 可通过 generated snapshot 生成 Runtime Entity、构建敌人生成规则 catalog 并注册资源。
 - `BrotatoLikeEnemySpawnSystem` 已建立，Godot smoke 可通过 Spawn catalog Tick 实例化真实敌人包装节点、加载敌人视觉场景并写入 DataOS 字段。
 - `BrotatoLikeScheduledEnemySpawnSystem` 已建立，Godot smoke 可通过 DataOS `system.config/SpawnSystem` 生成 `SystemConfig`，并用 `RuntimeSchedule.Execute` 验证 Boot / Gameplay / Pause 状态门禁。
