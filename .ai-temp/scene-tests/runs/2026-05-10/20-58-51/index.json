@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-05-10T12:58:52.121Z",
+  "startedAt": "2026-05-10T12:58:51.738Z",
+  "durationMs": 383,
+  "failed": false,
+  "runDir": ".ai-temp/scene-tests/runs/2026-05-10/20-58-51",
+  "removedLogDirs": [],
+  "metadata": {
+    "command": "run",
+    "scenes": [
+      "res://Scenes/Validation/GameOS/Observation/ObservationLogValidation.tscn"
+    ],
+    "build": false,
+    "continueOnFail": false,
+    "includeAll": false,
+    "filter": null,
+    "timeoutMs": 10000,
+    "maxLogLines": 80,
+    "fullLogs": false,
+    "errorsOnly": false,
+    "attempts": 1,
+    "logRetentionDays": 1,
+    "godot": null
+  },
+  "summary": null,
+  "skippedScenes": [],
+  "entries": [
+    {
+      "scene": "res://Scenes/Validation/GameOS/Observation/ObservationLogValidation.tscn",
+      "attempt": 1,
+      "status": "passed",
+      "failed": false,
+      "failureReason": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "firstError": null,
+      "stdoutLineCount": 12,
+      "stderrLineCount": 0,
+      "logFiles": {
+        "stdout": ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/stdout.log",
+        "stderr": ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/stderr.log",
+        "combined": ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/combined.log",
+        "result": ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/result.json"
+      },
+      "artifactDirs": {
+        "screenshots": ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/screenshots",
+        "artifacts": ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts"
+      },
+      "artifacts": {
+        "screenshots": [],
+        "files": [
+          ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts/logs/scene-log.jsonl",
+          ".ai-temp/scene-tests/runs/2026-05-10/20-58-51/001_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts/observation-log-validation.json"
+        ]
+      }
+    }
+  ]
+}

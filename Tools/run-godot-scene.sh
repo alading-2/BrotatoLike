@@ -51,7 +51,9 @@ convert_timeout_args() {
         esac
     done
 
-    printf '%s\0' "${converted[@]}"
+    if [ "${#converted[@]}" -gt 0 ]; then
+        printf '%s\0' "${converted[@]}"
+    fi
 }
 
 run_runner() {

@@ -1,0 +1,214 @@
+{
+  "status": "fail",
+  "scene": "res://Scenes/Validation/GameOS/Observation/ObservationLogValidation.tscn",
+  "layer": "GameOS/Observation",
+  "mode": "validation",
+  "checks": [
+    {
+      "name": "all_levels_and_format",
+      "status": "pass",
+      "category": "Logging",
+      "details": {
+        "observedLevels": "Trace,Debug,Info,Pass,Warn,Error,Fail",
+        "expectedLevels": "Trace,Debug,Info,Pass,Warn,Error,Fail",
+        "formatOk": true
+      }
+    },
+    {
+      "name": "minimum_level_filter",
+      "status": "pass",
+      "category": "Logging",
+      "details": {
+        "observedLevels": "Warn,Error,Fail",
+        "expectedLevels": "Warn,Error,Fail"
+      }
+    },
+    {
+      "name": "jsonl_sink_serializes_all_levels",
+      "status": "pass",
+      "category": "Logging",
+      "details": {
+        "lineCount": 7,
+        "hasAllLevels": true,
+        "hasFormattedText": true
+      }
+    },
+    {
+      "name": "observation_session_paths",
+      "status": "fail",
+      "category": "Session",
+      "details": {
+        "artifactDirectoryExists": true,
+        "logDirectoryExists": true,
+        "jsonlPathConfigured": true,
+        "runnerEnvPresent": false,
+        "artifactDirectory": "/home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts",
+        "jsonlLogPath": "/home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts/logs/scene-log.jsonl"
+      }
+    }
+  ],
+  "logs": [
+    {
+      "timestamp": "2026-05-10T13:12:02.0534248+00:00",
+      "level": "INFO",
+      "context": "ObservationLogValidation",
+      "message": "validation start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0760700+00:00",
+      "level": "INFO",
+      "context": "ObservationLogValidation",
+      "message": "check all_levels_and_format start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0767080+00:00",
+      "level": "TRACE",
+      "context": "ObservationLevels",
+      "message": "trace sample",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0767523+00:00",
+      "level": "DEBUG",
+      "context": "ObservationLevels",
+      "message": "debug sample",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0767633+00:00",
+      "level": "INFO",
+      "context": "ObservationLevels",
+      "message": "info sample",
+      "values": {
+        "count": 2,
+        "name": "alpha beta",
+        "flag": true,
+        "missing": null
+      }
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0833090+00:00",
+      "level": "PASS",
+      "context": "ObservationLevels",
+      "message": "pass sample",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0833460+00:00",
+      "level": "WARN",
+      "context": "ObservationLevels",
+      "message": "warn sample",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0833692+00:00",
+      "level": "ERROR",
+      "context": "ObservationLevels",
+      "message": "error sample",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0833907+00:00",
+      "level": "FAIL",
+      "context": "ObservationLevels",
+      "message": "fail sample",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0875783+00:00",
+      "level": "PASS",
+      "context": "ObservationLogValidation",
+      "message": "check all_levels_and_format all levels formatted",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0876454+00:00",
+      "level": "INFO",
+      "context": "ObservationLogValidation",
+      "message": "check minimum_level_filter start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0879233+00:00",
+      "level": "WARN",
+      "context": "ObservationFilter",
+      "message": "visible warn",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0879392+00:00",
+      "level": "ERROR",
+      "context": "ObservationFilter",
+      "message": "visible error",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0879461+00:00",
+      "level": "FAIL",
+      "context": "ObservationFilter",
+      "message": "visible fail",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0880184+00:00",
+      "level": "PASS",
+      "context": "ObservationLogValidation",
+      "message": "check minimum_level_filter minimum level filtered",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0880677+00:00",
+      "level": "INFO",
+      "context": "ObservationLogValidation",
+      "message": "check jsonl_sink_serializes_all_levels start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0909887+00:00",
+      "level": "PASS",
+      "context": "ObservationLogValidation",
+      "message": "check jsonl_sink_serializes_all_levels jsonl serialized",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0910422+00:00",
+      "level": "INFO",
+      "context": "ObservationLogValidation",
+      "message": "check observation_session_paths start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0914445+00:00",
+      "level": "FAIL",
+      "context": "ObservationLogValidation",
+      "message": "check observation_session_paths session paths missing",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0916298+00:00",
+      "level": "FAIL",
+      "context": "ObservationLogValidation",
+      "message": "1 checks failed",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-10T13:12:02.0919976+00:00",
+      "level": "INFO",
+      "context": "ObservationLogValidation",
+      "message": "writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts/observation-log-validation.json",
+      "values": {}
+    }
+  ],
+  "failureReasons": [
+    "observation_session_paths: session paths missing"
+  ],
+  "dependencies": [
+    "SkilmeAI.GameOS.Observation logging",
+    "Games/BrotatoLike Godot scene runner"
+  ],
+  "notes": [
+    "Error/Fail level 的功能样例只写 memory/jsonl，不写 stdout，避免 runner 把通过场景误判为失败。"
+  ]
+}
