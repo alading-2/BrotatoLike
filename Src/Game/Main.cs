@@ -12,6 +12,7 @@ using SkilmeAI.GameOS.Capabilities.Movement;
 using SkilmeAI.GameOS.Capabilities.Projectile;
 using SkilmeAI.GameOS.Capabilities.Unit;
 using SkilmeAI.GameOS.GodotBridge;
+using SkilmeAI.GameOS.Observation;
 using SkilmeAI.GameOS.Runtime.Entity;
 using SkilmeAI.GameOS.Runtime.Event;
 using SkilmeAI.GameOS.Runtime.Relationship;
@@ -26,6 +27,8 @@ namespace BrotatoLike.Game;
 /// </summary>
 public partial class Main : Node
 {
+    private static readonly GameOSContextLog Log = GameOSLog.For("BrotatoLike.Main");
+
     /// <inheritdoc />
     public override void _Ready()
     {
@@ -35,10 +38,22 @@ public partial class Main : Node
             if (BrotatoLikePlayableSliceAcceptance.ShouldRun())
             {
                 var result = BrotatoLikePlayableSliceAcceptance.Run(this, runtime);
+                if (result.Success)
+                {
+                    Log.Pass("BrotatoLike playable slice acceptance");
+                }
+                else
+                {
+                    Log.Fail("BrotatoLike playable slice acceptance", new Dictionary<string, object?>
+                    {
+                        ["failures"] = string.Join(";", result.Failures)
+                    });
+                }
+
                 GD.Print(result.Success ? "BrotatoLike playable slice PASS" : "BrotatoLike playable slice FAIL");
                 if (!result.Success)
                 {
-                    GD.Print($"BrotatoLike playable slice failures: {string.Join("; ", result.Failures)}");
+                    Log.Fail($"BrotatoLike playable slice failures: {string.Join("; ", result.Failures)}");
                 }
 
                 GetTree().Quit(result.Success ? 0 : 1);
@@ -51,7 +66,7 @@ public partial class Main : Node
         var bridgeProbe = RunGodotBridgeProbe();
         var dataOsProbe = RunDataOSSnapshotProbe();
         var mainEntryProbe = RunMainEntryProbe();
-        GD.Print($"BrotatoLike GameOS smoke: {probe.EntityId} {probe.MainScenePath} bridge:{bridgeProbe.ComponentBound} pool:{bridgeProbe.NodePoolReused} dataos:{dataOsProbe.SnapshotApplied} main:{mainEntryProbe.GameStartedEventEmitted}");
+        Log.Info($"BrotatoLike GameOS smoke: {probe.EntityId} {probe.MainScenePath} bridge:{bridgeProbe.ComponentBound} pool:{bridgeProbe.NodePoolReused} dataos:{dataOsProbe.SnapshotApplied} main:{mainEntryProbe.GameStartedEventEmitted}");
 
         var success = probe.DataEventCount == 1
             && probe.RelationshipBound
@@ -127,7 +142,7 @@ public partial class Main : Node
             GlobalEventBus.Global.Emit(
                 BrotatoLikeGameEventType.Game.Started,
                 new BrotatoLikeGameEventType.Game.StartedEventData(runtime, this, runtime.InitialWave));
-            GD.Print("BrotatoLike main scene initialized");
+            Log.Info("BrotatoLike main scene initialized");
         }
 
         return runtime;

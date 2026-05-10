@@ -2,7 +2,7 @@
 
 ## 测试目标
 
-验证 GameOS `Runtime/Event` 基础层在 Godot headless 场景中的可运行行为，并产出稳定 PASS/FAIL marker 与 JSON artifact。
+验证 GameOS `Runtime/Event` 基础层在 Godot headless 场景中的可运行行为，并产出稳定分级日志、PASS/FAIL marker 与 JSON artifact。
 
 核心 EventBus 断言覆盖：
 
@@ -58,22 +58,43 @@ Tools/analyze-godot-scene-logs.sh
 PASS 必须同时满足：
 
 - Godot 进程 exit code 为 `0`。
+- stdout 至少包含每个检查项的 `[INFO]` / `[PASS]` 分级日志。
 - stdout 包含 `GameOS Runtime Event validation PASS`。
 - artifact `runtime-event-validation.json` 的 `status` 为 `pass`。
+- artifact `logs` 包含每个检查项的关键日志条目。
 - artifact `failureReasons` 为空。
 
 FAIL 判定：
 
 - stdout 包含 `GameOS Runtime Event validation FAIL`，或 Godot 进程 exit code 非 `0`。
+- stdout 包含对应检查项的 `[FAIL]` 日志。
 - artifact `runtime-event-validation.json` 的 `status` 为 `fail`。
 - artifact `failureReasons` 至少包含一条失败原因。
+
+## 日志
+
+场景使用框架侧 `SceneValidationSession` 输出固定文本格式，便于 Godot Output、人类终端和 AI 检索：
+
+```text
+[INFO][RuntimeEventValidation] check typed_and_parameterless_handlers start
+[PASS][RuntimeEventValidation] check typed_and_parameterless_handlers handlers fired
+[FAIL][RuntimeEventValidation] check <name> <reason>
+```
+
+日志不是 artifact 的替代品。stdout 用于快速判断执行路径，artifact 用于保留完整结构化证据。
 
 ## Artifact
 
 scene runner 会把 artifact 写入：
 
 ```text
-.ai-temp/scene-tests/runs/<date>/<time>/artifacts/runtime-event-validation.json
+.ai-temp/scene-tests/runs/<date>/<time>/<scene-attempt>/artifacts/runtime-event-validation.json
+```
+
+同一场景还会写入：
+
+```text
+.ai-temp/scene-tests/runs/<date>/<time>/<scene-attempt>/artifacts/logs/scene-log.jsonl
 ```
 
 字段：
@@ -82,6 +103,7 @@ scene runner 会把 artifact 写入：
 - `scene`: `res://Scenes/Validation/Runtime/Event/RuntimeEventValidation.tscn`。
 - `layer`: `Runtime/Event`。
 - `checks`: 检查项数组，每项包含 `name`、`status`、`category`、`details`。
+- `logs`: 与 stdout 同源的关键日志条目，每项包含 `timestamp`、`level`、`context`、`message`、`values`。
 - `failureReasons`: 失败原因数组，PASS 时为空。
 - `dependencies`: 本场景允许依赖。
 - `notes`: 跨层桥接说明和后续扩展说明。

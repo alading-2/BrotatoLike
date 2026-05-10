@@ -12,6 +12,7 @@ using SkilmeAI.GameOS.Capabilities.Effect;
 using SkilmeAI.GameOS.Capabilities.Movement;
 using SkilmeAI.GameOS.Capabilities.Unit;
 using SkilmeAI.GameOS.GodotBridge;
+using SkilmeAI.GameOS.Observation;
 using SkilmeAI.GameOS.Runtime.Entity;
 using SkilmeAI.GameOS.Runtime.Event;
 using SkilmeAI.GameOS.Runtime.Timer;
@@ -23,7 +24,9 @@ namespace BrotatoLike.Game;
 /// </summary>
 internal static class BrotatoLikePlayableSliceAcceptance
 {
+    private const string ScenePath = "res://Scenes/Main.tscn";
     private const string ArtifactFileName = "scene-acceptance.json";
+    private static readonly GameOSContextLog Log = GameOSLog.For("BrotatoLike.PlayableSliceAcceptance");
 
     /// <summary>
     /// Returns true when the scene runner requested structured artifacts.
@@ -42,10 +45,12 @@ internal static class BrotatoLikePlayableSliceAcceptance
         ArgumentNullException.ThrowIfNull(runtime);
 
         BrotatoLikeAbilityHandlers.RegisterAll();
+        using var observation = GameOSObservationSession.FromEnvironment(ScenePath, "playable-slice");
         var checks = new Dictionary<string, bool>(StringComparer.Ordinal);
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         var damageLogs = new List<string>();
         var failureReasons = new List<string>();
+        Log.Info("acceptance start");
 
         Action<GameEventType.Damage.DamagedEventData> damagedHandler = data =>
         {
@@ -64,7 +69,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
             if (player == null)
             {
-                WriteArtifact(checks, values, damageLogs, failureReasons);
+                WriteArtifact(observation, checks, values, damageLogs, failureReasons);
                 return new PlayableSliceAcceptanceResult(false, failureReasons);
             }
 
@@ -102,8 +107,20 @@ internal static class BrotatoLikePlayableSliceAcceptance
             AddCheck(checks, failureReasons, "hud.damage_evidence", hud.DamageEvidence);
 
             var success = failureReasons.Count == 0;
-            values["result"] = success ? "PASS" : "FAIL";
-            WriteArtifact(checks, values, damageLogs, failureReasons);
+            values["result"] = success ? "pass" : "fail";
+            if (success)
+            {
+                Log.Pass("acceptance complete");
+            }
+            else
+            {
+                Log.Fail("acceptance complete", new Dictionary<string, object?>
+                {
+                    ["failureCount"] = failureReasons.Count
+                });
+            }
+
+            WriteArtifact(observation, checks, values, damageLogs, failureReasons);
             return new PlayableSliceAcceptanceResult(success, failureReasons);
         }
         finally
@@ -377,7 +394,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
         if (!passed)
         {
             failures.Add(name);
+            Log.Fail($"check {name} failed");
+            return;
         }
+
+        Log.Pass($"check {name} passed");
     }
 
     private static bool HasPhysicalKey(string action, Key physicalKey)
@@ -416,19 +437,19 @@ internal static class BrotatoLikePlayableSliceAcceptance
     }
 
     private static void WriteArtifact(
+        GameOSObservationSession observation,
         IReadOnlyDictionary<string, bool> checks,
         IReadOnlyDictionary<string, string> values,
         IReadOnlyList<string> damageLogs,
         IReadOnlyList<string> failures)
     {
-        var artifactDir = OS.GetEnvironment("GODOT_SCENE_TEST_ARTIFACT_DIR");
-        if (string.IsNullOrWhiteSpace(artifactDir))
+        var path = observation.CreateArtifactPath(ArtifactFileName);
+        if (string.IsNullOrWhiteSpace(path))
         {
             return;
         }
 
-        Directory.CreateDirectory(artifactDir);
-        var path = Path.Combine(artifactDir, ArtifactFileName);
+        Log.Info($"writing artifact {path}");
         File.WriteAllText(path, BuildJson(checks, values, damageLogs, failures), Encoding.UTF8);
     }
 
@@ -440,7 +461,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         var builder = new StringBuilder();
         builder.AppendLine("{");
-        builder.Append("  \"status\": \"").Append(failures.Count == 0 ? "PASS" : "FAIL").AppendLine("\",");
+        builder.Append("  \"scene\": \"").Append(ScenePath).AppendLine("\",");
+        builder.AppendLine("  \"mode\": \"playable-slice\",");
+        builder.Append("  \"status\": \"").Append(failures.Count == 0 ? "pass" : "fail").AppendLine("\",");
+        builder.Append("  \"passMarker\": \"").Append(failures.Count == 0 ? "BrotatoLike playable slice PASS" : "BrotatoLike playable slice FAIL").AppendLine("\",");
+        AppendCriteriaArray(builder, checks, trailingComma: true);
         builder.AppendLine("  \"checked_criteria\": {");
         var index = 0;
         foreach (var check in checks)
@@ -452,9 +477,31 @@ internal static class BrotatoLikePlayableSliceAcceptance
         builder.AppendLine("  },");
         AppendStringMap(builder, "observed_values", values, trailingComma: true);
         AppendStringArray(builder, "damage_logs", damageLogs, trailingComma: true);
+        AppendStringArray(builder, "failureReasons", failures, trailingComma: true);
         AppendStringArray(builder, "failure_reasons", failures, trailingComma: false);
         builder.AppendLine("}");
         return builder.ToString();
+    }
+
+    private static void AppendCriteriaArray(
+        StringBuilder builder,
+        IReadOnlyDictionary<string, bool> checks,
+        bool trailingComma)
+    {
+        builder.AppendLine("  \"criteria\": [");
+        var index = 0;
+        foreach (var check in checks)
+        {
+            builder.Append("    { \"name\": \"")
+                .Append(EscapeJson(check.Key))
+                .Append("\", \"status\": \"")
+                .Append(check.Value ? "pass" : "fail")
+                .Append("\" }");
+            builder.AppendLine(++index < checks.Count ? "," : string.Empty);
+        }
+
+        builder.Append("  ]");
+        builder.AppendLine(trailingComma ? "," : string.Empty);
     }
 
     private static void AppendStringMap(

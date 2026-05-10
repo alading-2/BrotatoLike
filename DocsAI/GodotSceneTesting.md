@@ -49,10 +49,16 @@ Tools/run-godot-smoke.sh
 `--log-dir` 会创建：
 
 ```text
-.ai-temp/scene-tests/runs/<date>/<time>/stdout.log
-.ai-temp/scene-tests/runs/<date>/<time>/stderr.log
-.ai-temp/scene-tests/runs/<date>/<time>/screenshots/
-.ai-temp/scene-tests/runs/<date>/<time>/artifacts/
+.ai-temp/scene-tests/runs/<date>/<time>/
+  index.json
+  001_<scene>_attempt1/
+    stdout.log
+    stderr.log
+    combined.log
+    result.json
+    screenshots/
+    artifacts/
+      logs/scene-log.jsonl
 ```
 
 运行时会注入这些环境变量：
@@ -62,6 +68,7 @@ GODOT_SCENE_TEST_RUN_DIR
 GODOT_SCENE_TEST_SCENE_DIR
 GODOT_SCENE_TEST_SCREENSHOT_DIR
 GODOT_SCENE_TEST_ARTIFACT_DIR
+GODOT_SCENE_TEST_*_REL
 ```
 
 后续场景测试需要截图、JSON trace、状态快照时，统一写到 `screenshots/` 或 `artifacts/`，不要写到仓库根目录。
@@ -69,18 +76,19 @@ GODOT_SCENE_TEST_ARTIFACT_DIR
 R07 可玩切片验收会写入：
 
 ```text
-.ai-temp/scene-tests/runs/<date>/<time>/artifacts/scene-acceptance.json
+.ai-temp/scene-tests/runs/<date>/<time>/<scene-attempt>/artifacts/scene-acceptance.json
 ```
 
-该 artifact 记录 PASS/FAIL、检查项、观测到的 EntityId / HP / skill / damage log 等结构化证据。
+该 artifact 记录 `status=pass/fail`、检查项、观测到的 EntityId / HP / skill / damage log 等结构化证据。通用日志 JSONL 写入 `artifacts/logs/scene-log.jsonl`。
 
 ## 失败判定
 
 优先看：
 
 - Godot 进程 exit code。
-- 可玩切片明确输出，例如 `BrotatoLike playable slice PASS` 或 `BrotatoLike playable slice FAIL`。
-- `artifacts/scene-acceptance.json` 中的 `status`。
+- `result.json` / `index.json` 中的 exit code 和 failure reason。
+- artifact `status`，例如 `scene-acceptance.json` 或 validation artifact。
+- 明确输出，例如 `BrotatoLike playable slice PASS` / `FAIL`、`GameOS Runtime Event validation PASS` / `FAIL`。
 - smoke 明确输出，例如 `BrotatoLike GameOS smoke PASS`。
 - `Tools/analyze-godot-scene-logs.sh` 提取的 `ERROR:`、`[FAIL]`、`Exception`、`Cannot instantiate`、`Failed to load`。
 

@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-06（本轮追加）
+> 更新日期：2026-05-10（本轮追加）
 
 ## 当前状态
 
@@ -8,6 +8,7 @@
 
 本轮追加：
 - **R07 可玩切片验收**：普通 `Scenes/Main.tscn` 在 scene runner 的 artifact 环境下会执行 `BrotatoLikePlayableSliceAcceptance`，与 `--gameos-smoke-exit` smoke 路径分离；输出 `BrotatoLike playable slice PASS/FAIL`，并写入 `artifacts/scene-acceptance.json`。当前验收覆盖玩家生成、WASD + 方向键 input map、`Movement.InputDirection` / `Movement.LastMoveDirection`、玩家位移、第 1 波敌人生成、敌人追逐移动、接触伤害、敌人死亡和 cleanup、`slam` 与 `chain_lightning` 触发 / 冷却门禁 / 命中、最小 Health / CurrentSkill HUD Label、结构化 damage logs。
+- **统一 Observation / runner**：`Tools/run-godot-scene.sh` 现在委托 `SkilmeAI/Tools/godot-scene-runner.mjs`，新日志结构固定为 `index.json + 001_<scene>_attempt1/{stdout,stderr,combined,result,artifacts}`；`BrotatoLikePlayableSliceAcceptance` 写入小写 `status=pass/fail` 和 `artifacts/logs/scene-log.jsonl`，`Main.cs` 使用 `GameOSLog.For("BrotatoLike.Main")` 输出流程日志。
 - **迁移台账**：新增 `DocsAI/MigrationLedger.md`，按旧 `Else/brotato-my` 主场景、Entity、Component、System、UI、Ability、DataNew、Config、ResourcePaths 和 Test 输入建立第一版映射；该台账用于审计和后续 R07 可玩切片追踪，明确 `DataOS-only` 与 `遗留引用` 不等于资源可加载或玩法完成。
 - **Movement Acceleration 平滑移动**：框架 `MovementDataKeys.Acceleration` + `InputDrivenMovement` Lerp 平滑支持；DataOS `unit.player/deluyi` 已写入 `Movement.Acceleration = 12`；backward-compatible（无 Acceleration 时退化为直接速度）。
 - **GodotPlayerInputComponent**：框架 GodotBridge 新增输入桥接组件，每帧 `_Process` 读取 Godot Input Map（MoveLeft/Right/Up/Down），写入 `MovementDataKeys.InputDirection`；支持 `CanMoveInput` 门控和 AI 共存；已定义 BrotatoLike `project.godot` 输入映射（WASD + 方向键 + 手柄左摇杆）。
@@ -46,7 +47,7 @@
 - GodotBridge `GodotEntity / IGodotComponent / GameOSTimerDriver` 编译接入。
 - GodotBridge `GodotPlayerInputComponent` 已建立，headless smoke 覆盖组件注册、InputDirection Data 写入、平滑加速和直接速度回退。
 - GodotBridge `GodotNodePool<Area2D> / GodotCollisionIsolation / GodotNodePoolManager.ReturnToPool` 已接入 headless smoke，当前 `_Ready` 测试模式覆盖延迟激活、回池脱树和复用，失败会返回非 0。
-- Godot 场景测试 runner 已建立：`Tools/run-godot-scene.sh` 支持 `list / run / run-main-smoke`、构建开关、超时和日志目录；`Tools/analyze-godot-scene-logs.sh` 可提取最新运行的 PASS 标记和错误摘要；`Tools/run-godot-smoke.sh` 保持旧兼容入口并委托到统一 runner。
+- Godot 场景测试 runner 已建立：`Tools/run-godot-scene.sh` 支持 `list / run / run-many / run-all / run-main-smoke`、构建开关、超时、attempts 和日志目录；`Tools/analyze-godot-scene-logs.sh` 读取新结构 `index.json/result.json/combined.log`、artifact status 和 JSONL 数量；`Tools/run-godot-smoke.sh` 保持旧兼容入口并委托到统一 runner。
 - 旧 `assets/` 已复制到新仓库根目录 `assets/`，保留 `res://assets/...` 路径。
 - 旧 `Data/` 和 `Src/Main/` 已复制到 `MigrationInput/`，当前排除编译；旧 Main 中已确认的游戏入口逻辑已迁入，后续按模块继续适配真实 UI / 输入 / 场景内容。
 
@@ -62,8 +63,9 @@
 ```bash
 Tools/run-build.sh
 Tools/run-godot-smoke.sh
-Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 3 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run res://Scenes/Validation/Runtime/Event/RuntimeEventValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
 Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
 ```
 
-结果：0 warning / 0 error；`Tools/run-build.sh` 会先生成 DataOS runtime snapshot；普通 `Scenes/Main.tscn` headless 可玩验收通过并输出 `BrotatoLike playable slice PASS`，`Tools/analyze-godot-scene-logs.sh` 可识别 playable marker 和 `artifacts/scene-acceptance.json (PASS)`；`Tools/run-godot-smoke.sh` 和 `Tools/run-godot-scene.sh run-main-smoke` 使用 Godot 4.6.2 mono CLI 完成 `--build-solutions --quit` 和 `Scenes/Main.tscn` headless smoke，覆盖 Runtime / DataOS bootstrap / Ability handler-specific DataOS 参数第三段 / SineWave、Boomerang、BezierCurve、CircularArc、ArcShot、Orbit、Dash、ChainLightning、Slam、TargetPoint、CircleDamage 和 AuraShield 真实 handler 执行闭环 / **PlayerInput + Acceleration 平滑移动 / GodotPlayerInputComponent** / `BrotatoLikeGameRuntime` / Main 正式启动事件 / RuntimeSchedule 门禁驱动的 SpawnSystem Tick 实例化 / Movement / MovementCollision / Damage / ContactDamage / Attack / AI / Ability / Projectile / Effect / GodotBridge / NodePool，输出 `BrotatoLike GameOS smoke PASS`；`Tools/analyze-godot-scene-logs.sh` 输出 PASS marker found 且 Error markers none。
+结果：0 warning / 0 error；`Tools/run-build.sh` 会先生成 DataOS runtime snapshot；Runtime Event validation、普通 `Scenes/Main.tscn` headless 可玩验收和 `run-main-smoke` 均通过新结构 runner，analyzer 输出 `status: pass`、`combinedLog`、artifact 列表和 JSONL 数量；普通主场景输出 `BrotatoLike playable slice PASS` 且 `scene-acceptance.json` 为 `status=pass`，smoke 保留 `BrotatoLike GameOS smoke PASS`。

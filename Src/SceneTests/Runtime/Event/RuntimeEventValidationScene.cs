@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Godot;
+using SkilmeAI.GameOS.Observation;
 using SkilmeAI.GameOS.Runtime.Entity;
 using SkilmeAI.GameOS.Runtime.Event;
 
@@ -16,59 +15,67 @@ public partial class RuntimeEventValidationScene : Node
 {
     private const string ScenePath = "res://Scenes/Validation/Runtime/Event/RuntimeEventValidation.tscn";
     private const string ArtifactFileName = "runtime-event-validation.json";
-
-    private readonly List<ValidationCheck> checks = new();
-    private readonly List<string> failureReasons = new();
+    private const string LogContext = "RuntimeEventValidation";
 
     /// <inheritdoc />
     public override void _Ready()
     {
+        using var observation = GameOSObservationSession.FromEnvironment(
+            ScenePath,
+            "validation",
+            Path.Combine(Directory.GetCurrentDirectory(), ".ai-temp", "scene-tests", "manual", "artifacts"));
+        using var validation = new SceneValidationSession(
+            observation,
+            LogContext,
+            "Runtime/Event",
+            ArtifactFileName,
+            new[]
+            {
+                "SkilmeAI.GameOS.Runtime.Event",
+                "SkilmeAI.GameOS.Runtime.Entity for Data-to-Event bridge check",
+                "Games/BrotatoLike Godot scene runner"
+            },
+            new[]
+            {
+                "data_to_event_bridge is a labelled cross-layer bridge check, not a pure EventBus core assertion.",
+                "GlobalEventBus.Global is cleared before and after validation."
+            });
+
+        validation.Info("validation start");
         GlobalEventBus.Global.Clear();
+        validation.Info("global event bus cleared before checks");
 
-        RunCheck("typed_and_parameterless_handlers", "EventBusCore", ValidateTypedAndParameterlessHandlers);
-        RunCheck("priority_order", "EventBusCore", ValidatePriorityOrder);
-        RunCheck("once_only_runs_once", "EventBusCore", ValidateOnce);
-        RunCheck("off_removes_handler", "EventBusCore", ValidateOff);
-        RunCheck("handler_exception_capture", "EventBusCore", ValidateHandlerExceptionCapture);
-        RunCheck("same_event_reentrancy_block", "EventBusCore", ValidateSameEventReentrancyBlock);
-        RunCheck("stop_propagation", "EventBusCore", ValidateStopPropagation);
-        RunCheck("local_global_bus_isolation", "EventBusCore", ValidateLocalGlobalBusIsolation);
-        RunCheck("data_to_event_bridge", "DataToEventBridge", ValidateDataToEventBridge);
+        validation.Check("typed_and_parameterless_handlers", "EventBusCore", ValidateTypedAndParameterlessHandlers);
+        validation.Check("priority_order", "EventBusCore", ValidatePriorityOrder);
+        validation.Check("once_only_runs_once", "EventBusCore", ValidateOnce);
+        validation.Check("off_removes_handler", "EventBusCore", ValidateOff);
+        validation.Check("handler_exception_capture", "EventBusCore", ValidateHandlerExceptionCapture);
+        validation.Check("same_event_reentrancy_block", "EventBusCore", ValidateSameEventReentrancyBlock);
+        validation.Check("stop_propagation", "EventBusCore", ValidateStopPropagation);
+        validation.Check("local_global_bus_isolation", "EventBusCore", ValidateLocalGlobalBusIsolation);
+        validation.Check("data_to_event_bridge", "DataToEventBridge", ValidateDataToEventBridge);
 
-        var success = failureReasons.Count == 0;
-        WriteArtifact(success);
+        var success = validation.Success;
+        if (success)
+        {
+            validation.Pass("all checks passed");
+        }
+        else
+        {
+            validation.Fail($"{validation.FailureReasons.Count} checks failed");
+        }
+
+        GlobalEventBus.Global.Clear();
+        validation.Info("global event bus cleared after checks");
+        validation.WriteArtifact();
 
         GD.Print(success ? "GameOS Runtime Event validation PASS" : "GameOS Runtime Event validation FAIL");
         if (!success)
         {
-            GD.Print($"GameOS Runtime Event validation failures: {string.Join("; ", failureReasons)}");
+            GD.Print($"GameOS Runtime Event validation failures: {string.Join("; ", validation.FailureReasons)}");
         }
 
-        GlobalEventBus.Global.Clear();
         GetTree().Quit(success ? 0 : 1);
-    }
-
-    private void RunCheck(string name, string category, Func<CheckResult> validate)
-    {
-        try
-        {
-            var result = validate();
-            var status = result.Success ? "pass" : "fail";
-            checks.Add(new ValidationCheck(name, status, category, result.Details));
-            if (!result.Success)
-            {
-                failureReasons.Add($"{name}: {result.Message}");
-            }
-        }
-        catch (Exception ex)
-        {
-            checks.Add(new ValidationCheck(name, "fail", category, new Dictionary<string, object?>
-            {
-                ["exceptionType"] = ex.GetType().FullName,
-                ["message"] = ex.Message
-            }));
-            failureReasons.Add($"{name}: unexpected exception {ex.GetType().Name}: {ex.Message}");
-        }
     }
 
     private static CheckResult ValidateTypedAndParameterlessHandlers()
@@ -284,61 +291,4 @@ public partial class RuntimeEventValidationScene : Node
         });
     }
 
-    private void WriteArtifact(bool success)
-    {
-        var artifactDir = System.Environment.GetEnvironmentVariable("GODOT_SCENE_TEST_ARTIFACT_DIR");
-        if (string.IsNullOrWhiteSpace(artifactDir))
-        {
-            artifactDir = Path.Combine(Directory.GetCurrentDirectory(), ".ai-temp", "scene-tests", "manual", "artifacts");
-        }
-
-        Directory.CreateDirectory(artifactDir);
-        var artifactPath = Path.Combine(artifactDir, ArtifactFileName);
-        var artifact = new ValidationArtifact(
-            success ? "pass" : "fail",
-            ScenePath,
-            "Runtime/Event",
-            checks,
-            failureReasons,
-            new[]
-            {
-                "SkilmeAI.GameOS.Runtime.Event",
-                "SkilmeAI.GameOS.Runtime.Entity for Data-to-Event bridge check",
-                "Games/BrotatoLike Godot scene runner"
-            },
-            new[]
-            {
-                "data_to_event_bridge is a labelled cross-layer bridge check, not a pure EventBus core assertion.",
-                "GlobalEventBus.Global is cleared before and after validation."
-            });
-
-        var json = JsonSerializer.Serialize(artifact, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        });
-        File.WriteAllText(artifactPath, json);
-    }
-
-    private sealed record CheckResult(bool Success, string Message, Dictionary<string, object?> Details)
-    {
-        public static CheckResult From(bool success, string message, Dictionary<string, object?> details)
-        {
-            return new CheckResult(success, message, details);
-        }
-    }
-
-    private sealed record ValidationCheck(
-        [property: JsonPropertyName("name")] string Name,
-        [property: JsonPropertyName("status")] string Status,
-        [property: JsonPropertyName("category")] string Category,
-        [property: JsonPropertyName("details")] Dictionary<string, object?> Details);
-
-    private sealed record ValidationArtifact(
-        [property: JsonPropertyName("status")] string Status,
-        [property: JsonPropertyName("scene")] string Scene,
-        [property: JsonPropertyName("layer")] string Layer,
-        [property: JsonPropertyName("checks")] IReadOnlyList<ValidationCheck> Checks,
-        [property: JsonPropertyName("failureReasons")] IReadOnlyList<string> FailureReasons,
-        [property: JsonPropertyName("dependencies")] IReadOnlyList<string> Dependencies,
-        [property: JsonPropertyName("notes")] IReadOnlyList<string> Notes);
 }
