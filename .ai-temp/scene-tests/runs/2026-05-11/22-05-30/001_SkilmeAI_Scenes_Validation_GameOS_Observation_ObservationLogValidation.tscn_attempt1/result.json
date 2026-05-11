@@ -1,0 +1,57 @@
+{
+  "scene": "res://SkilmeAI/Scenes/Validation/GameOS/Observation/ObservationLogValidation.tscn",
+  "status": "passed",
+  "attempt": 1,
+  "exitCode": 0,
+  "timedOut": false,
+  "failed": false,
+  "failureReason": null,
+  "stdout": "[INFO][ObservationLogValidation] validation start\n[INFO][ObservationLogValidation] check all_levels_and_format start\n[PASS][ObservationLogValidation] check all_levels_and_format all levels formatted\n[INFO][ObservationLogValidation] check minimum_level_filter start\n[PASS][ObservationLogValidation] check minimum_level_filter minimum level filtered\n[INFO][ObservationLogValidation] check jsonl_sink_serializes_all_levels start\n[PASS][ObservationLogValidation] check jsonl_sink_serializes_all_levels jsonl serialized\n[INFO][ObservationLogValidation] check observation_session_paths start\n[PASS][ObservationLogValidation] check observation_session_paths session paths ready\n[PASS][ObservationLogValidation] all checks passed\n[INFO][ObservationLogValidation] writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts/observation-log-validation.json\nGameOS Observation Log validation PASS",
+  "stderr": "",
+  "stdoutLineCount": 12,
+  "stderrLineCount": 0,
+  "rawLogsTruncated": true,
+  "firstError": null,
+  "errorContext": [],
+  "logSummary": {
+    "stdoutTail": [
+      "[INFO][ObservationLogValidation] validation start",
+      "[INFO][ObservationLogValidation] check all_levels_and_format start",
+      "[PASS][ObservationLogValidation] check all_levels_and_format all levels formatted",
+      "[INFO][ObservationLogValidation] check minimum_level_filter start",
+      "[PASS][ObservationLogValidation] check minimum_level_filter minimum level filtered",
+      "[INFO][ObservationLogValidation] check jsonl_sink_serializes_all_levels start",
+      "[PASS][ObservationLogValidation] check jsonl_sink_serializes_all_levels jsonl serialized",
+      "[INFO][ObservationLogValidation] check observation_session_paths start",
+      "[PASS][ObservationLogValidation] check observation_session_paths session paths ready",
+      "[PASS][ObservationLogValidation] all checks passed",
+      "[INFO][ObservationLogValidation] writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts/observation-log-validation.json",
+      "GameOS Observation Log validation PASS"
+    ],
+    "stderrTail": [],
+    "importantLines": [
+      "[PASS][ObservationLogValidation] check all_levels_and_format all levels formatted",
+      "[PASS][ObservationLogValidation] check minimum_level_filter minimum level filtered",
+      "[PASS][ObservationLogValidation] check jsonl_sink_serializes_all_levels jsonl serialized",
+      "[PASS][ObservationLogValidation] check observation_session_paths session paths ready",
+      "[PASS][ObservationLogValidation] all checks passed"
+    ]
+  },
+  "logFiles": {
+    "stdout": ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/stdout.log",
+    "stderr": ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/stderr.log",
+    "combined": ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/combined.log",
+    "result": ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/result.json"
+  },
+  "artifactDirs": {
+    "screenshots": ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/screenshots",
+    "artifacts": ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts"
+  },
+  "artifacts": {
+    "screenshots": [],
+    "files": [
+      ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts/logs/scene-log.jsonl",
+      ".ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts/observation-log-validation.json"
+    ]
+  }
+}

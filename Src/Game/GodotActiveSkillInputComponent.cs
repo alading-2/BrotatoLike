@@ -4,6 +4,7 @@ using Godot;
 using SkilmeAI.GameOS.Capabilities.Ability;
 using SkilmeAI.GameOS.GodotBridge;
 using SkilmeAI.GameOS.Runtime.Entity;
+using SkilmeAI.GameOS.Runtime.Events.Core;
 
 namespace BrotatoLike.Game;
 
@@ -16,9 +17,9 @@ namespace BrotatoLike.Game;
 public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 {
     private IEntity? entity;
-    private Action<GameEventType.Input.UseSkillEventData>? useSkillHandler;
-    private Action<GameEventType.Input.PreviousSkillEventData>? previousSkillHandler;
-    private Action<GameEventType.Input.NextSkillEventData>? nextSkillHandler;
+    private IDisposable? useSkillSub;
+    private IDisposable? previousSkillSub;
+    private IDisposable? nextSkillSub;
 
     /// <inheritdoc />
     public void OnComponentRegistered(IEntity entity, Node entityNode)
@@ -26,32 +27,25 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         this.entity = entity;
         AbilityDataKeys.RegisterAll();
 
-        useSkillHandler = OnUseSkill;
-        previousSkillHandler = OnPreviousSkill;
-        nextSkillHandler = OnNextSkill;
-
-        entity.Events.On(GameEventType.Input.UseSkill, useSkillHandler);
-        entity.Events.On(GameEventType.Input.PreviousSkill, previousSkillHandler);
-        entity.Events.On(GameEventType.Input.NextSkill, nextSkillHandler);
+        useSkillSub = entity.Events.Subscribe<InputUseSkill>(OnUseSkill);
+        previousSkillSub = entity.Events.Subscribe<InputPreviousSkill>(OnPreviousSkill);
+        nextSkillSub = entity.Events.Subscribe<InputNextSkill>(OnNextSkill);
     }
 
     /// <inheritdoc />
     public void OnComponentUnregistered(IEntity? entity, Node? entityNode)
     {
-        if (this.entity != null && useSkillHandler != null)
-        {
-            this.entity.Events.Off(GameEventType.Input.UseSkill, useSkillHandler);
-            this.entity.Events.Off(GameEventType.Input.PreviousSkill, previousSkillHandler!);
-            this.entity.Events.Off(GameEventType.Input.NextSkill, nextSkillHandler!);
-        }
+        useSkillSub?.Dispose();
+        previousSkillSub?.Dispose();
+        nextSkillSub?.Dispose();
 
         this.entity = null;
-        useSkillHandler = null;
-        previousSkillHandler = null;
-        nextSkillHandler = null;
+        useSkillSub = null;
+        previousSkillSub = null;
+        nextSkillSub = null;
     }
 
-    private void OnUseSkill(GameEventType.Input.UseSkillEventData data)
+    private void OnUseSkill(InputUseSkill data)
     {
         if (entity == null)
         {
@@ -91,7 +85,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         AbilityService.Instance.TryTrigger(context);
     }
 
-    private void OnPreviousSkill(GameEventType.Input.PreviousSkillEventData data)
+    private void OnPreviousSkill(InputPreviousSkill data)
     {
         if (entity == null)
         {
@@ -109,7 +103,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, newIndex);
     }
 
-    private void OnNextSkill(GameEventType.Input.NextSkillEventData data)
+    private void OnNextSkill(InputNextSkill data)
     {
         if (entity == null)
         {

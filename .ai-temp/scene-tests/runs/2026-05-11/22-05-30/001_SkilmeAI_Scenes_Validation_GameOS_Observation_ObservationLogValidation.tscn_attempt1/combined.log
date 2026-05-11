@@ -1,0 +1,23 @@
+scene: res://SkilmeAI/Scenes/Validation/GameOS/Observation/ObservationLogValidation.tscn
+failed: false
+failureReason: 
+exitCode: 0
+timedOut: false
+attempt: 1
+
+[stdout]
+[INFO][ObservationLogValidation] validation start
+[INFO][ObservationLogValidation] check all_levels_and_format start
+[PASS][ObservationLogValidation] check all_levels_and_format all levels formatted
+[INFO][ObservationLogValidation] check minimum_level_filter start
+[PASS][ObservationLogValidation] check minimum_level_filter minimum level filtered
+[INFO][ObservationLogValidation] check jsonl_sink_serializes_all_levels start
+[PASS][ObservationLogValidation] check jsonl_sink_serializes_all_levels jsonl serialized
+[INFO][ObservationLogValidation] check observation_session_paths start
+[PASS][ObservationLogValidation] check observation_session_paths session paths ready
+[PASS][ObservationLogValidation] all checks passed
+[INFO][ObservationLogValidation] writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/runs/2026-05-11/22-05-30/001_SkilmeAI_Scenes_Validation_GameOS_Observation_ObservationLogValidation.tscn_attempt1/artifacts/observation-log-validation.json
+GameOS Observation Log validation PASS
+
+
+[stderr]

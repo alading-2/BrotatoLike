@@ -1,8 +1,10 @@
-using SkilmeAI.GameOS.Capabilities.Movement;
 using SkilmeAI.GameOS.Capabilities.Collision;
+using SkilmeAI.GameOS.Capabilities.Collision.Events;
+using SkilmeAI.GameOS.Capabilities.Movement;
+using SkilmeAI.GameOS.Capabilities.Movement.Events;
 using SkilmeAI.GameOS.Runtime;
 using SkilmeAI.GameOS.Runtime.Entity;
-using SkilmeAI.GameOS.Runtime.Event;
+using SkilmeAI.GameOS.Runtime.Events.Core;
 using SkilmeAI.GameOS.Runtime.Pool;
 using SkilmeAI.GameOS.Runtime.Relationship;
 using SkilmeAI.GameOS.Runtime.Resource;
@@ -42,15 +44,13 @@ public static class GameBootstrap
         });
 
         var dataEvents = 0;
-        entity.Events.On<GameEventType.Data.PropertyChangedEventData>(
-            GameEventType.Data.PropertyChanged,
-            data =>
+        entity.Events.Subscribe<DataPropertyChanged>(data =>
+        {
+            if (data.Change.Key == "SmokeValue")
             {
-                if (data.Change.Key == "SmokeValue")
-                {
-                    dataEvents++;
-                }
-            });
+                dataEvents++;
+            }
+        });
         entity.Data.Set("SmokeValue", 1);
 
         var pool = new ObjectPool<SmokeToken>(
@@ -75,9 +75,7 @@ public static class GameBootstrap
         entity.Data.Set(MovementDataKeys.Position, Vector2Value.Zero);
         var movementSystem = new MovementSystem();
         var movementStopped = false;
-        entity.Events.On<GameEventType.Movement.StoppedEventData>(
-            GameEventType.Movement.Stopped,
-            _ => movementStopped = true);
+        entity.Events.Subscribe<Stopped>(_ => movementStopped = true);
         movementSystem.Start(entity, new MovementParams
         {
             Mode = MoveMode.Charge,
@@ -93,9 +91,7 @@ public static class GameBootstrap
         var collisionTarget = EntityManager.Spawn(new EntitySpawnConfig { EntityId = "brotato-like-smoke-collision-target" });
         collisionTarget.Data.Set(CollisionDataKeys.CollisionLayer, CollisionLayers.EnemyHurtbox);
         var collisionEntered = false;
-        entity.Events.On<GameEventType.Collision.EnteredEventData>(
-            GameEventType.Collision.Entered,
-            data => collisionEntered = data.Contact.Target.EntityId == collisionTarget.EntityId);
+        entity.Events.Subscribe<Entered>(data => collisionEntered = data.Contact.Target.EntityId == collisionTarget.EntityId);
         var collisionSystem = new CollisionSystem();
         collisionSystem.EmitEntered(entity, collisionTarget);
 
@@ -108,9 +104,7 @@ public static class GameBootstrap
         collisionTarget.Data.Set(CollisionDataKeys.CollisionRadius, 1f);
 
         var movementCollision = false;
-        movingProjectile.Events.On<GameEventType.Movement.CollisionEventData>(
-            GameEventType.Movement.Collision,
-            data => movementCollision = data.Context.Target.EntityId == collisionTarget.EntityId);
+        movingProjectile.Events.Subscribe<Collision>(data => movementCollision = data.Context.Target.EntityId == collisionTarget.EntityId);
         movementSystem.Start(movingProjectile, new MovementParams
         {
             Mode = MoveMode.Charge,

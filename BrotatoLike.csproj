@@ -7,9 +7,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../SkilmeAI/GameOS/SkilmeAI.GameOS.csproj" />
+    <ProjectReference Include="SkilmeAI/GameOS/SkilmeAI.GameOS.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="MigrationInput/**/*.cs" />
+    <Compile Remove="SkilmeAI/Tests/**/*.cs" />
   </ItemGroup>
 </Project>

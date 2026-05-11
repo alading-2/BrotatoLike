@@ -2,7 +2,10 @@
 
 ## 定位
 
-本仓库是第一个 `SkilmeAI` 游戏仓库。游戏运行时通过本地项目引用、本地 NuGet 或 DLL 使用 `SkilmeAI.GameOS`，不复制框架源码。
+本仓库是第一个 `SkilmeAI` 游戏仓库。游戏仓通过 `git submodule` 持有框架仓 `SkilmeAI` 的只读镜像（`SkilmeAI/` 目录）。框架源码物理嵌入游戏 `res://` 空间，编译时由游戏 csproj 统一编译，脚本和场景加载链路完全成立。
+
+- **单向数据流**：框架改动只在 `SkilmeAI` 框架仓提交；游戏仓通过 `git submodule update` 拉取新版本。
+- **游戏仓禁止对 `SkilmeAI/` 目录做业务改动**，只允许 submodule 指针前进。
 
 ## 必读入口
 

@@ -8,6 +8,7 @@ using SkilmeAI.GameOS.Capabilities.Ability;
 using SkilmeAI.GameOS.Capabilities.Attack;
 using SkilmeAI.GameOS.Capabilities.Collision;
 using SkilmeAI.GameOS.Capabilities.Damage;
+using SkilmeAI.GameOS.Capabilities.Damage.Events;
 using SkilmeAI.GameOS.Capabilities.Effect;
 using SkilmeAI.GameOS.Capabilities.Movement;
 using SkilmeAI.GameOS.Capabilities.Unit;
@@ -15,6 +16,7 @@ using SkilmeAI.GameOS.GodotBridge;
 using SkilmeAI.GameOS.Observation;
 using SkilmeAI.GameOS.Runtime.Entity;
 using SkilmeAI.GameOS.Runtime.Event;
+using SkilmeAI.GameOS.Runtime.Events.Core;
 using SkilmeAI.GameOS.Runtime.Timer;
 
 namespace BrotatoLike.Game;
@@ -52,12 +54,12 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var failureReasons = new List<string>();
         Log.Info("acceptance start");
 
-        Action<GameEventType.Damage.DamagedEventData> damagedHandler = data =>
+        Action<Damaged> damagedHandler = data =>
         {
             damageLogs.Add(FormattableString.Invariant(
                 $"{data.Info.Attacker?.EntityId ?? "none"}->{data.Info.Victim.EntityId}:{data.Info.FinalDamage:0.###}:{data.Info.OldHp:0.###}->{data.Info.NewHp:0.###}"));
         };
-        GlobalEventBus.Global.On(GameEventType.Damage.Damaged, damagedHandler);
+        var damagedSub = WorldEvents.World.Subscribe<Damaged>(damagedHandler);
 
         try
         {
@@ -125,7 +127,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         }
         finally
         {
-            GlobalEventBus.Global.Off(GameEventType.Damage.Damaged, damagedHandler);
+            damagedSub.Dispose();
             Input.ActionRelease("MoveLeft");
             Input.ActionRelease("MoveRight");
             Input.ActionRelease("MoveUp");
@@ -273,7 +275,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var slamHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var slamEffectsBefore = CountEffectEntities(slam.EntityId);
         player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
-        player.Events.Emit(GameEventType.Input.UseSkill, new GameEventType.Input.UseSkillEventData(player));
+        player.Events.Publish(new InputUseSkill(player));
         var slamHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var slamEffectsAfter = CountEffectEntities(slam.EntityId);
         var slamCooldown = slam.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
@@ -286,11 +288,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
         AbilityService.Instance.TickCooldowns([slam], slamCooldown + 0.1f);
 
-        player.Events.Emit(GameEventType.Input.NextSkill, new GameEventType.Input.NextSkillEventData(player));
+        player.Events.Publish(new InputNextSkill(player));
         var currentIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         AbilityTargetingTool.TryBuildContext(player, chain, out var chainContext);
         var chainHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
-        player.Events.Emit(GameEventType.Input.UseSkill, new GameEventType.Input.UseSkillEventData(player));
+        player.Events.Publish(new InputUseSkill(player));
         TimerManager.Instance.Tick(chain.Data.Get<float>(AbilityDataKeys.ChainDelay, 0f) + 0.05f);
         var chainHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var chainCooldown = chain.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);

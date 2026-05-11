@@ -1,0 +1,84 @@
+{
+  "scene": "res://SkilmeAI/Scenes/Validation/Runtime/Event/RuntimeEventValidation.tscn",
+  "status": "failed",
+  "attempt": 1,
+  "exitCode": 0,
+  "timedOut": false,
+  "failed": true,
+  "failureReason": "Exception",
+  "stdout": "\u001b[97m[INFO][RuntimeEventValidation] validation start\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] world event bus cleared before checks\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] check registration_order start\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] check registration_order registration order preserved\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] check dispose_unsubscribes start\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] check dispose_unsubscribes dispose unsubscribes\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] check handler_exception_capture start\u001b[39m\u001b[0m\n\u001b[91m[ERROR][EventBus] EventBus entity:validation-exception handler threw for ValidationLocalEvent: InvalidOperationException expected validation exception busName=entity:validation-exception eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent handler=<>c.<ValidateHandlerExceptionCapture>b__6_0 exceptionType=System.InvalidOperationException\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] check handler_exception_capture exception isolated and dispatch continued\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] check same_type_reentry_blocked start\u001b[39m\u001b[0m\n\u001b[91m[ERROR][EventBus] EventBus entity:validation-reentry blocked same-type reentry for ValidationLocalEvent. busName=entity:validation-reentry eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent callChain=\"reentry on SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent within bus entity:validation-reentry\"\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] check same_type_reentry_blocked same-type reentry was blocked\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] check entity_event_rejected_on_world_bus start\u001b[39m\u001b[0m\n\u001b[91m[ERROR][EventBus] WorldEventBus rejected ValidationLocalEvent: payload MUST implement IGlobalEvent or IBroadcastEvent. busName=world eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] check entity_event_rejected_on_world_bus world bus rejected IEntityEvent\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] check broadcast_routes_to_both_buses start\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] check broadcast_routes_to_both_buses broadcast routed to entity and world buses\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] check data_to_event_bridge start\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] check data_to_event_bridge Data.Set emitted PropertyChanged\u001b[39m\u001b[0m\n\u001b[92m[PASS][RuntimeEventValidation] all checks passed\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] world event bus cleared after checks\u001b[39m\u001b[0m\n\u001b[97m[INFO][RuntimeEventValidation] writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/artifacts/runtime-event-validation.json\u001b[39m\u001b[0m\nGameOS Runtime Event validation PASS",
+  "stderr": "",
+  "stdoutLineCount": 23,
+  "stderrLineCount": 0,
+  "rawLogsTruncated": true,
+  "firstError": "\u001b[91m[ERROR][EventBus] EventBus entity:validation-exception handler threw for ValidationLocalEvent: InvalidOperationException expected validation exception busName=entity:validation-exception eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent handler=<>c.<ValidateHandlerExceptionCapture>b__6_0 exceptionType=System.InvalidOperationException\u001b[39m\u001b[0m",
+  "errorContext": [
+    "\u001b[92m[PASS][RuntimeEventValidation] check registration_order registration order preserved\u001b[39m\u001b[0m",
+    "\u001b[97m[INFO][RuntimeEventValidation] check dispose_unsubscribes start\u001b[39m\u001b[0m",
+    "\u001b[92m[PASS][RuntimeEventValidation] check dispose_unsubscribes dispose unsubscribes\u001b[39m\u001b[0m",
+    "\u001b[97m[INFO][RuntimeEventValidation] check handler_exception_capture start\u001b[39m\u001b[0m",
+    "\u001b[91m[ERROR][EventBus] EventBus entity:validation-exception handler threw for ValidationLocalEvent: InvalidOperationException expected validation exception busName=entity:validation-exception eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent handler=<>c.<ValidateHandlerExceptionCapture>b__6_0 exceptionType=System.InvalidOperationException\u001b[39m\u001b[0m",
+    "\u001b[92m[PASS][RuntimeEventValidation] check handler_exception_capture exception isolated and dispatch continued\u001b[39m\u001b[0m",
+    "\u001b[97m[INFO][RuntimeEventValidation] check same_type_reentry_blocked start\u001b[39m\u001b[0m",
+    "\u001b[91m[ERROR][EventBus] EventBus entity:validation-reentry blocked same-type reentry for ValidationLocalEvent. busName=entity:validation-reentry eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent callChain=\"reentry on SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent within bus entity:validation-reentry\"\u001b[39m\u001b[0m",
+    "\u001b[92m[PASS][RuntimeEventValidation] check same_type_reentry_blocked same-type reentry was blocked\u001b[39m\u001b[0m"
+  ],
+  "logSummary": {
+    "stdoutTail": [
+      "\u001b[97m[INFO][RuntimeEventValidation] validation start\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] world event bus cleared before checks\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] check registration_order start\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check registration_order registration order preserved\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] check dispose_unsubscribes start\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check dispose_unsubscribes dispose unsubscribes\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] check handler_exception_capture start\u001b[39m\u001b[0m",
+      "\u001b[91m[ERROR][EventBus] EventBus entity:validation-exception handler threw for ValidationLocalEvent: InvalidOperationException expected validation exception busName=entity:validation-exception eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent handler=<>c.<ValidateHandlerExceptionCapture>b__6_0 exceptionType=System.InvalidOperationException\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check handler_exception_capture exception isolated and dispatch continued\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] check same_type_reentry_blocked start\u001b[39m\u001b[0m",
+      "\u001b[91m[ERROR][EventBus] EventBus entity:validation-reentry blocked same-type reentry for ValidationLocalEvent. busName=entity:validation-reentry eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent callChain=\"reentry on SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent within bus entity:validation-reentry\"\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check same_type_reentry_blocked same-type reentry was blocked\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] check entity_event_rejected_on_world_bus start\u001b[39m\u001b[0m",
+      "\u001b[91m[ERROR][EventBus] WorldEventBus rejected ValidationLocalEvent: payload MUST implement IGlobalEvent or IBroadcastEvent. busName=world eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check entity_event_rejected_on_world_bus world bus rejected IEntityEvent\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] check broadcast_routes_to_both_buses start\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check broadcast_routes_to_both_buses broadcast routed to entity and world buses\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] check data_to_event_bridge start\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check data_to_event_bridge Data.Set emitted PropertyChanged\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] all checks passed\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] world event bus cleared after checks\u001b[39m\u001b[0m",
+      "\u001b[97m[INFO][RuntimeEventValidation] writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/artifacts/runtime-event-validation.json\u001b[39m\u001b[0m",
+      "GameOS Runtime Event validation PASS"
+    ],
+    "stderrTail": [],
+    "importantLines": [
+      "\u001b[92m[PASS][RuntimeEventValidation] check registration_order registration order preserved\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check dispose_unsubscribes dispose unsubscribes\u001b[39m\u001b[0m",
+      "\u001b[91m[ERROR][EventBus] EventBus entity:validation-exception handler threw for ValidationLocalEvent: InvalidOperationException expected validation exception busName=entity:validation-exception eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent handler=<>c.<ValidateHandlerExceptionCapture>b__6_0 exceptionType=System.InvalidOperationException\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check handler_exception_capture exception isolated and dispatch continued\u001b[39m\u001b[0m",
+      "\u001b[91m[ERROR][EventBus] EventBus entity:validation-reentry blocked same-type reentry for ValidationLocalEvent. busName=entity:validation-reentry eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent callChain=\"reentry on SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent within bus entity:validation-reentry\"\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check same_type_reentry_blocked same-type reentry was blocked\u001b[39m\u001b[0m",
+      "\u001b[91m[ERROR][EventBus] WorldEventBus rejected ValidationLocalEvent: payload MUST implement IGlobalEvent or IBroadcastEvent. busName=world eventType=SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check entity_event_rejected_on_world_bus world bus rejected IEntityEvent\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check broadcast_routes_to_both_buses broadcast routed to entity and world buses\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] check data_to_event_bridge Data.Set emitted PropertyChanged\u001b[39m\u001b[0m",
+      "\u001b[92m[PASS][RuntimeEventValidation] all checks passed\u001b[39m\u001b[0m"
+    ]
+  },
+  "logFiles": {
+    "stdout": ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/stdout.log",
+    "stderr": ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/stderr.log",
+    "combined": ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/combined.log",
+    "result": ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/result.json"
+  },
+  "artifactDirs": {
+    "screenshots": ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/screenshots",
+    "artifacts": ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/artifacts"
+  },
+  "artifacts": {
+    "screenshots": [],
+    "files": [
+      ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/artifacts/logs/scene-log.jsonl",
+      ".ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/artifacts/runtime-event-validation.json"
+    ]
+  }
+}

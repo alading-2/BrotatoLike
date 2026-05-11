@@ -3,22 +3,34 @@ using System.Collections.Generic;
 using SkilmeAI.GameOS.Capabilities.AI;
 using Godot;
 using SkilmeAI.GameOS.Capabilities.Ability;
+using SkilmeAI.GameOS.Capabilities.Ability.Events;
 using SkilmeAI.GameOS.Capabilities.Attack;
+using SkilmeAI.GameOS.Capabilities.Attack.Events;
 using SkilmeAI.GameOS.Capabilities.Collision;
+using SkilmeAI.GameOS.Capabilities.Collision.Events;
 using SkilmeAI.GameOS.Capabilities.Damage;
+using SkilmeAI.GameOS.Capabilities.Damage.Events;
 using SkilmeAI.GameOS.Capabilities.Effect;
+using SkilmeAI.GameOS.Capabilities.Effect.Events;
 using SkilmeAI.GameOS.Capabilities.Feature;
 using SkilmeAI.GameOS.Capabilities.Movement;
+using SkilmeAI.GameOS.Capabilities.Movement.Events;
 using SkilmeAI.GameOS.Capabilities.Projectile;
+using SkilmeAI.GameOS.Capabilities.Projectile.Events;
 using SkilmeAI.GameOS.Capabilities.Unit;
+using SkilmeAI.GameOS.Capabilities.Unit.Events;
 using SkilmeAI.GameOS.GodotBridge;
 using SkilmeAI.GameOS.Observation;
 using SkilmeAI.GameOS.Runtime.Entity;
 using SkilmeAI.GameOS.Runtime.Event;
+using SkilmeAI.GameOS.Runtime.Events.Core;
 using SkilmeAI.GameOS.Runtime.Relationship;
 using SkilmeAI.GameOS.Runtime.Resource;
 using SkilmeAI.GameOS.Runtime.Schedule;
 using SkilmeAI.GameOS.Runtime.Timer;
+using EffectSpawned = SkilmeAI.GameOS.Capabilities.Effect.Events.Spawned;
+using ProjectileSpawned = SkilmeAI.GameOS.Capabilities.Projectile.Events.Spawned;
+using ProjectileHit = SkilmeAI.GameOS.Capabilities.Projectile.Events.Hit;
 
 namespace BrotatoLike.Game;
 
@@ -139,9 +151,7 @@ public partial class Main : Node
             runtime.InitializeFromDataOS();
             runtime.SpawnPlayer();
             runtime.BeginGameplay();
-            GlobalEventBus.Global.Emit(
-                BrotatoLikeGameEventType.Game.Started,
-                new BrotatoLikeGameEventType.Game.StartedEventData(runtime, this, runtime.InitialWave));
+            WorldEvents.World.Publish(new GameStarted(runtime, this, runtime.InitialWave));
             Log.Info("BrotatoLike main scene initialized");
         }
 
@@ -151,18 +161,18 @@ public partial class Main : Node
     private MainEntryProbe RunMainEntryProbe()
     {
         var emittedAfterExplicitStart = false;
-        Action<BrotatoLikeGameEventType.Game.StartedEventData> startedHandler = data =>
+        Action<GameStarted> startedHandler = data =>
         {
             emittedAfterExplicitStart = data.Runtime.IsInitialized
                 && data.EntryNode == this
                 && data.Wave == data.Runtime.InitialWave;
         };
-        GlobalEventBus.Global.On(BrotatoLikeGameEventType.Game.Started, startedHandler);
+        var startedSub = WorldEvents.World.Subscribe<GameStarted>(startedHandler);
 
         var runtimeBeforeExplicitStart = GetNodeOrNull<BrotatoLikeGameRuntime>("GameRuntime");
         var runtimeInitializedBeforeExplicitStart = runtimeBeforeExplicitStart?.IsInitialized == true;
         StartGameRuntime();
-        GlobalEventBus.Global.Off(BrotatoLikeGameEventType.Game.Started, startedHandler);
+        startedSub.Dispose();
         var cameraMounted = GetNodeOrNull<Camera2D>("Camera2D") != null;
         return new MainEntryProbe(emittedAfterExplicitStart, !runtimeInitializedBeforeExplicitStart, cameraMounted);
     }
@@ -491,11 +501,9 @@ public partial class Main : Node
 
         var collisionEntered = false;
         var collisionExited = false;
-        source.Events.On<GameEventType.Collision.EnteredEventData>(
-            GameEventType.Collision.Entered,
+        source.Events.Subscribe<Entered>(
             data => collisionEntered = data.Contact.Target.EntityId == target.EntityId);
-        source.Events.On<GameEventType.Collision.ExitedEventData>(
-            GameEventType.Collision.Exited,
+        source.Events.Subscribe<Exited>(
             data => collisionExited = data.Contact.Target.EntityId == target.EntityId);
         collisionComponent.EmitEntered(target);
         collisionComponent.EmitExited(target);
@@ -519,11 +527,9 @@ public partial class Main : Node
 
         var hurtboxEntered = false;
         var hurtboxExited = false;
-        source.Events.On<GameEventType.Collision.HurtboxEnteredEventData>(
-            GameEventType.Collision.HurtboxEntered,
+        source.Events.Subscribe<HurtboxEntered>(
             data => hurtboxEntered = data.Contact.Target.EntityId == hurtboxTarget.EntityId);
-        source.Events.On<GameEventType.Collision.HurtboxExitedEventData>(
-            GameEventType.Collision.HurtboxExited,
+        source.Events.Subscribe<HurtboxExited>(
             data => hurtboxExited = data.Contact.Target.EntityId == hurtboxTarget.EntityId);
         hurtbox.EmitEntered(hurtboxTarget);
         hurtbox.EmitExited(hurtboxTarget);
@@ -643,8 +649,7 @@ public partial class Main : Node
         AddChild(attacker);
 
         var damaged = false;
-        victim.Events.On<GameEventType.Damage.DamagedEventData>(
-            GameEventType.Damage.Damaged,
+        victim.Events.Subscribe<Damaged>(
             data => damaged = data.Info.Attacker?.EntityId == attacker.EntityId);
         hurtbox.EmitEntered(attacker);
         var damageApplied = damaged
@@ -710,11 +715,9 @@ public partial class Main : Node
 
         var finished = false;
         var animationFinishedEvent = false;
-        attacker.Events.On<GameEventType.Attack.FinishedEventData>(
-            GameEventType.Attack.Finished,
+        attacker.Events.Subscribe<Finished>(
             data => finished = data.Target?.EntityId == target.EntityId && data.DidHit);
-        attacker.Events.On<GameEventType.Unit.AnimationFinishedEventData>(
-            GameEventType.Unit.AnimationFinished,
+        attacker.Events.Subscribe<AnimationFinished>(
             data => animationFinishedEvent = data.Entity.EntityId == attacker.EntityId && data.AnimationName == "attack2");
 
         var exportedDataApplied = Math.Abs(attacker.Data.Get<float>(AttackDataKeys.Damage) - 7f) < 0.001f
@@ -919,8 +922,7 @@ public partial class Main : Node
             "aura_shield",
             "brotato-like-dataos-handler-aura-shield-ability-probe");
         var dataOsHandlerProjectileIds = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        GlobalEventBus.Global.On<GameEventType.Projectile.SpawnedEventData>(
-            GameEventType.Projectile.Spawned,
+        WorldEvents.World.Subscribe<ProjectileSpawned>(
             data =>
             {
                 if (data.Ability == null)
@@ -944,8 +946,7 @@ public partial class Main : Node
         var dashEffectPosition = Vector2Value.Zero;
         var circleDamageEffectSpawned = false;
         var circleDamageEffectPosition = Vector2Value.Zero;
-        GlobalEventBus.Global.On<GameEventType.Effect.SpawnedEventData>(
-            GameEventType.Effect.Spawned,
+        WorldEvents.World.Subscribe<EffectSpawned>(
             data =>
             {
                 if (data.Ability?.EntityId == slamDataOsAbility.EntityId)
@@ -1284,8 +1285,7 @@ public partial class Main : Node
         };
         AddChild(projectileEffectSpawner);
 
-        GlobalEventBus.Global.On<GameEventType.Projectile.SpawnedEventData>(
-            GameEventType.Projectile.Spawned,
+        WorldEvents.World.Subscribe<ProjectileSpawned>(
             data => projectileEvent = data.Source.EntityId == caster.EntityId && data.Target?.EntityId == target.EntityId);
         var projectile = ProjectileTool.Spawn(new ProjectileSpawnOptions
         {
@@ -1311,8 +1311,7 @@ public partial class Main : Node
         var projectileSpeedSynced = Math.Abs(projectile.Projectile.Data.Get<float>(ProjectileDataKeys.Speed) - 16f) < 0.001f;
         var projectileNode = GodotNodeRegistry.GetNodeById(projectile.Projectile.EntityId) as Node2D;
         var projectileHitEvent = false;
-        GlobalEventBus.Global.On<GameEventType.Projectile.HitEventData>(
-            GameEventType.Projectile.Hit,
+        WorldEvents.World.Subscribe<ProjectileHit>(
             data => projectileHitEvent = data.Projectile.EntityId == projectile.Projectile.EntityId
                 && data.Target.EntityId == target.EntityId
                 && data.Damage.Applied);
@@ -1402,8 +1401,7 @@ public partial class Main : Node
         pierceProjectile.Projectile.Data.Set(CollisionDataKeys.CollisionRadius, 1f);
         pierceProjectile.Projectile.Data.Set(CollisionDataKeys.Team, 1);
         var pierceHitCount = 0;
-        GlobalEventBus.Global.On<GameEventType.Projectile.HitEventData>(
-            GameEventType.Projectile.Hit,
+        WorldEvents.World.Subscribe<ProjectileHit>(
             data =>
             {
                 if (data.Projectile.EntityId == pierceProjectile.Projectile.EntityId)
@@ -1449,8 +1447,7 @@ public partial class Main : Node
             && projectileLifetimeSynced;
 
         var effectEvent = false;
-        GlobalEventBus.Global.On<GameEventType.Effect.SpawnedEventData>(
-            GameEventType.Effect.Spawned,
+        WorldEvents.World.Subscribe<EffectSpawned>(
             data => effectEvent = data.Source.EntityId == caster.EntityId && data.Target?.EntityId == target.EntityId);
         var effect = EffectTool.Spawn(new EffectSpawnOptions
         {
@@ -1607,29 +1604,22 @@ public partial class Main : Node
         skillInputComponent.OnComponentRegistered(playerEntity, playerEntity);
 
         // 1. 测试技能切换：Next 应从 0 -> 1
-        playerEntity.Events.Emit(
-            GameEventType.Input.NextSkill,
-            new GameEventType.Input.NextSkillEventData(playerEntity));
+        playerEntity.Events.Publish(new InputNextSkill(playerEntity));
         var indexAfterNext = playerEntity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         // 2. 测试技能切换：Previous 应从 1 -> 0
-        playerEntity.Events.Emit(
-            GameEventType.Input.PreviousSkill,
-            new GameEventType.Input.PreviousSkillEventData(playerEntity));
+        playerEntity.Events.Publish(new InputPreviousSkill(playerEntity));
         var indexAfterPrevious = playerEntity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         var skillSwitched = indexAfterNext == 1 && indexAfterPrevious == 0;
 
         // 3. 测试技能释放：发射 UseSkill 事件，验证 ability:activated 被触发
         var abilityActivated = false;
-        ability1.Events.On<GameEventType.Ability.ActivatedEventData>(
-            GameEventType.Ability.Activated,
+        ability1.Events.Subscribe<Activated>(
             data => abilityActivated = data.Context.Caster.EntityId == playerEntity.EntityId
                 && data.Context.Ability.EntityId == ability1.EntityId);
 
-        playerEntity.Events.Emit(
-            GameEventType.Input.UseSkill,
-            new GameEventType.Input.UseSkillEventData(playerEntity));
+        playerEntity.Events.Publish(new InputUseSkill(playerEntity));
 
         var skillTriggered = abilityActivated;
 
@@ -1921,8 +1911,7 @@ public partial class Main : Node
         AddChild(collisionTarget);
 
         var collisionEvent = false;
-        collisionMover.Events.On<GameEventType.Movement.CollisionEventData>(
-            GameEventType.Movement.Collision,
+        collisionMover.Events.Subscribe<Collision>(
             data => collisionEvent = data.Context.Target.EntityId == collisionTarget.EntityId);
         movementDriver.MovementSystem.Start(collisionMover, new MovementParams
         {

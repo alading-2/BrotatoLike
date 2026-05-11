@@ -1,0 +1,247 @@
+{
+  "status": "pass",
+  "scene": "res://SkilmeAI/Scenes/Validation/Runtime/Event/RuntimeEventValidation.tscn",
+  "layer": "Runtime/Event",
+  "mode": "validation",
+  "checks": [
+    {
+      "name": "registration_order",
+      "status": "pass",
+      "category": "EventBusCore",
+      "details": {
+        "observedOrder": "first,second,third",
+        "expectedOrder": "first,second,third"
+      }
+    },
+    {
+      "name": "dispose_unsubscribes",
+      "status": "pass",
+      "category": "EventBusCore",
+      "details": {
+        "count": 1
+      }
+    },
+    {
+      "name": "handler_exception_capture",
+      "status": "pass",
+      "category": "EventBusCore",
+      "details": {
+        "continuedCount": 1
+      }
+    },
+    {
+      "name": "same_type_reentry_blocked",
+      "status": "pass",
+      "category": "EventBusCore",
+      "details": {
+        "executions": 1
+      }
+    },
+    {
+      "name": "entity_event_rejected_on_world_bus",
+      "status": "pass",
+      "category": "EventBusCore",
+      "details": {
+        "count": 0
+      }
+    },
+    {
+      "name": "broadcast_routes_to_both_buses",
+      "status": "pass",
+      "category": "EventBusCore",
+      "details": {
+        "localCount": 1,
+        "globalCount": 1
+      }
+    },
+    {
+      "name": "data_to_event_bridge",
+      "status": "pass",
+      "category": "DataToEventBridge",
+      "details": {
+        "bridgeLabel": "Data-to-Event bridge check",
+        "receivedCount": 1,
+        "receivedKey": "RuntimeEventValidationValue",
+        "receivedValue": 42
+      }
+    }
+  ],
+  "logs": [
+    {
+      "timestamp": "2026-05-11T14:05:39.7775866+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "validation start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8005750+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "world event bus cleared before checks",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8010065+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "check registration_order start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8035928+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "check registration_order registration order preserved",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8036670+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "check dispose_unsubscribes start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8044861+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "check dispose_unsubscribes dispose unsubscribes",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8045479+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "check handler_exception_capture start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8055923+00:00",
+      "level": "ERROR",
+      "context": "EventBus",
+      "message": "EventBus entity:validation-exception handler threw for ValidationLocalEvent: InvalidOperationException expected validation exception",
+      "values": {
+        "busName": "entity:validation-exception",
+        "eventType": "SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent",
+        "handler": "<>c.<ValidateHandlerExceptionCapture>b__6_0",
+        "exceptionType": "System.InvalidOperationException"
+      }
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8095309+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "check handler_exception_capture exception isolated and dispatch continued",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8095732+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "check same_type_reentry_blocked start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8099672+00:00",
+      "level": "ERROR",
+      "context": "EventBus",
+      "message": "EventBus entity:validation-reentry blocked same-type reentry for ValidationLocalEvent.",
+      "values": {
+        "busName": "entity:validation-reentry",
+        "eventType": "SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent",
+        "callChain": "reentry on SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent within bus entity:validation-reentry"
+      }
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8102020+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "check same_type_reentry_blocked same-type reentry was blocked",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8102354+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "check entity_event_rejected_on_world_bus start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8107861+00:00",
+      "level": "ERROR",
+      "context": "EventBus",
+      "message": "WorldEventBus rejected ValidationLocalEvent: payload MUST implement IGlobalEvent or IBroadcastEvent.",
+      "values": {
+        "busName": "world",
+        "eventType": "SkilmeAI.SceneTests.Runtime.Event.RuntimeEventValidationScene+ValidationLocalEvent"
+      }
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8110651+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "check entity_event_rejected_on_world_bus world bus rejected IEntityEvent",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8111137+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "check broadcast_routes_to_both_buses start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8127672+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "check broadcast_routes_to_both_buses broadcast routed to entity and world buses",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8128338+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "check data_to_event_bridge start",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8151001+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "check data_to_event_bridge Data.Set emitted PropertyChanged",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8152210+00:00",
+      "level": "PASS",
+      "context": "RuntimeEventValidation",
+      "message": "all checks passed",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8152585+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "world event bus cleared after checks",
+      "values": {}
+    },
+    {
+      "timestamp": "2026-05-11T14:05:39.8156235+00:00",
+      "level": "INFO",
+      "context": "RuntimeEventValidation",
+      "message": "writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/runs/2026-05-11/22-05-39/001_SkilmeAI_Scenes_Validation_Runtime_Event_RuntimeEventValidation.tscn_attempt1/artifacts/runtime-event-validation.json",
+      "values": {}
+    }
+  ],
+  "failureReasons": [],
+  "dependencies": [
+    "SkilmeAI.GameOS.Runtime.Event",
+    "SkilmeAI.GameOS.Runtime.Entity for Data-to-Event bridge check",
+    "Games/BrotatoLike Godot scene runner"
+  ],
+  "notes": [
+    "data_to_event_bridge is a labelled cross-layer bridge check, not a pure EventBus core assertion.",
+    "WorldEventBus is cleared before and after validation."
+  ]
+}
