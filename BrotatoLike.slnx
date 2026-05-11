@@ -1,4 +1,8 @@
 <Solution>
-  <Project Path="SkilmeAI/GameOS/SkilmeAI.GameOS.csproj" />
-  <Project Path="BrotatoLike.csproj" />
+  <Folder Name="/BrotatoLike/">
+    <Project Path="BrotatoLike.csproj" />
+  </Folder>
+  <Folder Name="/SkilmeAI/">
+    <Project Path="SkilmeAI/GameOS/SkilmeAI.GameOS.csproj" />
+  </Folder>
 </Solution>

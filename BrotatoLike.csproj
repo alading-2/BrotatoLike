@@ -5,6 +5,8 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>BrotatoLike</AssemblyName>
+    <RootNamespace>BrotatoLike</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="SkilmeAI/GameOS/SkilmeAI.GameOS.csproj" />
