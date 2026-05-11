@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://Src/SceneTests/GameOS/Observation/ObservationLogValidationScene.cs" id="1_observation_log_validation"]
-
-[node name="ObservationLogValidation" type="Node"]
-script = ExtResource("1_observation_log_validation")

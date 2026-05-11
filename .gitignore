@@ -7,3 +7,4 @@ DataOS/.generated/
 # Editor and OS noise
 .DS_Store
 *.swp
+*.uid
