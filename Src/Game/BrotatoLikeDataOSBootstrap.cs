@@ -30,7 +30,7 @@ public sealed class BrotatoLikeDataOSBootstrap
     /// <param name="snapshotPath">DataOS 生成的 runtime snapshot 路径。</param>
     public static BrotatoLikeDataOSBootstrap LoadFromResource(string snapshotPath = "res://DataOS/Snapshots/runtime_snapshot.json")
     {
-        using var file = FileAccess.Open(snapshotPath, FileAccess.ModeFlags.Read);
+        using var file = Godot.FileAccess.Open(snapshotPath, Godot.FileAccess.ModeFlags.Read);
         if (file == null)
         {
             throw new InvalidOperationException($"DataOS snapshot not found: {snapshotPath}");
