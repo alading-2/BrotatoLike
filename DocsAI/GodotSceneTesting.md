@@ -4,9 +4,9 @@
 
 统一 BrotatoLike 的 Godot 场景测试入口，给 AI 和 CI 使用同一套 headless 命令，并把 Observation / Debug / Trace 输出放到固定目录。
 
-BrotatoLike 的 `SkilmeAI/` 是框架仓 git submodule 镜像。当前初始开发阶段，框架仓新增或修改 `Scenes/Validation/...`、`Src/SceneTests/...` 后，BrotatoLike 作为默认承载游戏，直接同步到 `Games/BrotatoLike/SkilmeAI/` 工作树以跑通验证。后续多游戏 / 成品阶段不默认同步所有游戏，改按每个游戏的框架版本策略更新 submodule 指针，再选择对应承载游戏跑验证。
+BrotatoLike 的 `SlimeAI/` 是框架仓 git submodule 镜像。当前初始开发阶段，框架仓新增或修改 `Scenes/Validation/...`、`Src/SceneTests/...` 后，BrotatoLike 作为默认承载游戏，直接同步到 `Games/BrotatoLike/SlimeAI/` 工作树以跑通验证。后续多游戏 / 成品阶段不默认同步所有游戏，改按每个游戏的框架版本策略更新 submodule 指针，再选择对应承载游戏跑验证。
 
-`Tools/run-godot-scene.sh` 的 scan roots 必须包含 `Scenes,Src,SkilmeAI/Scenes,SkilmeAI/Src`，`BrotatoLike.csproj` 必须重新包含 `SkilmeAI/Src/SceneTests/**/*.cs`，否则 submodule 场景脚本不会被编译。
+`Tools/run-godot-scene.sh` 的 scan roots 必须包含 `Scenes,Src,SlimeAI/Scenes,SlimeAI/Src`，`BrotatoLike.csproj` 必须重新包含 `SlimeAI/Src/SceneTests/**/*.cs`，否则 submodule 场景脚本不会被编译。
 
 ## 命令
 
@@ -25,7 +25,7 @@ Tools/run-godot-scene.sh run res://Scenes/Main.tscn --build -- --gameos-smoke-ex
 运行框架 Runtime/Data 专项验证场景：
 
 ```bash
-Tools/run-godot-scene.sh run res://SkilmeAI/Scenes/Validation/Runtime/Data/RuntimeDataValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run res://SlimeAI/Scenes/Validation/Runtime/Data/RuntimeDataValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
 Tools/analyze-godot-scene-logs.sh
 ```
 

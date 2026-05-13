@@ -1,3 +1,3 @@
-[submodule "SkilmeAI"]
-	path = SkilmeAI
+[submodule "SlimeAI"]
+	path = SlimeAI
 	url = https://github.com/alading-2/SlimeAIGameFramework.git

@@ -9,9 +9,9 @@
 | 旧内容 | 第一阶段去向 |
 |--------|--------|
 | DataNew/*.cs（PlayerData, EnemyData, AbilityData 等） | `DataOS/Authoring/BrotatoLike.seed.sql` + `DataOS/Snapshots/runtime_snapshot.json` |
-| DataKey/*.cs | `SkilmeAI.GameOS.Capabilities.*/DataKeys.cs` |
-| EventType/*.cs | `SkilmeAI.GameOS.Runtime.Event` + Capability 分域事件 |
-| ResourceManagement/*.cs | `SkilmeAI.GameOS.Runtime.Resource` + `DataOS` resource_entry |
+| DataKey/*.cs | `SlimeAI.GameOS.Capabilities.*/DataKeys.cs` |
+| EventType/*.cs | `SlimeAI.GameOS.Runtime.Event` + Capability 分域事件 |
+| ResourceManagement/*.cs | `SlimeAI.GameOS.Runtime.Resource` + `DataOS` resource_entry |
 | Config/*.cs | `DataOS/Authoring/BrotatoLike.seed.sql` system.config / system.preset |
 | Src/Main/Main.cs | `Src/Game/Main.cs` + `BrotatoLikeGameRuntime` |
 | .tres 文件 | SQLite seed 中对应的 data_field / data_record |
@@ -25,8 +25,8 @@
 
 ## 审计依据
 
-旧实现在框架仓库中保留位置：`/home/slime/Code/SkilmeAI/Else/brotato-my`（约 6022 个 C#、681 个 `.tscn`）。新仓库 `Games/BrotatoLike/Src/Game/` 当前仅 12 个 C# 文件，两者差距悬殊；任何"迁移完成"的判断都必须以 `Else/brotato-my` 为权威输入比对，不能仅以本目录被清空为依据。
+旧实现在框架仓库中保留位置：`/home/slime/Code/SlimeAI/Resources/Else/brotato-my`（约 6022 个 C#、681 个 `.tscn`）。新仓库 `Games/BrotatoLike/Src/Game/` 当前仅 12 个 C# 文件，两者差距悬殊；任何"迁移完成"的判断都必须以 `Resources/Else/brotato-my` 为权威输入比对，不能仅以本目录被清空为依据。
 
 ## 保留原因
 
-本 README 保留作为迁移审计入口，明确"已清理 ≠ 已迁移"。完整旧文件树请直接查阅 `Else/brotato-my`。
+本 README 保留作为迁移审计入口，明确"已清理 ≠ 已迁移"。完整旧文件树请直接查阅 `Resources/Else/brotato-my`。

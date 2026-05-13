@@ -2,7 +2,7 @@
   <Folder Name="/BrotatoLike/">
     <Project Path="BrotatoLike.csproj" />
   </Folder>
-  <Folder Name="/SkilmeAI/">
-    <Project Path="SkilmeAI/GameOS/SkilmeAI.GameOS.csproj" />
+  <Folder Name="/SlimeAI/">
+    <Project Path="SlimeAI/GameOS/SlimeAI.GameOS.csproj" />
   </Folder>
 </Solution>

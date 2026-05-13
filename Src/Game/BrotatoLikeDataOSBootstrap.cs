@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Godot;
-using SkilmeAI.GameOS.Capabilities.Unit;
-using SkilmeAI.GameOS.Runtime.Data;
-using SkilmeAI.GameOS.Runtime.Entity;
-using SkilmeAI.GameOS.Runtime.Schedule;
+using SlimeAI.GameOS.Capabilities.Unit;
+using SlimeAI.GameOS.Runtime.Data;
+using SlimeAI.GameOS.Runtime.Entity;
+using SlimeAI.GameOS.Runtime.Schedule;
 
 namespace BrotatoLike.Game;
 

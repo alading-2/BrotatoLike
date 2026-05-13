@@ -1,21 +1,21 @@
-using SkilmeAI.GameOS.Capabilities.Collision;
-using SkilmeAI.GameOS.Capabilities.Collision.Events;
-using SkilmeAI.GameOS.Capabilities.Movement;
-using SkilmeAI.GameOS.Capabilities.Movement.Events;
-using SkilmeAI.GameOS.Runtime;
-using SkilmeAI.GameOS.Runtime.Data;
-using SkilmeAI.GameOS.Runtime.Entity;
-using SkilmeAI.GameOS.Runtime.Events.Core;
-using SkilmeAI.GameOS.Runtime.Pool;
-using SkilmeAI.GameOS.Runtime.Relationship;
-using SkilmeAI.GameOS.Runtime.Resource;
-using SkilmeAI.GameOS.Runtime.Schedule;
-using SkilmeAI.GameOS.Runtime.Timer;
+using SlimeAI.GameOS.Capabilities.Collision;
+using SlimeAI.GameOS.Capabilities.Collision.Events;
+using SlimeAI.GameOS.Capabilities.Movement;
+using SlimeAI.GameOS.Capabilities.Movement.Events;
+using SlimeAI.GameOS.Runtime;
+using SlimeAI.GameOS.Runtime.Data;
+using SlimeAI.GameOS.Runtime.Entity;
+using SlimeAI.GameOS.Runtime.Events.Core;
+using SlimeAI.GameOS.Runtime.Pool;
+using SlimeAI.GameOS.Runtime.Relationship;
+using SlimeAI.GameOS.Runtime.Resource;
+using SlimeAI.GameOS.Runtime.Schedule;
+using SlimeAI.GameOS.Runtime.Timer;
 
 namespace BrotatoLike.Game;
 
 /// <summary>
-/// 游戏仓库消费 SkilmeAI.GameOS Runtime API 的最小验证入口。
+/// 游戏仓库消费 SlimeAI.GameOS Runtime API 的最小验证入口。
 /// </summary>
 public static class GameBootstrap
 {

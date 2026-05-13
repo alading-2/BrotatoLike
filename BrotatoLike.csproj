@@ -7,14 +7,14 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>BrotatoLike</AssemblyName>
     <RootNamespace>BrotatoLike</RootNamespace>
-    <SkilmeAIGameOSProject Condition=" '$(SkilmeAIGameOSProject)' == '' ">SkilmeAI/GameOS/SkilmeAI.GameOS.csproj</SkilmeAIGameOSProject>
+    <SlimeAIGameOSProject Condition=" '$(SlimeAIGameOSProject)' == '' ">SlimeAI/GameOS/SlimeAI.GameOS.csproj</SlimeAIGameOSProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(SkilmeAIGameOSProject)" />
+    <ProjectReference Include="$(SlimeAIGameOSProject)" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="MigrationInput/**/*.cs" />
-    <Compile Remove="SkilmeAI/**/*.cs" />
-    <Compile Include="SkilmeAI/Src/SceneTests/**/*.cs" />
+    <Compile Remove="SlimeAI/**/*.cs" />
+    <Compile Include="SlimeAI/Src/SceneTests/**/*.cs" />
   </ItemGroup>
 </Project>

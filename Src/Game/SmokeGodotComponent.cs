@@ -1,6 +1,6 @@
 using Godot;
-using SkilmeAI.GameOS.GodotBridge;
-using SkilmeAI.GameOS.Runtime.Entity;
+using SlimeAI.GameOS.GodotBridge;
+using SlimeAI.GameOS.Runtime.Entity;
 
 namespace BrotatoLike.Game;
 

@@ -1,5 +1,5 @@
 using Godot;
-using SkilmeAI.GameOS.Runtime.Event;
+using SlimeAI.GameOS.Runtime.Event;
 
 namespace BrotatoLike.Game;
 

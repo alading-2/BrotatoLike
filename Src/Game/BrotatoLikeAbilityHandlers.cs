@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
-using SkilmeAI.GameOS.Capabilities.Ability;
-using SkilmeAI.GameOS.Capabilities.Collision;
-using SkilmeAI.GameOS.Capabilities.Damage;
-using SkilmeAI.GameOS.Capabilities.Effect;
-using SkilmeAI.GameOS.Capabilities.Feature;
-using SkilmeAI.GameOS.Capabilities.Movement;
-using SkilmeAI.GameOS.Capabilities.Projectile;
-using SkilmeAI.GameOS.Runtime.Entity;
-using SkilmeAI.GameOS.Runtime.Timer;
+using SlimeAI.GameOS.Capabilities.Ability;
+using SlimeAI.GameOS.Capabilities.Collision;
+using SlimeAI.GameOS.Capabilities.Damage;
+using SlimeAI.GameOS.Capabilities.Effect;
+using SlimeAI.GameOS.Capabilities.Feature;
+using SlimeAI.GameOS.Capabilities.Movement;
+using SlimeAI.GameOS.Capabilities.Projectile;
+using SlimeAI.GameOS.Runtime.Entity;
+using SlimeAI.GameOS.Runtime.Timer;
 
 namespace BrotatoLike.Game;
 

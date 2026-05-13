@@ -42,8 +42,8 @@
         "logDirectoryExists": true,
         "jsonlPathConfigured": true,
         "runnerEnvPresent": false,
-        "artifactDirectory": "/home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts",
-        "jsonlLogPath": "/home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts/logs/scene-log.jsonl"
+        "artifactDirectory": "/home/slime/Code/SlimeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts",
+        "jsonlLogPath": "/home/slime/Code/SlimeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts/logs/scene-log.jsonl"
       }
     }
   ],
@@ -197,7 +197,7 @@
       "timestamp": "2026-05-10T13:12:02.0919976+00:00",
       "level": "INFO",
       "context": "ObservationLogValidation",
-      "message": "writing artifact /home/slime/Code/SkilmeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts/observation-log-validation.json",
+      "message": "writing artifact /home/slime/Code/SlimeAI/Games/BrotatoLike/.ai-temp/scene-tests/manual/artifacts/observation-log-validation.json",
       "values": {}
     }
   ],
@@ -205,7 +205,7 @@
     "observation_session_paths: session paths missing"
   ],
   "dependencies": [
-    "SkilmeAI.GameOS.Observation logging",
+    "SlimeAI.GameOS.Observation logging",
     "Games/BrotatoLike Godot scene runner"
   ],
   "notes": [

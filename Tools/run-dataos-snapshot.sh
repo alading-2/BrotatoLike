@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-framework_root="${SKILMEAI_FRAMEWORK_ROOT:-/home/slime/Code/SkilmeAI/SkilmeAI}"
+framework_root="${SKILMEAI_FRAMEWORK_ROOT:-/home/slime/Code/SlimeAI/SlimeAI}"
 db_path="$repo_root/DataOS/.generated/brotatolike.authoring.db"
 snapshot_path="$repo_root/DataOS/Snapshots/runtime_snapshot.json"
 
