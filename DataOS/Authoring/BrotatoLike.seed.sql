@@ -752,6 +752,132 @@ INSERT OR REPLACE INTO data_field(table_id, record_id, field_key, value_type, va
     ('ability', 'dash', 'Movement.Handler.MaxDistance', 'float', '300'),
     ('ability', 'dash', 'Movement.Handler.MaxTravelDuration', 'float', '0.25');
 
+-- Typed Runtime Data contract mirror for the active BrotatoLike fields.
+INSERT OR IGNORE INTO capability_manifest(capability_id, owner_skill, enabled, version, dependencies, profile, trim_policy, description)
+VALUES
+    ('Ability', 'ability-system', 1, '1', 'Damage,Feature', 'brotatolike', 'fail', 'BrotatoLike Ability fields.'),
+    ('AI', 'ai-system', 1, '1', 'Ability,Attack,Collision,Damage,Movement', 'brotatolike', 'fail', 'BrotatoLike AI fields.'),
+    ('Attack', 'attack-system', 1, '1', 'Damage,Movement', 'brotatolike', 'fail', 'BrotatoLike Attack fields.'),
+    ('Collision', 'collision-system', 1, '1', '', 'brotatolike', 'fail', 'BrotatoLike Collision fields.'),
+    ('Damage', 'damage-system', 1, '1', '', 'brotatolike', 'fail', 'BrotatoLike Damage fields.'),
+    ('Effect', 'projectile-effect-system', 1, '1', 'Movement', 'brotatolike', 'fail', 'BrotatoLike Effect fields.'),
+    ('Feature', 'feature-system', 1, '1', '', 'brotatolike', 'fail', 'BrotatoLike Feature fields.'),
+    ('Movement', 'movement-system', 1, '1', '', 'brotatolike', 'fail', 'BrotatoLike Movement fields.'),
+    ('Projectile', 'projectile-effect-system', 1, '1', 'Collision,Damage,Movement', 'brotatolike', 'fail', 'BrotatoLike Projectile fields.'),
+    ('Schedule', 'tools', 1, '1', '', 'brotatolike', 'fail', 'BrotatoLike Schedule and Spawn fields.'),
+    ('Unit', 'tools', 1, '1', '', 'brotatolike', 'fail', 'BrotatoLike Unit fields.');
+
+INSERT OR IGNORE INTO data_key_descriptor(
+    stable_key,
+    owner_capability,
+    owner_skill,
+    value_type,
+    default_value_text,
+    display_name,
+    description,
+    category,
+    min_value,
+    max_value,
+    options_json,
+    is_percentage,
+    supports_modifiers,
+    is_computed)
+SELECT
+    field_key,
+    CASE
+        WHEN substr(field_key, 1, instr(field_key, '.') - 1) = 'Spawn' THEN 'Schedule'
+        ELSE substr(field_key, 1, instr(field_key, '.') - 1)
+    END AS owner_capability,
+    CASE
+        WHEN field_key LIKE 'AI.%' THEN 'ai-system'
+        WHEN field_key LIKE 'Ability.%' THEN 'ability-system'
+        WHEN field_key LIKE 'Attack.%' THEN 'attack-system'
+        WHEN field_key LIKE 'Collision.%' THEN 'collision-system'
+        WHEN field_key LIKE 'Damage.%' THEN 'damage-system'
+        WHEN field_key LIKE 'Effect.%' THEN 'projectile-effect-system'
+        WHEN field_key LIKE 'Feature.%' THEN 'feature-system'
+        WHEN field_key LIKE 'Movement.%' THEN 'movement-system'
+        WHEN field_key LIKE 'Projectile.%' THEN 'projectile-effect-system'
+        WHEN field_key LIKE 'Schedule.%' OR field_key LIKE 'Spawn.%' THEN 'tools'
+        WHEN field_key LIKE 'Unit.%' THEN 'tools'
+        ELSE 'data-authoring'
+    END AS owner_skill,
+    value_type,
+    CASE field_key
+        WHEN 'Ability.ApplyImmediateDamage' THEN 'true'
+        WHEN 'Ability.AutoTargetIgnoreSameTeam' THEN 'true'
+        WHEN 'Ability.AutoTargetMaxTargets' THEN '1'
+        WHEN 'Ability.AutoTargetRange' THEN '-1'
+        WHEN 'Ability.AutoTargetRequiresDamageable' THEN 'true'
+        WHEN 'Ability.CastRange' THEN '-1'
+        WHEN 'Ability.ChainDamageDecay' THEN '100'
+        WHEN 'Ability.DamageRepeatCount' THEN '1'
+        WHEN 'Ability.Level' THEN '1'
+        WHEN 'Ability.MaxLevel' THEN '1'
+        WHEN 'Ability.TargetSelection' THEN 'None'
+        WHEN 'Ability.TriggerMode' THEN 'None'
+        WHEN 'Ability.Type' THEN 'Passive'
+        WHEN 'AI.AttackRange' THEN '100'
+        WHEN 'Attack.Interval' THEN '1'
+        WHEN 'Attack.Range' THEN '100'
+        WHEN 'Damage.ContactDamageInterval' THEN '1'
+        WHEN 'Damage.CritDamage' THEN '100'
+        WHEN 'Damage.DamageTakenMultiplier' THEN '1'
+        WHEN 'Effect.Duration' THEN '-1'
+        WHEN 'Movement.BezierDegree' THEN '2'
+        WHEN 'Movement.BoomerangReturnSpeedMultiplier' THEN '1'
+        WHEN 'Movement.Handler.MaxDistance' THEN '-1'
+        WHEN 'Movement.Handler.MaxTravelDuration' THEN '-1'
+        WHEN 'Movement.Handler.MoveMode' THEN 'None'
+        WHEN 'Movement.Handler.ProjectileCount' THEN '1'
+        WHEN 'Movement.IsOrbitClockwise' THEN 'true'
+        WHEN 'Movement.OrbitTotalAngle' THEN '-1'
+        WHEN 'Movement.WaveAmplitude' THEN '50'
+        WHEN 'Movement.WaveFrequency' THEN '2'
+        WHEN 'Projectile.MaxHitCount' THEN '1'
+        WHEN 'Projectile.MaxLifeTime' THEN '-1'
+        WHEN 'Schedule.AutoLoad' THEN 'true'
+        WHEN 'Schedule.MountGroup' THEN 'Else'
+        WHEN 'Schedule.Spawn.MaxWaves' THEN '-1'
+        WHEN 'Schedule.Spawn.WaveDuration' THEN '60'
+        WHEN 'Schedule.StartEnabled' THEN 'true'
+        WHEN 'Spawn.Interval' THEN '1'
+        WHEN 'Spawn.MaxCountPerWave' THEN '-1'
+        WHEN 'Spawn.MaxWave' THEN '-1'
+        WHEN 'Spawn.MinWave' THEN '1'
+        WHEN 'Spawn.PositionStrategy' THEN 'Rectangle'
+        WHEN 'Spawn.SingleCount' THEN '1'
+        WHEN 'Spawn.Weight' THEN '1'
+        WHEN 'Unit.DetectionRange' THEN '-1'
+        WHEN 'Unit.EntityType' THEN 'Unit'
+        WHEN 'Unit.IsShowHealthBar' THEN 'true'
+        ELSE CASE value_type
+            WHEN 'bool' THEN 'false'
+            WHEN 'int' THEN '0'
+            WHEN 'float' THEN '0'
+            WHEN 'double' THEN '0'
+            ELSE ''
+        END
+    END AS default_value_text,
+    field_key AS display_name,
+    field_key AS description,
+    CASE
+        WHEN field_key LIKE 'Spawn.%' THEN 'Spawn'
+        WHEN instr(field_key, '.') > 0 THEN substr(field_key, 1, instr(field_key, '.') - 1)
+        ELSE ''
+    END AS category,
+    NULL AS min_value,
+    NULL AS max_value,
+    '[]' AS options_json,
+    0 AS is_percentage,
+    0 AS supports_modifiers,
+    0 AS is_computed
+FROM (
+    SELECT field_key, value_type
+    FROM data_field
+    GROUP BY field_key, value_type
+);
+
 INSERT OR REPLACE INTO resource_entry(category, resource_key, resource_path, description) VALUES
     ('Entity', 'AbilityEntity', 'res://Src/ECS/Base/Entity/Ability/AbilityEntity.tscn', 'Legacy ResourcePaths.Entity_AbilityEntity'),
     ('Entity', 'EffectEntity', 'res://Src/ECS/Base/Entity/Effect/EffectEntity.tscn', 'Legacy ResourcePaths.Entity_EffectEntity'),

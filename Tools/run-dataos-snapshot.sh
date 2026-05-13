@@ -11,6 +11,6 @@ rm -f "$db_path"
 
 sqlite3 "$db_path" ".read $framework_root/DataOS/Migrations/001_initial.sql"
 sqlite3 "$db_path" ".read $repo_root/DataOS/Authoring/BrotatoLike.seed.sql"
-"$framework_root/DataOS/Generators/generate-runtime-snapshot.sh" "$db_path" "$snapshot_path"
+DATAOS_PROFILE=brotatolike DATAOS_CATALOG_ID=brotatolike "$framework_root/DataOS/Generators/generate-runtime-snapshot.sh" "$db_path" "$snapshot_path"
 
 echo "BrotatoLike DataOS snapshot generated: $snapshot_path"

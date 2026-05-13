@@ -110,7 +110,7 @@ public sealed class BrotatoLikeEnemySpawnSystem
         bootstrap.ApplyRecordToData(rule.TableId, rule.RecordId, entity.Data);
         entity.Data.Set(MovementDataKeys.Position, new Vector2Value(position.X, position.Y));
 
-        var visualPath = entity.Data.Get<string>(UnitDataKeys.VisualScenePath, rule.VisualScenePath);
+        var visualPath = entity.Data.Get(UnitDataKeys.VisualScenePath, rule.VisualScenePath);
         var visualScene = ResourceManagement.LoadPath<PackedScene>(visualPath);
         if (visualScene == null)
         {

@@ -18,11 +18,18 @@ public sealed class BrotatoLikeDataOSBootstrap
     private const string DefaultSpawnConfigId = "default";
 
     private readonly RuntimeDataSnapshot snapshot;
+    private readonly DataCatalog activeCatalog;
 
-    private BrotatoLikeDataOSBootstrap(RuntimeDataSnapshot snapshot)
+    private BrotatoLikeDataOSBootstrap(RuntimeDataSnapshot snapshot, DataCatalog activeCatalog)
     {
         this.snapshot = snapshot;
+        this.activeCatalog = activeCatalog;
     }
+
+    /// <summary>
+    /// 当前游戏 profile 绑定的 Runtime DataCatalog。
+    /// </summary>
+    public DataCatalog ActiveCatalog => activeCatalog;
 
     /// <summary>
     /// 从 Godot res:// 路径读取 DataOS snapshot。
@@ -36,7 +43,7 @@ public sealed class BrotatoLikeDataOSBootstrap
             throw new InvalidOperationException($"DataOS snapshot not found: {snapshotPath}");
         }
 
-        return new BrotatoLikeDataOSBootstrap(RuntimeDataSnapshot.FromJson(file.GetAsText()));
+        return FromJson(file.GetAsText());
     }
 
     /// <summary>
@@ -45,7 +52,9 @@ public sealed class BrotatoLikeDataOSBootstrap
     /// <param name="json">Runtime snapshot JSON 文本。</param>
     public static BrotatoLikeDataOSBootstrap FromJson(string json)
     {
-        return new BrotatoLikeDataOSBootstrap(RuntimeDataSnapshot.FromJson(json));
+        var snapshot = RuntimeDataSnapshot.FromJson(json);
+        ValidateSnapshotHeader(snapshot);
+        return new BrotatoLikeDataOSBootstrap(snapshot, CreateActiveCatalog(snapshot));
     }
 
     /// <summary>
@@ -69,7 +78,11 @@ public sealed class BrotatoLikeDataOSBootstrap
             throw new InvalidOperationException($"DataOS record not found: {tableId}/{recordIdOrName}");
         }
 
-        var entity = EntityManager.Spawn(new EntitySpawnConfig { EntityId = entityId });
+        var entity = EntityManager.Spawn(new EntitySpawnConfig
+        {
+            EntityId = entityId,
+            DataCatalog = activeCatalog
+        });
         snapshot.ApplyRecord(entity.Data, record);
         return entity;
     }
@@ -81,7 +94,7 @@ public sealed class BrotatoLikeDataOSBootstrap
     /// <param name="enabledOnly">是否只返回启用规则。</param>
     public BrotatoLikeSpawnCatalog BuildEnemySpawnCatalog(int wave = 1, bool enabledOnly = true)
     {
-        var spawnConfig = new Data();
+        var spawnConfig = new Data(activeCatalog);
         ApplyRecordToData("spawn.config", DefaultSpawnConfigId, spawnConfig);
 
         var rules = new List<BrotatoLikeSpawnRule>();
@@ -93,7 +106,7 @@ public sealed class BrotatoLikeDataOSBootstrap
                 continue;
             }
 
-            var data = new Data();
+            var data = new Data(activeCatalog);
             snapshot.ApplyRecord(data, record);
 
             var enabled = data.Get<bool>(ScheduleDataKeys.SpawnRuleEnabled);
@@ -109,8 +122,8 @@ public sealed class BrotatoLikeDataOSBootstrap
                 record.Id,
                 record.Name,
                 enabled,
-                data.Get<string>(UnitDataKeys.VisualScenePath),
-                data.Get<string>(ScheduleDataKeys.SpawnPositionStrategy),
+                data.Get(UnitDataKeys.VisualScenePath),
+                data.Get(ScheduleDataKeys.SpawnPositionStrategy),
                 minWave,
                 maxWave,
                 data.Get<float>(ScheduleDataKeys.SpawnInterval),
@@ -157,7 +170,7 @@ public sealed class BrotatoLikeDataOSBootstrap
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemId);
 
-        var data = new Data();
+        var data = new Data(activeCatalog);
         if (ApplyRecordToData("system.config", systemId, data) == 0)
         {
             throw new InvalidOperationException($"DataOS system.config not found: {systemId}");
@@ -165,26 +178,26 @@ public sealed class BrotatoLikeDataOSBootstrap
 
         return new SystemConfig
         {
-            SystemId = data.Get<string>(ScheduleDataKeys.SystemId, systemId),
+            SystemId = data.Get(ScheduleDataKeys.SystemId, systemId),
             Group = data.Get<SystemGroup>(ScheduleDataKeys.MountGroup, SystemGroup.Else),
-            Tags = ParseFlags(data.Get<string>(ScheduleDataKeys.Tags, string.Empty), SystemTag.None),
+            Tags = ParseFlags(data.Get(ScheduleDataKeys.Tags, string.Empty), SystemTag.None),
             Required = data.Get<bool>(ScheduleDataKeys.Required),
             StartEnabled = data.Get<bool>(ScheduleDataKeys.StartEnabled, true),
             Priority = data.Get<int>(ScheduleDataKeys.Priority),
-            Dependencies = SplitList(data.Get<string>(ScheduleDataKeys.Dependencies, string.Empty)),
+            Dependencies = SplitList(data.Get(ScheduleDataKeys.Dependencies, string.Empty)),
             RunCondition = new SystemRunCondition
             {
                 AllowedFlowStates = ParseFlags(
-                    data.Get<string>(ScheduleDataKeys.AllowedFlowStates, string.Empty),
+                    data.Get(ScheduleDataKeys.AllowedFlowStates, string.Empty),
                     GameFlowState.None),
                 RequiredOverlays = ParseFlags(
-                    data.Get<string>(ScheduleDataKeys.RequiredOverlays, string.Empty),
+                    data.Get(ScheduleDataKeys.RequiredOverlays, string.Empty),
                     OverlayFlags.None),
                 BlockedOverlays = ParseFlags(
-                    data.Get<string>(ScheduleDataKeys.BlockedOverlays, string.Empty),
+                    data.Get(ScheduleDataKeys.BlockedOverlays, string.Empty),
                     OverlayFlags.None),
                 AllowedSimulationStates = ParseFlags(
-                    data.Get<string>(ScheduleDataKeys.AllowedSimulationStates, string.Empty),
+                    data.Get(ScheduleDataKeys.AllowedSimulationStates, string.Empty),
                     SimulationState.None)
             }
         };
@@ -204,6 +217,37 @@ public sealed class BrotatoLikeDataOSBootstrap
         }
 
         return snapshot.ApplyRecord(data, record);
+    }
+
+    private static DataCatalog CreateActiveCatalog(RuntimeDataSnapshot snapshot)
+    {
+        FrameworkDataKeys.RegisterAll();
+        var catalogId = string.IsNullOrWhiteSpace(snapshot.Manifest.CatalogId)
+            ? "brotatolike"
+            : snapshot.Manifest.CatalogId;
+        var builder = DataCatalog.CreateBuilder(catalogId).AddRegisteredKeys();
+
+        for (var i = 0; i < snapshot.Manifest.EnabledCapabilities.Count; i++)
+        {
+            builder.AddCapability(snapshot.Manifest.EnabledCapabilities[i], enabled: true);
+        }
+
+        return builder.Build();
+    }
+
+    private static void ValidateSnapshotHeader(RuntimeDataSnapshot snapshot)
+    {
+        if (snapshot.Manifest.Validation.ErrorCount > 0)
+        {
+            throw new InvalidOperationException($"DataOS snapshot has validation errors: {snapshot.Manifest.Validation.ErrorCount}");
+        }
+
+        if (snapshot.Manifest.DescriptorCount != snapshot.Descriptors.Count
+            || snapshot.Manifest.RecordCount != snapshot.Records.Count
+            || snapshot.Manifest.ResourceCount != snapshot.Resources.Count)
+        {
+            throw new InvalidOperationException("DataOS snapshot manifest counts do not match payload counts.");
+        }
     }
 
     private static int CompareSpawnRules(BrotatoLikeSpawnRule left, BrotatoLikeSpawnRule right)

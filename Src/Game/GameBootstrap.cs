@@ -3,6 +3,7 @@ using SkilmeAI.GameOS.Capabilities.Collision.Events;
 using SkilmeAI.GameOS.Capabilities.Movement;
 using SkilmeAI.GameOS.Capabilities.Movement.Events;
 using SkilmeAI.GameOS.Runtime;
+using SkilmeAI.GameOS.Runtime.Data;
 using SkilmeAI.GameOS.Runtime.Entity;
 using SkilmeAI.GameOS.Runtime.Events.Core;
 using SkilmeAI.GameOS.Runtime.Pool;
@@ -18,10 +19,12 @@ namespace BrotatoLike.Game;
 /// </summary>
 public static class GameBootstrap
 {
+    private static readonly DataKey<int> SmokeValueKey = DataKey.Create<int>("BrotatoLike.SmokeValue", 0);
+
     /// <summary>
     /// 当前游戏构建使用的框架包 Id。
     /// </summary>
-    public static string FrameworkPackageId => GameOSInfo.PackageId;
+    public static string FrameworkPackageId => GameOSInfo.FrameworkId;
 
     /// <summary>
     /// 当前游戏构建使用的框架版本。
@@ -46,12 +49,12 @@ public static class GameBootstrap
         var dataEvents = 0;
         entity.Events.Subscribe<DataPropertyChanged>(data =>
         {
-            if (data.Change.Key == "SmokeValue")
+            if (data.Change.StableKey == SmokeValueKey.StableKey)
             {
                 dataEvents++;
             }
         });
-        entity.Data.Set("SmokeValue", 1);
+        entity.Data.Set(SmokeValueKey, 1);
 
         var pool = new ObjectPool<SmokeToken>(
             static () => new SmokeToken(),

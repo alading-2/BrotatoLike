@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using SkilmeAI.GameOS.Capabilities.AI;
 using Godot;
 using SkilmeAI.GameOS.Capabilities.Ability;
@@ -128,7 +129,20 @@ public partial class Main : Node
             && mainEntryProbe.SmokeEntryKeptSeparate
             && mainEntryProbe.CameraMounted;
         GD.Print(success ? "BrotatoLike GameOS smoke PASS" : "BrotatoLike GameOS smoke FAIL");
+        ExportWorldEventBusObservation();
         GetTree().Quit(success ? 0 : 1);
+    }
+
+    private static void ExportWorldEventBusObservation()
+    {
+        var artifactDir = OS.GetEnvironment("GODOT_SCENE_TEST_ARTIFACT_DIR");
+        if (string.IsNullOrWhiteSpace(artifactDir))
+        {
+            return;
+        }
+
+        var path = Path.Combine(artifactDir, "eventbus-dump.json");
+        WorldEvents.World.ExportObservation(path);
     }
 
     private BrotatoLikeGameRuntime StartGameRuntime()
@@ -205,7 +219,7 @@ public partial class Main : Node
         var resourceCount = bootstrap.RegisterResources();
         var enemyApplied = Math.Abs(enemy.Data.Get<float>(DamageDataKeys.MaxHp) - 150f) < 0.001f
             && Math.Abs(enemy.Data.Get<float>(MovementDataKeys.MoveSpeed) - 150f) < 0.001f
-            && enemy.Data.Get<string>(UnitDataKeys.VisualScenePath) == "res://assets/Unit/Enemy/yuren/AnimatedSprite2D/yuren.tscn"
+            && enemy.Data.Get(UnitDataKeys.VisualScenePath) == "res://assets/Unit/Enemy/yuren/AnimatedSprite2D/yuren.tscn"
             && enemy.Data.Get<int>(ScheduleDataKeys.SpawnSingleCount) == 3;
         var abilityApplied = ability.Data.Get<AbilityTriggerMode>(AbilityDataKeys.TriggerMode) == AbilityTriggerMode.Manual
             && ability.Data.Get<AbilityTargetSelection>(AbilityDataKeys.TargetSelection) == AbilityTargetSelection.Entity
@@ -215,7 +229,7 @@ public partial class Main : Node
             && Math.Abs(ability.Data.Get<float>(AbilityDataKeys.ChainRange) - 300f) < 0.001f
             && Math.Abs(ability.Data.Get<float>(AbilityDataKeys.ChainDelay) - 0.2f) < 0.001f
             && Math.Abs(ability.Data.Get<float>(AbilityDataKeys.ChainDamageDecay) - 100f) < 0.001f
-            && ability.Data.Get<string>(AbilityDataKeys.LineEffectScenePath) == string.Empty
+            && ability.Data.Get(AbilityDataKeys.LineEffectScenePath) == string.Empty
             && ability.Data.Get<int>(AbilityDataKeys.AutoTargetMaxTargets) == 1
             && ability.Data.Get<bool>(AbilityDataKeys.AutoTargetIgnoreSameTeam)
             && ability.Data.Get<bool>(AbilityDataKeys.AutoTargetRequiresDamageable)
@@ -226,18 +240,18 @@ public partial class Main : Node
             && !ability.Data.Get<bool>(AbilityDataKeys.UsesCharges)
             && Math.Abs(projectileAbility.Data.Get<float>(AbilityDataKeys.EffectRadius) - 250f) < 0.001f
             && targetPointAbility.Data.Get<AbilityTargetSelection>(AbilityDataKeys.TargetSelection) == AbilityTargetSelection.Point
-            && targetPointAbility.Data.Get<string>(AbilityDataKeys.FeatureHandlerId) == "技能.主动.位置目标"
+            && targetPointAbility.Data.Get(AbilityDataKeys.FeatureHandlerId) == "技能.主动.位置目标"
             && Math.Abs(targetPointAbility.Data.Get<float>(AbilityDataKeys.EffectRadius) - 200f) < 0.001f
             && Math.Abs(targetPointAbility.Data.Get<float>(AbilityDataKeys.Damage) - 10f) < 0.001f
-            && targetPointAbility.Data.Get<string>(EffectDataKeys.Name) == "位置目标爆炸特效"
+            && targetPointAbility.Data.Get(EffectDataKeys.Name) == "位置目标爆炸特效"
             && projectileAbility.Data.Get<int>(AbilityDataKeys.AutoTargetMaxTargets) == 1
             && projectileAbility.Data.Get<bool>(AbilityDataKeys.ApplyImmediateDamage)
-            && projectileAbility.Data.Get<string>(AbilityDataKeys.FeatureGroupId) == "技能.投射物"
+            && projectileAbility.Data.Get(AbilityDataKeys.FeatureGroupId) == "技能.投射物"
             && Math.Abs(projectileAbility.Data.Get<float>(ProjectileDataKeys.Speed) - 380f) < 0.001f
             && projectileAbility.Data.Get<int>(ProjectileDataKeys.MaxHitCount) == 1
             && Math.Abs(projectileAbility.Data.Get<float>(ProjectileDataKeys.MaxLifeTime) - 1.35f) < 0.001f
             && Math.Abs(projectileAbility.Data.Get<float>(ProjectileDataKeys.Damage) - 9f) < 0.001f
-            && projectileAbility.Data.Get<string>(EffectDataKeys.Name) == "定点抛炸弹爆炸特效"
+            && projectileAbility.Data.Get(EffectDataKeys.Name) == "定点抛炸弹爆炸特效"
             && Math.Abs(sineWaveAbility.Data.Get<float>(ProjectileDataKeys.Speed) - 350f) < 0.001f
             && sineWaveAbility.Data.Get<int>(ProjectileDataKeys.MaxHitCount) == 1
             && Math.Abs(sineWaveAbility.Data.Get<float>(ProjectileDataKeys.Damage) - 25f) < 0.001f
@@ -262,7 +276,7 @@ public partial class Main : Node
             && bezierAbility.Data.Get<MoveMode>(MovementDataKeys.HandlerMoveMode) == MoveMode.BezierCurve
             && bezierAbility.Data.Get<int>(MovementDataKeys.HandlerProjectileCount) == 5
             && bezierAbility.Data.Get<int>(MovementDataKeys.BezierDegree) == 5
-            && bezierAbility.Data.Get<string>(MovementDataKeys.BezierPattern) == "Converge"
+            && bezierAbility.Data.Get(MovementDataKeys.BezierPattern) == "Converge"
             && Math.Abs(bezierAbility.Data.Get<float>(MovementDataKeys.HandlerMinTravelDuration) - 0.85f) < 0.001f
             && Math.Abs(bezierAbility.Data.Get<float>(MovementDataKeys.HandlerMaxTravelDuration) - 1.45f) < 0.001f
             && projectileAbility.Data.Get<MoveMode>(MovementDataKeys.HandlerMoveMode) == MoveMode.CircularArc
@@ -283,19 +297,19 @@ public partial class Main : Node
             && Math.Abs(dashAbility.Data.Get<float>(MovementDataKeys.MoveSpeed) - 1200f) < 0.001f
             && Math.Abs(dashAbility.Data.Get<float>(MovementDataKeys.HandlerMaxDistance) - 300f) < 0.001f
             && Math.Abs(dashAbility.Data.Get<float>(MovementDataKeys.HandlerMaxTravelDuration) - 0.25f) < 0.001f
-            && circleDamageAbility.Data.Get<string>(EffectDataKeys.Name) == "烈焰光环特效"
+            && circleDamageAbility.Data.Get(EffectDataKeys.Name) == "烈焰光环特效"
             && Math.Abs(circleDamageAbility.Data.Get<float>(EffectDataKeys.Duration) + 1f) < 0.001f
-            && auraShieldAbility.Data.Get<string>(AbilityDataKeys.FeatureHandlerId) == "技能.被动.光环护盾"
+            && auraShieldAbility.Data.Get(AbilityDataKeys.FeatureHandlerId) == "技能.被动.光环护盾"
             && auraShieldAbility.Data.Get<MoveMode>(MovementDataKeys.HandlerMoveMode) == MoveMode.AttachToHost
             && auraShieldAbility.Data.Get<int>(MovementDataKeys.HandlerProjectileCount) == 1
             && Math.Abs(auraShieldAbility.Data.Get<float>(MovementDataKeys.HandlerMaxDistance) - 64f) < 0.001f
             && Math.Abs(auraShieldAbility.Data.Get<float>(MovementDataKeys.HandlerMaxTravelDuration) - 6f) < 0.001f
             && Math.Abs(auraShieldAbility.Data.Get<float>(ProjectileDataKeys.Damage) - 15f) < 0.001f
-            && auraShieldAbility.Data.Get<string>(ProjectileDataKeys.ScenePath) == "res://assets/Projectile/Projectile/Polygon2D/BulletDiamond.tscn";
+            && auraShieldAbility.Data.Get(ProjectileDataKeys.ScenePath) == "res://assets/Projectile/Projectile/Polygon2D/BulletDiamond.tscn";
         var expandedDataApplied = targetingIndicator.Data.Get<bool>(DamageDataKeys.IsInvulnerable)
             && Math.Abs(targetingIndicator.Data.Get<float>(MovementDataKeys.MoveSpeed) - 400f) < 0.001f
             && systemConfig.Data.Get<SystemGroup>(ScheduleDataKeys.MountGroup) == SystemGroup.Gameplay
-            && systemConfig.Data.Get<string>(ScheduleDataKeys.BlockedOverlays) == "Blocking"
+            && systemConfig.Data.Get(ScheduleDataKeys.BlockedOverlays) == "Blocking"
             && systemPreset.Data.Get<bool>(ScheduleDataKeys.PresetIsActive)
             && Math.Abs(spawnConfig.Data.Get<float>(ScheduleDataKeys.WaveDuration) - 60f) < 0.001f
             && spawnConfig.Data.Get<int>(ScheduleDataKeys.MaxWaves) == 20
@@ -1111,7 +1125,7 @@ public partial class Main : Node
             && Math.Abs(sineWaveProjectile.Data.Get<float>(MovementDataKeys.WaveAmplitude) - 60f) < 0.001f
             && Math.Abs(sineWaveProjectile.Data.Get<float>(MovementDataKeys.WaveFrequency) - 2f) < 0.001f
             && Math.Abs(sineWaveProjectile.Data.Get<float>(MovementDataKeys.HandlerMaxDistance) - 1800f) < 0.001f
-            && sineWaveProjectile.Data.Get<string>(ProjectileDataKeys.ScenePath) == "res://assets/Projectile/Projectile/Polygon2D/ArrowNeedle.tscn"
+            && sineWaveProjectile.Data.Get(ProjectileDataKeys.ScenePath) == "res://assets/Projectile/Projectile/Polygon2D/ArrowNeedle.tscn"
             && Math.Abs(sineWaveProjectile.Data.Get<float>(ProjectileDataKeys.Damage) - 25f) < 0.001f
             && sineWavePosition == Vector2Value.Zero
             && boomerangDataOsHandlerReport.Result == AbilityTriggerResult.Success
@@ -1132,7 +1146,7 @@ public partial class Main : Node
             && bezierProjectile.Data.Get<MoveMode>(MovementDataKeys.HandlerMoveMode) == MoveMode.BezierCurve
             && bezierProjectile.Data.Get<int>(MovementDataKeys.HandlerProjectileCount) == 5
             && bezierProjectile.Data.Get<int>(MovementDataKeys.BezierDegree) == 5
-            && bezierProjectile.Data.Get<string>(MovementDataKeys.BezierPattern) == "Converge"
+            && bezierProjectile.Data.Get(MovementDataKeys.BezierPattern) == "Converge"
             && Math.Abs(bezierProjectile.Data.Get<float>(MovementDataKeys.HandlerMinTravelDuration) - 0.85f) < 0.001f
             && Math.Abs(bezierProjectile.Data.Get<float>(MovementDataKeys.HandlerMaxTravelDuration) - 1.45f) < 0.001f
             && circularArcDataOsHandlerReport.Result == AbilityTriggerResult.Success
@@ -1218,7 +1232,7 @@ public partial class Main : Node
             && Math.Abs(auraShieldProjectile.Data.Get<float>(MovementDataKeys.HandlerMaxDistance) - 64f) < 0.001f
             && Math.Abs(auraShieldProjectile.Data.Get<float>(MovementDataKeys.HandlerMaxTravelDuration) - 6f) < 0.001f
             && Math.Abs(auraShieldProjectile.Data.Get<float>(ProjectileDataKeys.Damage) - 15f) < 0.001f
-            && auraShieldProjectile.Data.Get<string>(ProjectileDataKeys.ScenePath) == "res://assets/Projectile/Projectile/Polygon2D/BulletDiamond.tscn";
+            && auraShieldProjectile.Data.Get(ProjectileDataKeys.ScenePath) == "res://assets/Projectile/Projectile/Polygon2D/BulletDiamond.tscn";
 
         var autoAbility = new GodotEntity
         {
@@ -1475,7 +1489,7 @@ public partial class Main : Node
             && effectAnimationSynced
             && RelationshipManager.HasRelationship(caster.EntityId, effect.Effect.EntityId, RelationshipType.EntityToEffect)
             && effect.Effect.Data.Get<Vector2Value>(EffectDataKeys.Position) == new Vector2Value(12f, 0f)
-            && effect.Effect.Data.Get<string>(EffectDataKeys.AnimationName) == "Effect"
+            && effect.Effect.Data.Get(EffectDataKeys.AnimationName) == "Effect"
             && Math.Abs(effect.Effect.Data.Get<float>(EffectDataKeys.Duration) - 0.5f) < 0.001f;
 
         return new AbilityRuntimeProbe(

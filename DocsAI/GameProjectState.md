@@ -1,14 +1,21 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-10（本轮追加）
+> 更新日期：2026-05-13
 
 ## 当前状态
 
-框架接入基线已创建。框架仓库已有 `SkilmeAI.GameOS` Runtime 最小内核、DataOS SQLite schema / migration / generator / validator / Runtime snapshot loader、GodotBridge 第一版，以及 Movement / Collision / Damage / Ability / Projectile / Effect / Feature / AI / Attack 第一批能力。
+框架接入基线已创建。框架仓库已有 `SkilmeAI.GameOS` Runtime 最小内核、typed Runtime Data contract、DataOS SQLite schema / migration / generator / validator / typed Runtime snapshot loader、GodotBridge 第一版，以及 Movement / Collision / Damage / Ability / Projectile / Effect / Feature / AI / Attack 第一批能力。
 
 本轮追加：
+- **typed Data / DataOS snapshot contract**：BrotatoLike seed 已补 `capability_manifest` 和 `data_key_descriptor`，`DataOS/Snapshots/runtime_snapshot.json` 现在内嵌 `manifest / descriptors / records / resources`；`Tools/run-dataos-snapshot.sh` 使用 `DATAOS_PROFILE=brotatolike` 和 `DATAOS_CATALOG_ID=brotatolike` 生成 profile snapshot。
+- **active catalog + typed loader**：`BrotatoLikeDataOSBootstrap` 从 snapshot manifest/descriptors 构建 active `DataCatalog`，通过框架 `RuntimeDataSnapshot` resolve stable key 到 `DataKey<T>` 后 typed apply；`EntitySpawnConfig.DataCatalog` 会把 catalog 传入 Runtime Entity。loader 会把 wrong type、unknown key、descriptor missing/extra、type/default drift 作为错误，不再静默回退 runtime default。
+- **typed runtime migration**：游戏侧 Ability / Feature handler、SpawnSystem、runtime bootstrap 和 smoke 断言已从旧 string/DataMeta access 迁到 typed `DataKey<T>` 读写。`GameBootstrap` 的 smoke local key 已改为 `DataKey<int>`，BrotatoLike build 通过 `SkilmeAIGameOSProject` 指向工作区主框架仓，避免编译只读 submodule 旧源码。
+- **Runtime/Data 专项场景**：框架侧新增 `res://SkilmeAI/Scenes/Validation/Runtime/Data/RuntimeDataValidation.tscn`，BrotatoLike runner 可作为承载工程运行；该场景覆盖 typed `DataKey<T>` lifecycle、`DataCatalog` resolve、modifier/computed dirty、category reset 和 Data-to-Event bridge artifact。
+- **submodule 承载策略**：BrotatoLike 的 `SkilmeAI/` 是框架仓 git submodule 镜像。当前初始开发阶段，BrotatoLike 作为默认承载游戏，框架侧验证场景可直接同步到该工作树以跑通 Godot；后续多游戏 / 成品阶段不默认同步所有游戏，改按每个游戏的框架版本策略更新 submodule 指针。
+- **drift evidence**：typed loader / validator 曾捕获 `Movement.OrbitTotalAngle` descriptor default mirror 与 C# runtime default 不一致，修正 seed 中 default mirror 为 `-1` 后通过验证。
 - **R07 可玩切片验收**：普通 `Scenes/Main.tscn` 在 scene runner 的 artifact 环境下会执行 `BrotatoLikePlayableSliceAcceptance`，与 `--gameos-smoke-exit` smoke 路径分离；输出 `BrotatoLike playable slice PASS/FAIL`，并写入 `artifacts/scene-acceptance.json`。当前验收覆盖玩家生成、WASD + 方向键 input map、`Movement.InputDirection` / `Movement.LastMoveDirection`、玩家位移、第 1 波敌人生成、敌人追逐移动、接触伤害、敌人死亡和 cleanup、`slam` 与 `chain_lightning` 触发 / 冷却门禁 / 命中、最小 Health / CurrentSkill HUD Label、结构化 damage logs。
 - **统一 Observation / runner**：`Tools/run-godot-scene.sh` 现在委托 `.codex/skills/godot-scene-test/scripts/godot-scene-runner.mjs`，新日志结构固定为 `index.json + 001_<scene>_attempt1/{stdout,stderr,combined,result,artifacts}`；`BrotatoLikePlayableSliceAcceptance` 写入小写 `status=pass/fail` 和 `artifacts/logs/scene-log.jsonl`，`Main.cs` 使用 `GameOSLog.For("BrotatoLike.Main")` 输出流程日志；`Scenes/Validation/GameOS/Observation/ObservationLogValidation.tscn` 独立验证通用 log level、格式化、过滤、JSONL sink 和 runner session 路径。
+- **EventBus observation dump**：`--gameos-smoke-exit` smoke 路径会在 runner artifact 环境下导出 `artifacts/eventbus-dump.json`；最新 `.ai-temp/scene-tests/runs/2026-05-13/09-23-37/.../eventbus-dump.json` 中 `SameTypeReentryBlockedCounts={}`、`HandlerExceptions=[]`，用于确认 BrotatoLike smoke 没有事件重入阻断或 handler 异常。
 - **迁移台账**：新增 `DocsAI/MigrationLedger.md`，按旧 `Else/brotato-my` 主场景、Entity、Component、System、UI、Ability、DataNew、Config、ResourcePaths 和 Test 输入建立第一版映射；该台账用于审计和后续 R07 可玩切片追踪，明确 `DataOS-only` 与 `遗留引用` 不等于资源可加载或玩法完成。
 - **Movement Acceleration 平滑移动**：框架 `MovementDataKeys.Acceleration` + `InputDrivenMovement` Lerp 平滑支持；DataOS `unit.player/deluyi` 已写入 `Movement.Acceleration = 12`；backward-compatible（无 Acceleration 时退化为直接速度）。
 - **GodotPlayerInputComponent**：框架 GodotBridge 新增输入桥接组件，每帧 `_Process` 读取 Godot Input Map（MoveLeft/Right/Up/Down），写入 `MovementDataKeys.InputDirection`；支持 `CanMoveInput` 门控和 AI 共存；已定义 BrotatoLike `project.godot` 输入映射（WASD + 方向键 + 手柄左摇杆）。
@@ -24,7 +31,7 @@
 - Runtime Pool 预热和释放。
 - Runtime Timer Tick。
 - Runtime ResourceCatalog 路径映射。
-- DataOS `DataOS/Authoring/BrotatoLike.seed.sql` 生成 `DataOS/Snapshots/runtime_snapshot.json`；Godot smoke 通过 `BrotatoLikeDataOSBootstrap` 读取 snapshot，生成 `unit.enemy/yuren`、`unit.targeting_indicator/default`、`ability/chain_lightning`、`ability/parabola_shot`、`ability/sine_wave_shot`、`ability/boomerang_throw`、`ability/orbit_skill`、`ability/bezier_shot`、`ability/arc_shot`、`ability/circle_damage`、`system.config/SpawnSystem`、`system.preset/Default` 和 `spawn.config/default` Runtime Entity，断言旧 AbilityData 通用字段、链式技能参数、自动索敌参数、持续伤害参数、投射物速度 / 命中 / 生命周期 / 伤害参数、特效名称 / 持续时间参数，以及 SineWave / Orbit / Boomerang / Bezier / CircularArc 的 Movement handler authoring 参数，构建第 1 波敌人生成规则 catalog，并注册 `ResourceCatalog` 资源映射。
+- DataOS `DataOS/Authoring/BrotatoLike.seed.sql` 生成 `DataOS/Snapshots/runtime_snapshot.json`；Godot smoke 通过 `BrotatoLikeDataOSBootstrap` 读取 typed snapshot，生成 `unit.enemy/yuren`、`unit.targeting_indicator/default`、`ability/chain_lightning`、`ability/parabola_shot`、`ability/sine_wave_shot`、`ability/boomerang_throw`、`ability/orbit_skill`、`ability/bezier_shot`、`ability/arc_shot`、`ability/circle_damage`、`system.config/SpawnSystem`、`system.preset/Default` 和 `spawn.config/default` Runtime Entity，断言 descriptor/manifest 进入 snapshot、旧 AbilityData 通用字段、链式技能参数、自动索敌参数、持续伤害参数、投射物速度 / 命中 / 生命周期 / 伤害参数、特效名称 / 持续时间参数，以及 SineWave / Orbit / Boomerang / Bezier / CircularArc 的 Movement handler authoring 参数，构建第 1 波敌人生成规则 catalog，并注册 `ResourceCatalog` 资源映射。
 - `unit.player/deluyi` 已入 DataOS seed，含 `Movement.MoveSpeed = 200`、`Movement.Acceleration = 12`、`Attack.Damage = 10`、`Attack.Range = 150`、`Damage.MaxHp = 100` 等字段。
 - `BrotatoLikeDataOSBootstrap.BuildSystemScheduleConfig()` 已能从 DataOS `system.config/SpawnSystem` 生成 `RuntimeSchedule` 配置，解析 Group / Tags / Priority / FlowState / Overlay / SimulationState / Dependencies。
 - `BrotatoLikeEnemySpawnSystem` 已消费 DataOS Spawn catalog，显式 `Tick()` 可按规则实例化 `GodotEntity2D` 敌人包装节点、加载 `Unit.VisualScenePath` 视觉场景、写入 DataOS 敌人字段和 `Movement.Position`；`BrotatoLikeScheduledEnemySpawnSystem` 已通过 `RuntimeSchedule.Execute` 驱动 Tick，headless smoke 覆盖 Boot 状态阻断、Gameplay 状态生成第 1 波 2 个 `chailangren` 与 3 个 `yuren`、Pause 状态阻断。
@@ -53,20 +60,21 @@
 
 ## 下一步
 
-1. 继续把后续真实主场景 / UI / SpawnSystem 测试接入 `Tools/run-godot-scene.sh`。
+1. 继续把真实 UI、SpawnSystem 专项场景和更细的输入专项测试接入 `Tools/run-godot-scene.sh`；普通 `Scenes/Main.tscn` 可玩切片和 smoke 已有 PASS artifact。
 2. 继续迁 Feature actions 和 Ability 具体 handler 执行逻辑；SineWave / Boomerang / BezierCurve / CircularArc / Orbit / AttachToHost、Dash、ChainLightning、Slam、TargetPoint、CircleDamage、AuraShield 与 ArcShot 已接入 DataOS 到真实执行闭环，后续继续迁尚未接线的被动 Feature actions。
-3. 从 `MigrationInput/` 继续适配真实 UI / 输入 / 游戏场景内容。
-4. 玩家技能输入（LB/RB 切换、X 释放、Point 目标点选）接入 `GodotPlayerInputComponent`。
+3. 从 `MigrationInput/` 继续适配真实 UI、剩余输入细节和游戏场景内容。
+4. 玩家技能输入的事件路径已接入并由主场景 artifact 覆盖 `InputUseSkill` / `InputNextSkill`；后续专项验收聚焦真实手柄 LB/RB、X 按键物理输入和鼠标/手柄 Point 目标点选。
 
 ## 最新验证
 
 ```bash
 Tools/run-build.sh
-Tools/run-godot-smoke.sh
-Tools/run-godot-scene.sh run res://Scenes/Validation/GameOS/Observation/ObservationLogValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
-Tools/run-godot-scene.sh run res://Scenes/Validation/Runtime/Event/RuntimeEventValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
-Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
 Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh
 ```
 
-结果：0 warning / 0 error；`Tools/run-build.sh` 会先生成 DataOS runtime snapshot；Runtime Event validation、普通 `Scenes/Main.tscn` headless 可玩验收和 `run-main-smoke` 均通过新结构 runner，analyzer 输出 `status: pass`、`combinedLog`、artifact 列表和 JSONL 数量；普通主场景输出 `BrotatoLike playable slice PASS` 且 `scene-acceptance.json` 为 `status=pass`，smoke 保留 `BrotatoLike GameOS smoke PASS`。
+结果：`Tools/run-build.sh` 输出 `Build succeeded. 0 Warning(s) 0 Error(s)`；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS` 且 `dataos:True`；analyzer 输出 `status: pass`、`firstError: none`。最新 passing artifact 位于 `.ai-temp/scene-tests/runs/2026-05-13/06-29-27/index.json`。
+
+补充：事件系统归档验证中，`Tools/run-godot-scene.sh run-main-smoke --timeout 10 --log-dir .ai-temp/scene-tests/runs` 生成 `.ai-temp/scene-tests/runs/2026-05-13/09-23-37/index.json` 和 `artifacts/eventbus-dump.json`；普通 `Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs` 生成 `.ai-temp/scene-tests/runs/2026-05-13/09-24-15/index.json`，analyzer 输出 `status: pass`、`firstError: none`。
+
+Runtime/Data 专项场景补充验证：`Tools/run-godot-scene.sh list` 已列出 `res://SkilmeAI/Scenes/Validation/Runtime/Data/RuntimeDataValidation.tscn`；`Tools/run-godot-scene.sh run res://SkilmeAI/Scenes/Validation/Runtime/Data/RuntimeDataValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs && Tools/analyze-godot-scene-logs.sh` 输出 `GameOS Runtime Data validation PASS`，analyzer 输出 `status: pass`、`firstError: none`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-13/15-47-30/index.json`。

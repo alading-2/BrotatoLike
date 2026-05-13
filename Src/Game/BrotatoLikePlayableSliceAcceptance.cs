@@ -234,7 +234,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var playerHpAfter = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
 
         values["enemy_first_id"] = first.EntityId;
-        values["enemy_first_visual"] = first.Data.Get<string>(UnitDataKeys.VisualScenePath, string.Empty);
+        values["enemy_first_visual"] = first.Data.Get(UnitDataKeys.VisualScenePath, string.Empty);
         values["enemy_first_start"] = FormatVector(start);
         values["enemy_first_end"] = FormatVector(end);
         values["enemy_chase_direction"] = FormatVector(chaseDirection);
@@ -244,7 +244,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         return new EnemyAcceptance(
             enemies,
             tick.Success && tick.Value.TotalSpawned > 0,
-            enemies.TrueForAll(enemy => !string.IsNullOrWhiteSpace(enemy.Data.Get<string>(UnitDataKeys.VisualScenePath, string.Empty))),
+            enemies.TrueForAll(enemy => !string.IsNullOrWhiteSpace(enemy.Data.Get(UnitDataKeys.VisualScenePath, string.Empty))),
             chaseDirection != Vector2Value.Zero && Vector2Value.Distance(start, end) > 0.001f,
             contactResult.AppliedCount > 0 && playerHpAfter < playerHpBefore);
     }
@@ -323,8 +323,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
             ChainCooldownGated: chainCooldownReport.Result == AbilityTriggerResult.FailCooldown,
             ChainTargetSelected: chainContext?.Targets != null && chainContext.Targets.Count > 0,
             ChainHit: chainHpAfter < chainHpBefore,
-            ChainStructuredEvidence: chainHpAfter < chainHpBefore && string.IsNullOrWhiteSpace(chain.Data.Get<string>(AbilityDataKeys.LineEffectScenePath, string.Empty)),
-            CurrentSkillName: chain.Data.Get<string>(AbilityDataKeys.Name, chain.EntityId));
+            ChainStructuredEvidence: chainHpAfter < chainHpBefore && string.IsNullOrWhiteSpace(chain.Data.Get(AbilityDataKeys.LineEffectScenePath, string.Empty)),
+            CurrentSkillName: chain.Data.Get(AbilityDataKeys.Name, chain.EntityId));
     }
 
     private static EnemyCleanupAcceptance VerifyDeathAndCleanup(

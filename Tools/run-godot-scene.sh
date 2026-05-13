@@ -3,6 +3,7 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 repo_root="$(cd "$project_root/../.." && pwd)"
+framework_project="$repo_root/SkilmeAI/GameOS/SkilmeAI.GameOS.csproj"
 runner="$repo_root/.codex/skills/godot-scene-test/scripts/godot-scene-runner.mjs"
 default_godot="/home/slime/Code/Godot/GodotEngine/4.x/Godot_v4.6.2-stable_mono_linux_x86_64/Godot_v4.6.2-stable_mono_linux.x86_64"
 
@@ -65,7 +66,8 @@ run_runner() {
     cd "$project_root"
     GODOT_BIN="${GODOT_BIN:-$default_godot}" \
     GODOT_SCENE_TEST_PROJECT_ROOT="$project_root" \
-    GODOT_SCENE_TEST_SCAN_ROOTS="Scenes,Src" \
+    GODOT_SCENE_TEST_SCAN_ROOTS="Scenes,Src,SkilmeAI/Scenes,SkilmeAI/Src" \
+    SkilmeAIGameOSProject="$framework_project" \
         node "$runner" "$@"
 }
 

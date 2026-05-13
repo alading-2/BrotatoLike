@@ -8,3 +8,4 @@ DataOS/.generated/
 .DS_Store
 *.swp
 **/*.uid
+.ai-temp/

@@ -267,7 +267,7 @@ public partial class BrotatoLikeGameRuntime : Node
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         // 加载视觉场景
-        var visualPath = entity.Data.Get<string>(UnitDataKeys.VisualScenePath, string.Empty);
+        var visualPath = entity.Data.Get(UnitDataKeys.VisualScenePath, string.Empty);
         if (!string.IsNullOrEmpty(visualPath))
         {
             var visualScene = ResourceManagement.LoadPath<PackedScene>(visualPath);

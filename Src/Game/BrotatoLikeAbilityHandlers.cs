@@ -155,7 +155,7 @@ public sealed class BrotatoLikeDashAbilityHandler : IFeatureHandler
 
     private static void SpawnDashEffect(AbilityCastContext cast, Vector2Value position)
     {
-        var scenePath = cast.Ability.Data.Get<string>(EffectDataKeys.ScenePath, string.Empty);
+        var scenePath = cast.Ability.Data.Get(EffectDataKeys.ScenePath, string.Empty);
         if (string.IsNullOrWhiteSpace(scenePath))
         {
             return;
@@ -167,8 +167,8 @@ public sealed class BrotatoLikeDashAbilityHandler : IFeatureHandler
             Ability = cast.Ability,
             EntityId = $"{cast.Ability.EntityId}.dash-effect.{Guid.NewGuid():N}",
             ScenePath = scenePath,
-            Name = cast.Ability.Data.Get<string>(EffectDataKeys.Name, string.Empty),
-            AnimationName = cast.Ability.Data.Get<string>(EffectDataKeys.AnimationName, string.Empty),
+            Name = cast.Ability.Data.Get(EffectDataKeys.Name, string.Empty),
+            AnimationName = cast.Ability.Data.Get(EffectDataKeys.AnimationName, string.Empty),
             Position = position,
             Duration = cast.Ability.Data.Get<float>(EffectDataKeys.Duration, -1f)
         });
@@ -297,7 +297,7 @@ public sealed class BrotatoLikeAreaDamageAbilityHandler : IFeatureHandler
 
     private static void SpawnImpactEffect(AbilityCastContext cast, Vector2Value position)
     {
-        var scenePath = cast.Ability.Data.Get<string>(EffectDataKeys.ScenePath, string.Empty);
+        var scenePath = cast.Ability.Data.Get(EffectDataKeys.ScenePath, string.Empty);
         if (string.IsNullOrWhiteSpace(scenePath))
         {
             return;
@@ -309,8 +309,8 @@ public sealed class BrotatoLikeAreaDamageAbilityHandler : IFeatureHandler
             Ability = cast.Ability,
             EntityId = $"{cast.Ability.EntityId}.area-effect.{Guid.NewGuid():N}",
             ScenePath = scenePath,
-            Name = cast.Ability.Data.Get<string>(EffectDataKeys.Name, string.Empty),
-            AnimationName = cast.Ability.Data.Get<string>(EffectDataKeys.AnimationName, string.Empty),
+            Name = cast.Ability.Data.Get(EffectDataKeys.Name, string.Empty),
+            AnimationName = cast.Ability.Data.Get(EffectDataKeys.AnimationName, string.Empty),
             Position = position,
             Duration = cast.Ability.Data.Get<float>(EffectDataKeys.Duration, -1f)
         });
@@ -399,7 +399,7 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
             Ability = ability,
             Target = cast.Targets != null && cast.Targets.Count > 0 ? cast.Targets[0] : null,
             EntityId = $"{ability.EntityId}.projectile.{projectileIndex}.{Guid.NewGuid():N}",
-            ScenePath = ability.Data.Get<string>(ProjectileDataKeys.ScenePath, string.Empty),
+            ScenePath = ability.Data.Get(ProjectileDataKeys.ScenePath, string.Empty),
             SpawnPosition = ResolveSpawnPosition(ability, spawnPosition, direction, projectileIndex, projectileCount),
             TargetPosition = targetPosition,
             Direction = direction,
@@ -521,7 +521,7 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
         projectile.Data.Set(MovementDataKeys.BoomerangReturnSpeedMultiplier, movementParams.BoomerangReturnSpeedMultiplier);
         projectile.Data.Set(MovementDataKeys.BoomerangIsClockwise, movementParams.BoomerangIsClockwise);
         projectile.Data.Set(MovementDataKeys.BezierDegree, ability.Data.Get<int>(MovementDataKeys.BezierDegree, 2));
-        projectile.Data.Set(MovementDataKeys.BezierPattern, ability.Data.Get<string>(MovementDataKeys.BezierPattern, string.Empty));
+        projectile.Data.Set(MovementDataKeys.BezierPattern, ability.Data.Get(MovementDataKeys.BezierPattern, string.Empty));
         projectile.Data.Set(MovementDataKeys.ParabolaApexHeight, movementParams.ParabolaApexHeight);
         projectile.Data.Set(MovementDataKeys.CircularArcRadiusScale, ability.Data.Get<float>(MovementDataKeys.CircularArcRadiusScale, 0f));
         projectile.Data.Set(MovementDataKeys.CircularArcRadiusMinOffset, ability.Data.Get<float>(MovementDataKeys.CircularArcRadiusMinOffset, 0f));
@@ -642,7 +642,7 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
         var points = new List<Vector2Value>(degree);
         var chord = targetPosition - origin;
         var normal = new Vector2Value(-chord.Y, chord.X).Normalized();
-        var pattern = ability.Data.Get<string>(MovementDataKeys.BezierPattern, string.Empty);
+        var pattern = ability.Data.Get(MovementDataKeys.BezierPattern, string.Empty);
         for (var i = 1; i < degree; i++)
         {
             var t = i / (float)degree;
@@ -776,7 +776,7 @@ public sealed class BrotatoLikeChainLightningHandler : IFeatureHandler
 
     private static void SpawnLineEffect(AbilityCastContext cast, IEntity fromEntity, IEntity target)
     {
-        var scenePath = cast.Ability.Data.Get<string>(AbilityDataKeys.LineEffectScenePath, string.Empty);
+        var scenePath = cast.Ability.Data.Get(AbilityDataKeys.LineEffectScenePath, string.Empty);
         if (string.IsNullOrWhiteSpace(scenePath))
         {
             return;
