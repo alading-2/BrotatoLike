@@ -296,7 +296,7 @@ public partial class BrotatoLikeGameRuntime : Node
     {
         var abilityEntityId = $"ability-{abilityRecordId}-{player.EntityId}";
         var ability = bootstrap!.SpawnEntityFromRecord("ability", abilityRecordId, abilityEntityId);
-        ownedIds.Add(ability.EntityId);
+        ownedIds.Add(ability.EntityId.Value);
     }
 
     /// <summary>

@@ -57,7 +57,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         Action<Damaged> damagedHandler = data =>
         {
             damageLogs.Add(FormattableString.Invariant(
-                $"{data.Info.Attacker?.EntityId ?? "none"}->{data.Info.Victim.EntityId}:{data.Info.FinalDamage:0.###}:{data.Info.OldHp:0.###}->{data.Info.NewHp:0.###}"));
+                $"{data.Info.Attacker?.EntityId.Value ?? "none"}->{data.Info.Victim.EntityId.Value}:{data.Info.FinalDamage:0.###}:{data.Info.OldHp:0.###}->{data.Info.NewHp:0.###}"));
         };
         var damagedSub = WorldEvents.World.Subscribe<Damaged>(damagedHandler);
 
@@ -65,7 +65,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         {
             var player = runtime.PlayerEntity;
             AddCheck(checks, failureReasons, "main.runtime_initialized", runtime.IsInitialized);
-            AddCheck(checks, failureReasons, "main.player_spawned", player != null && player.EntityId == "player-deluyi");
+            AddCheck(checks, failureReasons, "main.player_spawned", player != null && player.EntityId == new EntityId("player-deluyi"));
             AddCheck(checks, failureReasons, "main.gameplay_started", runtime.GetSpawnSystemRuntimeInfo()?.IsStateAllowed == true);
             AddCheck(checks, failureReasons, "main.smoke_path_separate", Array.IndexOf(OS.GetCmdlineUserArgs(), "--gameos-smoke-exit") < 0);
 
@@ -192,7 +192,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         for (var i = 0; i < entities.Count; i++)
         {
             if (entities[i] is GodotEntity2D node
-                && node.EntityId.StartsWith("spawn-", StringComparison.Ordinal)
+                && node.EntityId.Value.StartsWith("spawn-", StringComparison.Ordinal)
                 && node.Data.Get<int>(CollisionDataKeys.Team, 0) == 2)
             {
                 enemies.Add(node);
@@ -201,7 +201,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
         values["enemy_spawned_this_tick"] = tick.Value.SpawnedThisTick.ToString(CultureInfo.InvariantCulture);
         values["enemy_total_spawned"] = tick.Value.TotalSpawned.ToString(CultureInfo.InvariantCulture);
-        values["enemy_ids"] = string.Join(",", enemies.ConvertAll(enemy => enemy.EntityId));
+        values["enemy_ids"] = string.Join(",", enemies.ConvertAll(enemy => enemy.EntityId.Value));
 
         if (enemies.Count == 0 || runtime.MovementDriver == null)
         {
@@ -233,7 +233,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         });
         var playerHpAfter = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
 
-        values["enemy_first_id"] = first.EntityId;
+        values["enemy_first_id"] = first.EntityId.Value;
         values["enemy_first_visual"] = first.Data.Get(UnitDataKeys.VisualScenePath, string.Empty);
         values["enemy_first_start"] = FormatVector(start);
         values["enemy_first_end"] = FormatVector(end);
@@ -260,8 +260,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
             return SkillAcceptance.Empty;
         }
 
-        var slam = EntityManager.Get(ownedIds[0]);
-        var chain = EntityManager.Get(ownedIds[1]);
+        var slam = EntityManager.Get(new EntityId(ownedIds[0]));
+        var chain = EntityManager.Get(new EntityId(ownedIds[1]));
         if (slam == null || chain == null)
         {
             return SkillAcceptance.Empty;
@@ -273,11 +273,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
         target.Position = new Vector2(playerPosition.X + 24f, playerPosition.Y);
 
         var slamHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
-        var slamEffectsBefore = CountEffectEntities(slam.EntityId);
+        var slamEffectsBefore = CountEffectEntities(slam.EntityId.Value);
         player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
         player.Events.Publish(new InputUseSkill(player));
         var slamHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
-        var slamEffectsAfter = CountEffectEntities(slam.EntityId);
+        var slamEffectsAfter = CountEffectEntities(slam.EntityId.Value);
         var slamCooldown = slam.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
         var slamCooldownReport = AbilityService.Instance.TryTrigger(new AbilityCastContext
         {
@@ -300,14 +300,14 @@ internal static class BrotatoLikePlayableSliceAcceptance
             ? new AbilityTriggerReport(AbilityTriggerResult.FailNoTarget, null, "missing chain context")
             : AbilityService.Instance.TryTrigger(chainContext);
 
-        values["skill_slam_id"] = slam.EntityId;
+        values["skill_slam_id"] = slam.EntityId.Value;
         values["skill_slam_hp_before"] = FormatFloat(slamHpBefore);
         values["skill_slam_hp_after"] = FormatFloat(slamHpAfter);
         values["skill_slam_cooldown"] = FormatFloat(slamCooldown);
         values["skill_slam_effect_count"] = (slamEffectsAfter - slamEffectsBefore).ToString(CultureInfo.InvariantCulture);
-        values["skill_chain_id"] = chain.EntityId;
+        values["skill_chain_id"] = chain.EntityId.Value;
         values["skill_chain_target"] = chainContext?.Targets != null && chainContext.Targets.Count > 0
-            ? chainContext.Targets[0].EntityId
+            ? chainContext.Targets[0].EntityId.Value
             : string.Empty;
         values["skill_chain_hp_before"] = FormatFloat(chainHpBefore);
         values["skill_chain_hp_after"] = FormatFloat(chainHpAfter);
@@ -324,7 +324,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
             ChainTargetSelected: chainContext?.Targets != null && chainContext.Targets.Count > 0,
             ChainHit: chainHpAfter < chainHpBefore,
             ChainStructuredEvidence: chainHpAfter < chainHpBefore && string.IsNullOrWhiteSpace(chain.Data.Get(AbilityDataKeys.LineEffectScenePath, string.Empty)),
-            CurrentSkillName: chain.Data.Get(AbilityDataKeys.Name, chain.EntityId));
+            CurrentSkillName: chain.Data.Get(AbilityDataKeys.Name, chain.EntityId.Value));
     }
 
     private static EnemyCleanupAcceptance VerifyDeathAndCleanup(
@@ -346,7 +346,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
             Tags = DamageTags.Ability
         });
         enemy.DestroyEntity();
-        values["enemy_cleanup_id"] = enemy.EntityId;
+        values["enemy_cleanup_id"] = enemy.EntityId.Value;
         values["enemy_cleanup_hp_before"] = FormatFloat(hpBefore);
         values["enemy_cleanup_damage_applied"] = result.AppliedCount.ToString(CultureInfo.InvariantCulture);
         values["enemy_cleanup_queued"] = enemy.IsQueuedForDeletion().ToString(CultureInfo.InvariantCulture);
@@ -428,8 +428,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var entities = EntityManager.GetAll();
         for (var i = 0; i < entities.Count; i++)
         {
-            var ability = entities[i].Data.Get<IEntity?>(EffectDataKeys.AbilityEntity, null);
-            if (ability?.EntityId == abilityEntityId)
+            var ability = entities[i].Data.Get<EntityId?>(EffectDataKeys.AbilityEntity, null);
+            if (ability.HasValue && ability.Value.Value == abilityEntityId)
             {
                 count++;
             }

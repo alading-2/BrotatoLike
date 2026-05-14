@@ -1,12 +1,14 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-13
+> 更新日期：2026-05-15
 
 ## 当前状态
 
 框架接入基线已创建。框架仓库已有 `SlimeAI.GameOS` Runtime 最小内核、typed Runtime Data contract、DataOS SQLite schema / migration / generator / validator / typed Runtime snapshot loader、GodotBridge 第一版，以及 Movement / Collision / Damage / Ability / Projectile / Effect / Feature / AI / Attack 第一批能力。
 
 本轮追加：
+
+- **typed `EntityId` 同步（P2a）**：框架仓 OpenSpec change `refactor-runtime-entity-id-typed-value` 把 Runtime Entity 引用从 raw `string` 升级为 `readonly record struct EntityId`，所有 IEntity / RuntimeEntity / EntityManager / EntitySpawnConfig / Capability DataKey / Event payload / GodotBridge adapter 已 typed 化。BrotatoLike submodule 工作树已 rsync 同步框架最新 GameOS / Tests / SceneTests，游戏侧 `Src/Game/*.cs` 已 typed 适配（`new EntityId("...")` 字面量、`.Value` 适配 string-based registry / Relationship 调用、`HashSet<string>` 改 `HashSet<EntityId>`、`DataKey<IEntity?>` 改 `DataKey<EntityId?>`）。BrotatoLike `Tools/run-build.sh` 0 errors，`Tools/run-godot-scene.sh run-main-smoke` PASS（`BrotatoLike GameOS smoke PASS`，artifact 写到 `.ai-temp/scene-tests/runs/2026-05-15/06-34-59/`）。submodule 指针未 commit / push，仅工作树同步（默认开发期策略）。
 - **typed Data / DataOS snapshot contract**：BrotatoLike seed 已补 `capability_manifest` 和 `data_key_descriptor`，`DataOS/Snapshots/runtime_snapshot.json` 现在内嵌 `manifest / descriptors / records / resources`；`Tools/run-dataos-snapshot.sh` 使用 `DATAOS_PROFILE=brotatolike` 和 `DATAOS_CATALOG_ID=brotatolike` 生成 profile snapshot。
 - **active catalog + typed loader**：`BrotatoLikeDataOSBootstrap` 从 snapshot manifest/descriptors 构建 active `DataCatalog`，通过框架 `RuntimeDataSnapshot` resolve stable key 到 `DataKey<T>` 后 typed apply；`EntitySpawnConfig.DataCatalog` 会把 catalog 传入 Runtime Entity。loader 会把 wrong type、unknown key、descriptor missing/extra、type/default drift 作为错误，不再静默回退 runtime default。
 - **typed runtime migration**：游戏侧 Ability / Feature handler、SpawnSystem、runtime bootstrap 和 smoke 断言已从旧 string/DataMeta access 迁到 typed `DataKey<T>` 读写。`GameBootstrap` 的 smoke local key 已改为 `DataKey<int>`，BrotatoLike build 通过 `SlimeAIGameOSProject` 指向工作区主框架仓，避免编译只读 submodule 旧源码。

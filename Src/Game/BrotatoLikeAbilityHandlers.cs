@@ -165,7 +165,7 @@ public sealed class BrotatoLikeDashAbilityHandler : IFeatureHandler
         {
             Source = cast.Caster,
             Ability = cast.Ability,
-            EntityId = $"{cast.Ability.EntityId}.dash-effect.{Guid.NewGuid():N}",
+            EntityId = new EntityId($"{cast.Ability.EntityId}.dash-effect.{Guid.NewGuid():N}"),
             ScenePath = scenePath,
             Name = cast.Ability.Data.Get(EffectDataKeys.Name, string.Empty),
             AnimationName = cast.Ability.Data.Get(EffectDataKeys.AnimationName, string.Empty),
@@ -307,7 +307,7 @@ public sealed class BrotatoLikeAreaDamageAbilityHandler : IFeatureHandler
         {
             Source = cast.Caster,
             Ability = cast.Ability,
-            EntityId = $"{cast.Ability.EntityId}.area-effect.{Guid.NewGuid():N}",
+            EntityId = new EntityId($"{cast.Ability.EntityId}.area-effect.{Guid.NewGuid():N}"),
             ScenePath = scenePath,
             Name = cast.Ability.Data.Get(EffectDataKeys.Name, string.Empty),
             AnimationName = cast.Ability.Data.Get(EffectDataKeys.AnimationName, string.Empty),
@@ -398,7 +398,7 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
             Source = cast.Caster,
             Ability = ability,
             Target = cast.Targets != null && cast.Targets.Count > 0 ? cast.Targets[0] : null,
-            EntityId = $"{ability.EntityId}.projectile.{projectileIndex}.{Guid.NewGuid():N}",
+            EntityId = new EntityId($"{ability.EntityId}.projectile.{projectileIndex}.{Guid.NewGuid():N}"),
             ScenePath = ability.Data.Get(ProjectileDataKeys.ScenePath, string.Empty),
             SpawnPosition = ResolveSpawnPosition(ability, spawnPosition, direction, projectileIndex, projectileCount),
             TargetPosition = targetPosition,
@@ -710,7 +710,7 @@ public sealed class BrotatoLikeChainLightningHandler : IFeatureHandler
 
         var chainCount = Math.Max(1, cast.Ability.Data.Get<int>(AbilityDataKeys.ChainCount, 1));
         var damage = cast.Ability.Data.Get<float>(AbilityDataKeys.Damage, 0f);
-        var hitTargets = new HashSet<string>(StringComparer.Ordinal);
+        var hitTargets = new HashSet<EntityId>();
         ExecuteBounce(cast, cast.Caster, firstTarget, damage, chainCount, hitTargets);
 
         return new AbilityExecutedResult
@@ -737,7 +737,7 @@ public sealed class BrotatoLikeChainLightningHandler : IFeatureHandler
         IEntity currentTarget,
         float currentDamage,
         int remainingBounces,
-        HashSet<string> hitTargets)
+        HashSet<EntityId> hitTargets)
     {
         ApplyBounceDamage(cast, currentTarget, currentDamage);
         SpawnLineEffect(cast, fromEntity, currentTarget);
@@ -787,14 +787,14 @@ public sealed class BrotatoLikeChainLightningHandler : IFeatureHandler
             Source = fromEntity,
             Ability = cast.Ability,
             Target = target,
-            EntityId = $"{cast.Ability.EntityId}.chain-effect.{Guid.NewGuid():N}",
+            EntityId = new EntityId($"{cast.Ability.EntityId}.chain-effect.{Guid.NewGuid():N}"),
             ScenePath = scenePath,
             Position = target.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero),
             Duration = -1f
         });
     }
 
-    private static IEntity? FindNearestEnemy(IEntity caster, Vector2Value origin, float range, HashSet<string> excludedIds)
+    private static IEntity? FindNearestEnemy(IEntity caster, Vector2Value origin, float range, HashSet<EntityId> excludedIds)
     {
         if (range <= 0f)
         {

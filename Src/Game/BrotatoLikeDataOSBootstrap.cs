@@ -80,7 +80,7 @@ public sealed class BrotatoLikeDataOSBootstrap
 
         var entity = EntityManager.Spawn(new EntitySpawnConfig
         {
-            EntityId = entityId,
+            EntityId = new EntityId(entityId),
             DataCatalog = activeCatalog
         });
         snapshot.ApplyRecord(entity.Data, record);

@@ -65,7 +65,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         }
 
         var abilityId = ownedIds[currentIndex];
-        var ability = EntityManager.Get(abilityId);
+        var ability = EntityManager.Get(new EntityId(abilityId));
         if (ability == null)
         {
             return;

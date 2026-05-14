@@ -336,19 +336,19 @@ public partial class Main : Node
 
     private static IEntity? GetFirstDataOSHandlerProjectile(Dictionary<string, List<string>> projectileIdsByAbilityId, IEntity ability)
     {
-        if (!projectileIdsByAbilityId.TryGetValue(ability.EntityId, out var projectileIds) || projectileIds.Count == 0)
+        if (!projectileIdsByAbilityId.TryGetValue(ability.EntityId.Value, out var projectileIds) || projectileIds.Count == 0)
         {
             return null;
         }
 
-        return EntityManager.Get(projectileIds[0]);
+        return EntityManager.Get(new EntityId(projectileIds[0]));
     }
 
     private static IEntity CreateAbilityRuntimeTarget(string entityId, Vector2Value position)
     {
         var target = EntityManager.Spawn(new EntitySpawnConfig
         {
-            EntityId = entityId
+            EntityId = new EntityId(entityId)
         });
         target.Data.Set(CollisionDataKeys.Team, 2);
         target.Data.Set(DamageDataKeys.MaxHp, 100f);
@@ -375,10 +375,10 @@ public partial class Main : Node
         runtime.OpenPauseMenu();
         var blockedWhilePaused = runtime.TickSpawn(0d);
 
-        var chailangren = EntityManager.Get("spawn-chailangren-1") as GodotEntity2D;
-        var yuren = EntityManager.Get("spawn-yuren-3") as GodotEntity2D;
-        var chailangrenNode = GameOSGodotBridge.GetEntityNode("spawn-chailangren-1") as GodotEntity2D;
-        var yurenNode = GameOSGodotBridge.GetEntityNode("spawn-yuren-3") as GodotEntity2D;
+        var chailangren = EntityManager.Get(new EntityId("spawn-chailangren-1")) as GodotEntity2D;
+        var yuren = EntityManager.Get(new EntityId("spawn-yuren-3")) as GodotEntity2D;
+        var chailangrenNode = GameOSGodotBridge.GetEntityNode(new EntityId("spawn-chailangren-1")) as GodotEntity2D;
+        var yurenNode = GameOSGodotBridge.GetEntityNode(new EntityId("spawn-yuren-3")) as GodotEntity2D;
         var chailangrenPosition = chailangren?.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero) ?? Vector2Value.Zero;
         var yurenPosition = yuren?.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero) ?? Vector2Value.Zero;
         var scheduleConfig = runtime.SpawnScheduleConfig;
@@ -448,7 +448,7 @@ public partial class Main : Node
         return new GodotBridgeProbe(
             EntityRegistered: GameOSGodotBridge.GetEntityNode(entity.EntityId) == entity,
             ComponentBound: RelationshipManager.HasRelationship(
-                entity.EntityId,
+                entity.EntityId.Value,
                 componentId,
             RelationshipType.EntityToComponent),
             ComponentCallback: component.Registered,
@@ -944,13 +944,13 @@ public partial class Main : Node
                     return;
                 }
 
-                if (!dataOsHandlerProjectileIds.TryGetValue(data.Ability.EntityId, out var projectileIds))
+                if (!dataOsHandlerProjectileIds.TryGetValue(data.Ability.EntityId.Value, out var projectileIds))
                 {
                     projectileIds = [];
-                    dataOsHandlerProjectileIds[data.Ability.EntityId] = projectileIds;
+                    dataOsHandlerProjectileIds[data.Ability.EntityId.Value] = projectileIds;
                 }
 
-                projectileIds.Add(data.Projectile.EntityId);
+                projectileIds.Add(data.Projectile.EntityId.Value);
             });
         var slamEffectSpawned = false;
         var slamEffectPosition = Vector2Value.Zero;
@@ -1055,7 +1055,7 @@ public partial class Main : Node
         var slamTargetOutside = CreateAbilityRuntimeTarget("brotato-like-slam-target-outside", new Vector2Value(1550f, 0f));
         var slamSameTeam = EntityManager.Spawn(new EntitySpawnConfig
         {
-            EntityId = "brotato-like-slam-same-team"
+            EntityId = new EntityId("brotato-like-slam-same-team")
         });
         slamSameTeam.Data.Set(CollisionDataKeys.Team, 1);
         slamSameTeam.Data.Set(DamageDataKeys.MaxHp, 100f);
@@ -1069,7 +1069,7 @@ public partial class Main : Node
         });
         var dashCaster = EntityManager.Spawn(new EntitySpawnConfig
         {
-            EntityId = "brotato-like-dash-caster"
+            EntityId = new EntityId("brotato-like-dash-caster")
         });
         dashCaster.Data.Set(CollisionDataKeys.Team, 1);
         dashCaster.Data.Set(MovementDataKeys.Position, Vector2Value.Zero);
@@ -1089,7 +1089,7 @@ public partial class Main : Node
         var circleDamageTargetOutside = CreateAbilityRuntimeTarget("brotato-like-circle-damage-target-outside", new Vector2Value(-1400f, 0f));
         var circleDamageSameTeam = EntityManager.Spawn(new EntitySpawnConfig
         {
-            EntityId = "brotato-like-circle-damage-same-team"
+            EntityId = new EntityId("brotato-like-circle-damage-same-team")
         });
         circleDamageSameTeam.Data.Set(CollisionDataKeys.Team, 1);
         circleDamageSameTeam.Data.Set(DamageDataKeys.MaxHp, 100f);
@@ -1306,7 +1306,7 @@ public partial class Main : Node
             Source = caster,
             Ability = ability,
             Target = target,
-            EntityId = "brotato-like-projectile-runtime-probe",
+            EntityId = new EntityId("brotato-like-projectile-runtime-probe"),
             ScenePath = "res://assets/Projectile/Projectile/Polygon2D/BulletDiamond.tscn",
             SpawnPosition = Vector2Value.Zero,
             Speed = 16f,
@@ -1318,12 +1318,12 @@ public partial class Main : Node
         projectile.Projectile.Data.Set(CollisionDataKeys.CollisionRadius, 1f);
         projectile.Projectile.Data.Set(CollisionDataKeys.Team, 1);
         var projectileSourceRelationshipBound = RelationshipManager.HasRelationship(
-            caster.EntityId,
-            projectile.Projectile.EntityId,
+            caster.EntityId.Value,
+            projectile.Projectile.EntityId.Value,
             RelationshipType.EntityToProjectile);
         var projectileDirectionSynced = projectile.Projectile.Data.Get<Vector2Value>(ProjectileDataKeys.Direction) == new Vector2Value(1f, 0f);
         var projectileSpeedSynced = Math.Abs(projectile.Projectile.Data.Get<float>(ProjectileDataKeys.Speed) - 16f) < 0.001f;
-        var projectileNode = GodotNodeRegistry.GetNodeById(projectile.Projectile.EntityId) as Node2D;
+        var projectileNode = GodotNodeRegistry.GetNodeById(projectile.Projectile.EntityId.Value) as Node2D;
         var projectileHitEvent = false;
         WorldEvents.World.Subscribe<ProjectileHit>(
             data => projectileHitEvent = data.Projectile.EntityId == projectile.Projectile.EntityId
@@ -1353,7 +1353,7 @@ public partial class Main : Node
             && projectileHitEvent
             && Math.Abs(target.Data.Get<float>(DamageDataKeys.CurrentHp) - 15f) < 0.001f
             && EntityManager.Get(projectile.Projectile.EntityId) == null
-            && GodotNodeRegistry.GetNodeById(projectile.Projectile.EntityId) == null
+            && GodotNodeRegistry.GetNodeById(projectile.Projectile.EntityId.Value) == null
             && projectileVisualQueuedForDeletion
             && projectileSourceRelationshipBound
             && projectileDirectionSynced
@@ -1402,7 +1402,7 @@ public partial class Main : Node
         {
             Source = caster,
             Ability = ability,
-            EntityId = "brotato-like-projectile-pierce-runtime-probe",
+            EntityId = new EntityId("brotato-like-projectile-pierce-runtime-probe"),
             SpawnPosition = new Vector2Value(0f, 24f),
             Direction = new Vector2Value(1f, 0f),
             Speed = 20f,
@@ -1438,7 +1438,7 @@ public partial class Main : Node
         {
             Source = caster,
             Ability = ability,
-            EntityId = "brotato-like-projectile-lifetime-runtime-probe",
+            EntityId = new EntityId("brotato-like-projectile-lifetime-runtime-probe"),
             SpawnPosition = new Vector2Value(0f, 48f),
             Direction = new Vector2Value(1f, 0f),
             Speed = 4f,
@@ -1468,14 +1468,14 @@ public partial class Main : Node
             Source = caster,
             Ability = ability,
             Target = target,
-            EntityId = "brotato-like-effect-runtime-probe",
+            EntityId = new EntityId("brotato-like-effect-runtime-probe"),
             ScenePath = "res://assets/Effect/003/AnimatedSprite2D/003.tscn",
             Name = "Impact",
             AnimationName = "Effect",
             Position = Vector2Value.Zero,
             Duration = 0.5f
         });
-        var effectNode = GodotNodeRegistry.GetNodeById(effect.Effect.EntityId) as Node2D;
+        var effectNode = GodotNodeRegistry.GetNodeById(effect.Effect.EntityId.Value) as Node2D;
         var effectSprite = ResolveAnimatedSprite(effectNode);
         var effectAnimationSynced = effectSprite != null
             && effectSprite.Animation.ToString() == "Effect"
@@ -1487,7 +1487,7 @@ public partial class Main : Node
             && Math.Abs(effectNode.Position.X - 12f) < 0.001f
             && Math.Abs(effectNode.Position.Y) < 0.001f
             && effectAnimationSynced
-            && RelationshipManager.HasRelationship(caster.EntityId, effect.Effect.EntityId, RelationshipType.EntityToEffect)
+            && RelationshipManager.HasRelationship(caster.EntityId.Value, effect.Effect.EntityId.Value, RelationshipType.EntityToEffect)
             && effect.Effect.Data.Get<Vector2Value>(EffectDataKeys.Position) == new Vector2Value(12f, 0f)
             && effect.Effect.Data.Get(EffectDataKeys.AnimationName) == "Effect"
             && Math.Abs(effect.Effect.Data.Get<float>(EffectDataKeys.Duration) - 0.5f) < 0.001f;
@@ -1597,7 +1597,7 @@ public partial class Main : Node
         var ability2 = bootstrap.SpawnEntityFromRecord("ability", "chain_lightning", "probe-ability-chain");
 
         // 写入玩家技能列表
-        var ownedIds = new List<string> { ability1.EntityId, ability2.EntityId };
+        var ownedIds = new List<string> { ability1.EntityId.Value, ability2.EntityId.Value };
         playerEntity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedIds);
         playerEntity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
 

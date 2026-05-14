@@ -37,10 +37,10 @@ public static class GameBootstrap
     public static FrameworkSmokeProbe RunFrameworkSmokeProbe()
     {
         EntityManager.Clear();
-        var entity = EntityManager.Spawn(new EntitySpawnConfig { EntityId = "brotato-like-smoke" });
+        var entity = EntityManager.Spawn(new EntitySpawnConfig { EntityId = new EntityId("brotato-like-smoke") });
         var child = EntityManager.Spawn(new EntitySpawnConfig
         {
-            EntityId = "brotato-like-smoke-child",
+            EntityId = new EntityId("brotato-like-smoke-child"),
             ParentEntityId = entity.EntityId,
             AutoAddParentRelation = true,
             ParentDestroyPolicy = ParentDestroyPolicy.Detach
@@ -91,14 +91,14 @@ public static class GameBootstrap
 
         entity.Data.Set(CollisionDataKeys.CollisionLayer, CollisionLayers.Projectile);
         entity.Data.Set(CollisionDataKeys.CollisionMask, CollisionLayers.EnemyHurtbox);
-        var collisionTarget = EntityManager.Spawn(new EntitySpawnConfig { EntityId = "brotato-like-smoke-collision-target" });
+        var collisionTarget = EntityManager.Spawn(new EntitySpawnConfig { EntityId = new EntityId("brotato-like-smoke-collision-target") });
         collisionTarget.Data.Set(CollisionDataKeys.CollisionLayer, CollisionLayers.EnemyHurtbox);
         var collisionEntered = false;
         entity.Events.Subscribe<Entered>(data => collisionEntered = data.Contact.Target.EntityId == collisionTarget.EntityId);
         var collisionSystem = new CollisionSystem();
         collisionSystem.EmitEntered(entity, collisionTarget);
 
-        var movingProjectile = EntityManager.Spawn(new EntitySpawnConfig { EntityId = "brotato-like-smoke-moving-projectile" });
+        var movingProjectile = EntityManager.Spawn(new EntitySpawnConfig { EntityId = new EntityId("brotato-like-smoke-moving-projectile") });
         movingProjectile.Data.Set(MovementDataKeys.Position, Vector2Value.Zero);
         movingProjectile.Data.Set(CollisionDataKeys.CollisionLayer, CollisionLayers.Projectile);
         movingProjectile.Data.Set(CollisionDataKeys.CollisionMask, CollisionLayers.EnemyHurtbox);
@@ -141,12 +141,12 @@ public static class GameBootstrap
         ResourceCatalog.Clear();
         ResourceCatalog.Register("Main", ResourceCategory.Entity, "res://Scenes/Main.tscn");
         var mainScenePath = ResourceManagement.GetPath("Main", ResourceCategory.Entity) ?? string.Empty;
-        var relationshipBound = RelationshipManager.HasRelationship(entity.EntityId, child.EntityId, RelationshipType.Parent);
+        var relationshipBound = RelationshipManager.HasRelationship(entity.EntityId.Value, child.EntityId.Value, RelationshipType.Parent);
 
         EntityManager.Clear();
 
         return new FrameworkSmokeProbe(
-            EntityId: entity.EntityId,
+            EntityId: entity.EntityId.Value,
             DataEventCount: dataEvents,
             RelationshipBound: relationshipBound,
             PoolCreated: poolStats.TotalCreated,
