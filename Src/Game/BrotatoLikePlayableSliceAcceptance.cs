@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.Events;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Attack;
@@ -16,7 +18,6 @@ using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Observation;
 using SlimeAI.GameOS.Runtime.Entity;
 using SlimeAI.GameOS.Runtime.Event;
-using SlimeAI.GameOS.Runtime.Events.Core;
 using SlimeAI.GameOS.Runtime.Timer;
 
 namespace BrotatoLike.Game;
@@ -140,7 +141,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         GodotEntity2D player,
         Dictionary<string, string> values)
     {
-        var inputComponent = player.GetNodeOrNull<GodotPlayerInputComponent>("PlayerInput");
+        var inputComponent = player.GetNodeOrNull<BrotatoLikePlayerInputComponent>("PlayerInput");
         var inputMapHasWasd = HasPhysicalKey("MoveLeft", (Key)65)
             && HasPhysicalKey("MoveRight", (Key)68)
             && HasPhysicalKey("MoveUp", (Key)87)

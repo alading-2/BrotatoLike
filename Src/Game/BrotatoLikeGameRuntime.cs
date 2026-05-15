@@ -1,4 +1,5 @@
 using System;
+using BrotatoLike.Game.Bridge;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Movement;
@@ -250,7 +251,7 @@ public partial class BrotatoLikeGameRuntime : Node
         entity.Data.Set(MovementDataKeys.Position, new Vector2Value(position.X, position.Y));
 
         // 挂载输入组件
-        var inputComponent = new GodotPlayerInputComponent { Name = "PlayerInput" };
+        var inputComponent = new BrotatoLikePlayerInputComponent { Name = "PlayerInput" };
         entity.AddChild(inputComponent);
 
         // 挂载主动技能输入组件

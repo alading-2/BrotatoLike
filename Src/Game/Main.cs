@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.Events;
 using SlimeAI.GameOS.Capabilities.AI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
@@ -24,7 +26,6 @@ using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Observation;
 using SlimeAI.GameOS.Runtime.Entity;
 using SlimeAI.GameOS.Runtime.Event;
-using SlimeAI.GameOS.Runtime.Events.Core;
 using SlimeAI.GameOS.Runtime.Resource;
 using SlimeAI.GameOS.Runtime.Schedule;
 using SlimeAI.GameOS.Runtime.Timer;
@@ -1493,15 +1494,15 @@ public partial class Main : Node
             effectRuntimeSynced);
     }
 
-    private GodotPlayerInputProbe RunPlayerInputProbe()
+    private BrotatoLikePlayerInputProbe RunPlayerInputProbe()
     {
-        // 1. 测试 GodotPlayerInputComponent 注册并写入 InputDirection
+        // 1. 测试 BrotatoLikePlayerInputComponent 注册并写入 InputDirection
         var playerEntity = new GodotEntity2D
         {
             Name = "GameOSPlayerInputProbe",
             EntityIdOverride = "brotato-like-player-input-probe"
         };
-        var inputComponent = new GodotPlayerInputComponent
+        var inputComponent = new BrotatoLikePlayerInputComponent
         {
             Name = "PlayerInputProbe",
             AutoTick = false
@@ -1565,7 +1566,7 @@ public partial class Main : Node
         // 直接速度应瞬间到达目标
         var directVelocityFallback = Math.Abs(directV.Length - 80f) < 0.001f;
 
-        return new GodotPlayerInputProbe(componentRegistered, inputDirectionWritten, smoothAcceleration, directVelocityFallback);
+        return new BrotatoLikePlayerInputProbe(componentRegistered, inputDirectionWritten, smoothAcceleration, directVelocityFallback);
     }
 
     private GodotActiveSkillInputProbe RunActiveSkillInputProbe()
@@ -1595,7 +1596,7 @@ public partial class Main : Node
         playerEntity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         // 挂载输入组件和技能输入组件
-        var inputComponent = new GodotPlayerInputComponent
+        var inputComponent = new BrotatoLikePlayerInputComponent
         {
             Name = "PlayerInputProbe",
             AutoTick = false
@@ -2050,7 +2051,7 @@ internal readonly record struct AbilityRuntimeProbe(
     bool ProjectileRuntimeSynced,
     bool EffectRuntimeSynced);
 
-internal readonly record struct GodotPlayerInputProbe(
+internal readonly record struct BrotatoLikePlayerInputProbe(
     bool ComponentRegistered,
     bool InputDirectionWritten,
     bool SmoothAcceleration,

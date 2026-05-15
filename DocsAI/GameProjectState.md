@@ -11,6 +11,7 @@
 - **typed `EntityId` 同步（P2a）**：框架仓 OpenSpec change `refactor-runtime-entity-id-typed-value` 把 Runtime Entity 引用从 raw `string` 升级为 `readonly record struct EntityId`，所有 IEntity / RuntimeEntity / EntityManager / EntitySpawnConfig / Capability DataKey / Event payload / GodotBridge adapter 已 typed 化。BrotatoLike submodule 工作树已 rsync 同步框架最新 GameOS / Tests / SceneTests，游戏侧 `Src/Game/*.cs` 已 typed 适配（`new EntityId("...")` 字面量、`.Value` 适配 string-based registry / Relationship 调用、`HashSet<string>` 改 `HashSet<EntityId>`、`DataKey<IEntity?>` 改 `DataKey<EntityId?>`）。BrotatoLike `Tools/run-build.sh` 0 errors，`Tools/run-godot-scene.sh run-main-smoke` PASS（`BrotatoLike GameOS smoke PASS`，artifact 写到 `.ai-temp/scene-tests/runs/2026-05-15/06-34-59/`）。submodule 指针未 commit / push，仅工作树同步（默认开发期策略）。
 - **Runtime LifecycleTree 迁移（P1）**：框架仓 commit `b73b54f` 已移除旧 `RelationshipManager / RelationshipType / RelationshipRecord`，改用 `LifecycleTree / LifecycleLink` 表达生命周期父子树，用 `EntityIdList` typed DataKey 表达 Ability / Projectile / Effect 等业务引用，并通过 `RuntimeOwnedReferenceRegistry` 清理 owner 列表。BrotatoLike commit `b3ce009` 已同步 submodule 指针到 `b73b54f`，游戏侧 `Main.cs`、`GameBootstrap.cs`、`GodotActiveSkillInputComponent.cs`、`BrotatoLikePlayableSliceAcceptance.cs` 和 runtime glue 已迁到 `LifecycleTree.IsAttached`、`GodotNodeRegistry.IsAdapterRegistered`、`EntityIdList` 与 typed DataKey。最新验证见本文件“最新验证”。
 - **RuntimeWorld facade 同步（P2b）**：框架仓 OpenSpec change `refactor-runtime-world-facade` 已 archived，新增 `RuntimeWorld.Default` 和 `RuntimeWorld.CreateScoped()`，将 Entity / Lifecycle / Events / Resources / Pools 状态收束到 world-scoped subsystem；`EntityManager / LifecycleTree / WorldEvents.World / ResourceCatalog / ObjectPoolManager` 仍保留 static facade 并转发到 `Default`，BrotatoLike 主流程无需强制改造。BrotatoLike `SlimeAI/` submodule 工作树已同步框架 GameOS / Tests / DocsAI 改动；游戏侧代码不新增依赖注入，仅继续通过既有 static API 访问默认 world。P2b 同步验证已通过，artifact 见“最新验证”。
+- **Runtime events leakage cleanup（P3）**：框架仓 OpenSpec change `refactor-runtime-events-purge-game-leakage` 已把 BrotatoLike 主动技能输入事件迁到游戏侧。新增 `Src/Game/Event/BrotatoLikeInputEvents.cs`（`InputUseSkill / InputPreviousSkill / InputNextSkill`）和 `Src/Game/Bridge/BrotatoLikePlayerInputComponent.cs`；`GodotActiveSkillInputComponent`、`BrotatoLikeGameRuntime`、`BrotatoLikePlayableSliceAcceptance` 与 `Main` smoke 已切到 game-side namespace。框架 Bucket A 旧事件 `MouseSelection* / Wave* / GameStart / GameOver / GamePause / GameResume` 已删除，未创建游戏侧替换。
 - **typed Data / DataOS snapshot contract**：BrotatoLike seed 已补 `capability_manifest` 和 `data_key_descriptor`，`DataOS/Snapshots/runtime_snapshot.json` 现在内嵌 `manifest / descriptors / records / resources`；`Tools/run-dataos-snapshot.sh` 使用 `DATAOS_PROFILE=brotatolike` 和 `DATAOS_CATALOG_ID=brotatolike` 生成 profile snapshot。
 - **active catalog + typed loader**：`BrotatoLikeDataOSBootstrap` 从 snapshot manifest/descriptors 构建 active `DataCatalog`，通过框架 `RuntimeDataSnapshot` resolve stable key 到 `DataKey<T>` 后 typed apply；`EntitySpawnConfig.DataCatalog` 会把 catalog 传入 Runtime Entity。loader 会把 wrong type、unknown key、descriptor missing/extra、type/default drift 作为错误，不再静默回退 runtime default。
 - **typed runtime migration**：游戏侧 Ability / Feature handler、SpawnSystem、runtime bootstrap 和 smoke 断言已从旧 string/DataMeta access 迁到 typed `DataKey<T>` 读写。`GameBootstrap` 的 smoke local key 已改为 `DataKey<int>`，BrotatoLike build 通过 `SlimeAIGameOSProject` 指向工作区主框架仓，避免编译只读 submodule 旧源码。
@@ -22,10 +23,10 @@
 - **EventBus observation dump**：`--gameos-smoke-exit` smoke 路径会在 runner artifact 环境下导出 `artifacts/eventbus-dump.json`；最新 `.ai-temp/scene-tests/runs/2026-05-13/09-23-37/.../eventbus-dump.json` 中 `SameTypeReentryBlockedCounts={}`、`HandlerExceptions=[]`，用于确认 BrotatoLike smoke 没有事件重入阻断或 handler 异常。
 - **迁移台账**：新增 `DocsAI/MigrationLedger.md`，按旧 `Resources/Else/brotato-my` 主场景、Entity、Component、System、UI、Ability、DataNew、Config、ResourcePaths 和 Test 输入建立第一版映射；该台账用于审计和后续 R07 可玩切片追踪，明确 `DataOS-only` 与 `遗留引用` 不等于资源可加载或玩法完成。
 - **Movement Acceleration 平滑移动**：框架 `MovementDataKeys.Acceleration` + `InputDrivenMovement` Lerp 平滑支持；DataOS `unit.player/deluyi` 已写入 `Movement.Acceleration = 12`；backward-compatible（无 Acceleration 时退化为直接速度）。
-- **GodotPlayerInputComponent**：框架 GodotBridge 新增输入桥接组件，每帧 `_Process` 读取 Godot Input Map（MoveLeft/Right/Up/Down），写入 `MovementDataKeys.InputDirection`；支持 `CanMoveInput` 门控和 AI 共存；已定义 BrotatoLike `project.godot` 输入映射（WASD + 方向键 + 手柄左摇杆）。
-- **BrotatoLikeGameRuntime 玩家生成**：新增 `SpawnPlayer(recordId, spawnPosition)`，从 DataOS `unit.player/deluyi` 读取数据，创建 `GodotEntity2D`，挂载 `GodotPlayerInputComponent`，加载视觉场景（`deluyi.tscn`），启动 `MoveMode.PlayerInput` 常驻移动，共享 `GodotMovementDriver`。
+- **BrotatoLikePlayerInputComponent**：游戏侧 Bridge 新增输入桥接组件，每帧 `_Process` 读取 Godot Input Map（MoveLeft/Right/Up/Down + UseSkill/PreviousSkill/NextSkill），写入 `MovementDataKeys.InputDirection`，并发布 `BrotatoLike.Game.Events.InputUseSkill / InputPreviousSkill / InputNextSkill`；支持 `CanMoveInput` 门控和 AI 共存；已定义 BrotatoLike `project.godot` 输入映射（WASD + 方向键 + 手柄左摇杆）。
+- **BrotatoLikeGameRuntime 玩家生成**：新增 `SpawnPlayer(recordId, spawnPosition)`，从 DataOS `unit.player/deluyi` 读取数据，创建 `GodotEntity2D`，挂载 `BrotatoLikePlayerInputComponent`，加载视觉场景（`deluyi.tscn`），启动 `MoveMode.PlayerInput` 常驻移动，共享 `GodotMovementDriver`。
 - **Main.tscn 自动创建玩家**：`StartGameRuntime()` 初始化后自动调用 `runtime.SpawnPlayer()`，发布 `Game.Started` 事件时玩家已就位。
-- Smoke 新增 `GodotPlayerInputProbe`：覆盖组件注册、InputDirection 写入、Acceleration > 0 平滑加速（0.05s 时 ~45px/s，0.55s 时 ~100px/s）、Acceleration = 0 直接速度（瞬时 80px/s）。
+- Smoke 新增 `BrotatoLikePlayerInputProbe`：覆盖组件注册、InputDirection 写入、Acceleration > 0 平滑加速（0.05s 时 ~45px/s，0.55s 时 ~100px/s）、Acceleration = 0 直接速度（瞬时 80px/s）。
 
 当前 smoke probe 覆盖：
 
@@ -56,7 +57,7 @@
 - AIService 最小行为树由框架 Runtime tests 覆盖，包含最近目标查询、追目标写入 Movement AI 意图、确定性左右巡逻和等待倒计时、行为树预制块攻击优先 / 追逐 / 巡逻回退、范围内发出 `GameEventType.Attack.Requested`、行为树中准备 Ability 自动索敌上下文并推进 Ability Periodic 自动触发；本游戏 Godot smoke 已覆盖 `GodotAIComponent` 导出参数写入、手动 Tick 写入巡逻移动意图，并由 `GodotMovementDriver + MoveMode.AIControlled` 同步到真实节点位置。
 - AttackService 最小 Runtime 由框架 Runtime tests 覆盖，包含消费攻击请求事件、前摇 / 后摇 / 冷却 Timer、距离和死亡门禁，以及通过 DamageService 造成 `DamageTags.Attack` 伤害；本游戏 Godot smoke 已覆盖 `GodotAttackComponent` 导出参数写入、节点目标解析、攻击请求、HP 扣减、旧 `AttackComponent` 包装类保留已有 Attack Data 并结算伤害，以及 Attack Started / Cancelled 转发到 `GodotUnitAnimationComponent` 后从可用 `attack*` 动画回退选择、播放 attack / 取消回 idle / 一次性动画完成发布 `unit:animation_finished` 并回 idle。
 - GodotBridge `GodotEntity / IGodotComponent / GameOSTimerDriver` 编译接入。
-- GodotBridge `GodotPlayerInputComponent` 已建立，headless smoke 覆盖组件注册、InputDirection Data 写入、平滑加速和直接速度回退。
+- 游戏侧 Bridge `BrotatoLikePlayerInputComponent` 已建立，headless smoke 覆盖组件注册、InputDirection Data 写入、平滑加速和直接速度回退；框架 GodotBridge 不再持有 BrotatoLike-specific 输入组件。
 - GodotBridge `GodotNodePool<Area2D> / GodotCollisionIsolation / GodotNodePoolManager.ReturnToPool` 已接入 headless smoke，当前 `_Ready` 测试模式覆盖延迟激活、回池脱树和复用，失败会返回非 0。
 - Godot 场景测试 runner 已建立：`Tools/run-godot-scene.sh` 支持 `list / run / run-many / run-all / run-main-smoke`、构建开关、超时、attempts 和日志目录；`Tools/analyze-godot-scene-logs.sh` 读取新结构 `index.json/result.json/combined.log`、artifact status 和 JSONL 数量；`Tools/run-godot-smoke.sh` 保持旧兼容入口并委托到统一 runner。
 - 旧 `assets/` 已复制到新仓库根目录 `assets/`，保留 `res://assets/...` 路径。
@@ -67,7 +68,7 @@
 1. 继续把真实 UI、SpawnSystem 专项场景和更细的输入专项测试接入 `Tools/run-godot-scene.sh`；普通 `Scenes/Main.tscn` 可玩切片和 smoke 已有 PASS artifact。
 2. 继续迁 Feature actions 和 Ability 具体 handler 执行逻辑；SineWave / Boomerang / BezierCurve / CircularArc / Orbit / AttachToHost、Dash、ChainLightning、Slam、TargetPoint、CircleDamage、AuraShield 与 ArcShot 已接入 DataOS 到真实执行闭环，后续继续迁尚未接线的被动 Feature actions。
 3. 从 `MigrationInput/` 继续适配真实 UI、剩余输入细节和游戏场景内容。
-4. 玩家技能输入的事件路径已接入并由主场景 artifact 覆盖 `InputUseSkill` / `InputNextSkill`；后续专项验收聚焦真实手柄 LB/RB、X 按键物理输入和鼠标/手柄 Point 目标点选。
+4. 玩家技能输入的 game-side event 路径已接入并由主场景 artifact 覆盖 `InputUseSkill` / `InputNextSkill`；后续专项验收聚焦真实手柄 LB/RB、X 按键物理输入和鼠标/手柄 Point 目标点选。
 
 ## 最新验证
 
@@ -77,7 +78,7 @@ Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
 Tools/analyze-godot-scene-logs.sh
 ```
 
-结果：`Tools/run-build.sh` 输出 `Build succeeded. 0 Warning(s) 0 Error(s)`；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS` 且 `bridge:True pool:True dataos:True main:True`；analyzer 输出 `status: pass`、`firstError: none`。P2b 最新 passing smoke artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/13-55-38/index.json`。
+结果：`Tools/run-build.sh` PASS（0 errors；仅既有 XML 注释 warnings）；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS` 且 `bridge:True pool:True dataos:True main:True`；analyzer 输出 `status: pass`、`firstError: none`。P3 最新 passing smoke artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/14-39-45/index.json`。
 
 P1 Runtime LifecycleTree 迁移补充验证：`Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs && Tools/analyze-godot-scene-logs.sh` 输出 `BrotatoLike playable slice PASS`，analyzer 输出 `status: pass`、`firstError: none`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/09-40-30/index.json`。
 

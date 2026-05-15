@@ -1,14 +1,15 @@
 using System;
+using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.Events;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
-using SlimeAI.GameOS.Runtime.Events.Core;
 
 namespace BrotatoLike.Game;
 
 /// <summary>
-/// Godot 主动技能输入组件：监听 <see cref="GodotPlayerInputComponent" /> 发射的技能输入事件，
+/// Godot 主动技能输入组件：监听 <see cref="BrotatoLikePlayerInputComponent" /> 发射的技能输入事件，
 /// 管理 <see cref="AbilityDataKeys.OwnedAbilityIds" /> 和 <see cref="AbilityDataKeys.CurrentAbilityIndex" />，
 /// 并通过 <see cref="AbilityService" /> 触发当前选中技能。
 /// <para>挂载到玩家 GodotEntity2D 下，作为玩家主动技能的输入控制器。</para>
