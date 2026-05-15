@@ -8,6 +8,7 @@ using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
 using SlimeAI.GameOS.Runtime.Resource;
 using SlimeAI.GameOS.Runtime.Schedule;
+using SlimeAI.GameOS.Runtime.World;
 
 namespace BrotatoLike.Game;
 
@@ -101,10 +102,18 @@ public partial class BrotatoLikeGameRuntime : Node
     /// <inheritdoc />
     public override void _Process(double delta)
     {
-        if (AutoTick && IsInitialized)
+        if (!AutoTick || !IsInitialized)
         {
-            LastSpawnTickResult = TickSpawn(delta);
+            return;
         }
+
+        var worldSchedule = RuntimeWorld.Default.Schedule;
+        worldSchedule.RunPhase(SchedulePhase.BeginTick);
+        worldSchedule.RunPhase(SchedulePhase.BeforeSystemTick);
+        LastSpawnTickResult = TickSpawn(delta);
+        worldSchedule.RunPhase(SchedulePhase.AfterSystemTick);
+        worldSchedule.RunPhase(SchedulePhase.AfterEventDispatch);
+        worldSchedule.RunPhase(SchedulePhase.EndOfFrame);
     }
 
     /// <inheritdoc />
