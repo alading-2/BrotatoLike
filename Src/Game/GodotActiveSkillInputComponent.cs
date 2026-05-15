@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.GodotBridge;
@@ -52,8 +51,8 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             return;
         }
 
-        var ownedIds = entity.Data.Get<List<string>>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds == null || ownedIds.Count == 0)
+        var ownedIds = entity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        if (ownedIds.Count == 0)
         {
             return;
         }
@@ -65,7 +64,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         }
 
         var abilityId = ownedIds[currentIndex];
-        var ability = EntityManager.Get(new EntityId(abilityId));
+        var ability = EntityManager.Get(abilityId);
         if (ability == null)
         {
             return;
@@ -92,8 +91,8 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             return;
         }
 
-        var ownedIds = entity.Data.Get<List<string>>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds == null || ownedIds.Count == 0)
+        var ownedIds = entity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        if (ownedIds.Count == 0)
         {
             return;
         }
@@ -110,8 +109,8 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             return;
         }
 
-        var ownedIds = entity.Data.Get<List<string>>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds == null || ownedIds.Count == 0)
+        var ownedIds = entity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        if (ownedIds.Count == 0)
         {
             return;
         }

@@ -25,7 +25,6 @@ using SlimeAI.GameOS.Observation;
 using SlimeAI.GameOS.Runtime.Entity;
 using SlimeAI.GameOS.Runtime.Event;
 using SlimeAI.GameOS.Runtime.Events.Core;
-using SlimeAI.GameOS.Runtime.Relationship;
 using SlimeAI.GameOS.Runtime.Resource;
 using SlimeAI.GameOS.Runtime.Schedule;
 using SlimeAI.GameOS.Runtime.Timer;
@@ -447,10 +446,7 @@ public partial class Main : Node
         var activeSkillInputProbe = RunActiveSkillInputProbe();
         return new GodotBridgeProbe(
             EntityRegistered: GameOSGodotBridge.GetEntityNode(entity.EntityId) == entity,
-            ComponentBound: RelationshipManager.HasRelationship(
-                entity.EntityId.Value,
-                componentId,
-            RelationshipType.EntityToComponent),
+            ComponentBound: GodotNodeRegistry.IsAdapterRegistered(entity.EntityId, componentId),
             ComponentCallback: component.Registered,
             CollisionBridgeEntered: collisionProbe.CollisionEntered && collisionProbe.CollisionExited,
             HurtboxBridgeEntered: collisionProbe.HurtboxEntered && collisionProbe.HurtboxExited,
@@ -1317,10 +1313,7 @@ public partial class Main : Node
         projectile.Projectile.Data.Set(CollisionDataKeys.CollisionMask, CollisionLayers.EnemyHurtbox);
         projectile.Projectile.Data.Set(CollisionDataKeys.CollisionRadius, 1f);
         projectile.Projectile.Data.Set(CollisionDataKeys.Team, 1);
-        var projectileSourceRelationshipBound = RelationshipManager.HasRelationship(
-            caster.EntityId.Value,
-            projectile.Projectile.EntityId.Value,
-            RelationshipType.EntityToProjectile);
+        var projectileSourceRelationshipBound = caster.Data.Get(ProjectileDataKeys.SpawnedProjectileIds).Contains(projectile.Projectile.EntityId);
         var projectileDirectionSynced = projectile.Projectile.Data.Get<Vector2Value>(ProjectileDataKeys.Direction) == new Vector2Value(1f, 0f);
         var projectileSpeedSynced = Math.Abs(projectile.Projectile.Data.Get<float>(ProjectileDataKeys.Speed) - 16f) < 0.001f;
         var projectileNode = GodotNodeRegistry.GetNodeById(projectile.Projectile.EntityId.Value) as Node2D;
@@ -1487,7 +1480,7 @@ public partial class Main : Node
             && Math.Abs(effectNode.Position.X - 12f) < 0.001f
             && Math.Abs(effectNode.Position.Y) < 0.001f
             && effectAnimationSynced
-            && RelationshipManager.HasRelationship(caster.EntityId.Value, effect.Effect.EntityId.Value, RelationshipType.EntityToEffect)
+            && caster.Data.Get(EffectDataKeys.SpawnedEffectIds).Contains(effect.Effect.EntityId)
             && effect.Effect.Data.Get<Vector2Value>(EffectDataKeys.Position) == new Vector2Value(12f, 0f)
             && effect.Effect.Data.Get(EffectDataKeys.AnimationName) == "Effect"
             && Math.Abs(effect.Effect.Data.Get<float>(EffectDataKeys.Duration) - 0.5f) < 0.001f;
@@ -1597,7 +1590,7 @@ public partial class Main : Node
         var ability2 = bootstrap.SpawnEntityFromRecord("ability", "chain_lightning", "probe-ability-chain");
 
         // 写入玩家技能列表
-        var ownedIds = new List<string> { ability1.EntityId.Value, ability2.EntityId.Value };
+        var ownedIds = EntityIdList.Empty.Add(ability1.EntityId).Add(ability2.EntityId);
         playerEntity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedIds);
         playerEntity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
 

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Movement;
@@ -259,9 +258,9 @@ public partial class BrotatoLikeGameRuntime : Node
         entity.AddChild(skillInputComponent);
 
         // 从 DataOS 创建初始技能实体
-        var ownedAbilityIds = new List<string>();
-        SpawnPlayerAbility(entity, "slam", ownedAbilityIds);
-        SpawnPlayerAbility(entity, "chain_lightning", ownedAbilityIds);
+        var ownedAbilityIds = EntityIdList.Empty;
+        ownedAbilityIds = SpawnPlayerAbility(entity, "slam", ownedAbilityIds);
+        ownedAbilityIds = SpawnPlayerAbility(entity, "chain_lightning", ownedAbilityIds);
 
         entity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedAbilityIds);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
@@ -292,11 +291,11 @@ public partial class BrotatoLikeGameRuntime : Node
         return entity;
     }
 
-    private void SpawnPlayerAbility(GodotEntity2D player, string abilityRecordId, List<string> ownedIds)
+    private EntityIdList SpawnPlayerAbility(GodotEntity2D player, string abilityRecordId, EntityIdList ownedIds)
     {
         var abilityEntityId = $"ability-{abilityRecordId}-{player.EntityId}";
         var ability = bootstrap!.SpawnEntityFromRecord("ability", abilityRecordId, abilityEntityId);
-        ownedIds.Add(ability.EntityId.Value);
+        return ownedIds.Add(ability.EntityId);
     }
 
     /// <summary>

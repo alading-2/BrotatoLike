@@ -254,14 +254,14 @@ internal static class BrotatoLikePlayableSliceAcceptance
         EnemyAcceptance enemies,
         Dictionary<string, string> values)
     {
-        var ownedIds = player.Data.Get<List<string>>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds == null || ownedIds.Count < 2 || enemies.Enemies.Count == 0)
+        var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        if (ownedIds.Count < 2 || enemies.Enemies.Count == 0)
         {
             return SkillAcceptance.Empty;
         }
 
-        var slam = EntityManager.Get(new EntityId(ownedIds[0]));
-        var chain = EntityManager.Get(new EntityId(ownedIds[1]));
+        var slam = EntityManager.Get(ownedIds[0]);
+        var chain = EntityManager.Get(ownedIds[1]);
         if (slam == null || chain == null)
         {
             return SkillAcceptance.Empty;

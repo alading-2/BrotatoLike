@@ -7,7 +7,6 @@ using SlimeAI.GameOS.Runtime.Data;
 using SlimeAI.GameOS.Runtime.Entity;
 using SlimeAI.GameOS.Runtime.Events.Core;
 using SlimeAI.GameOS.Runtime.Pool;
-using SlimeAI.GameOS.Runtime.Relationship;
 using SlimeAI.GameOS.Runtime.Resource;
 using SlimeAI.GameOS.Runtime.Schedule;
 using SlimeAI.GameOS.Runtime.Timer;
@@ -42,7 +41,6 @@ public static class GameBootstrap
         {
             EntityId = new EntityId("brotato-like-smoke-child"),
             ParentEntityId = entity.EntityId,
-            AutoAddParentRelation = true,
             ParentDestroyPolicy = ParentDestroyPolicy.Detach
         });
 
@@ -141,7 +139,7 @@ public static class GameBootstrap
         ResourceCatalog.Clear();
         ResourceCatalog.Register("Main", ResourceCategory.Entity, "res://Scenes/Main.tscn");
         var mainScenePath = ResourceManagement.GetPath("Main", ResourceCategory.Entity) ?? string.Empty;
-        var relationshipBound = RelationshipManager.HasRelationship(entity.EntityId.Value, child.EntityId.Value, RelationshipType.Parent);
+        var relationshipBound = LifecycleTree.IsAttached(entity.EntityId, child.EntityId);
 
         EntityManager.Clear();
 
