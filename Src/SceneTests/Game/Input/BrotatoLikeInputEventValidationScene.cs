@@ -48,6 +48,30 @@ public partial class BrotatoLikeInputEventValidationScene : Node
             {
                 "This is a BrotatoLike-owned validation scene.",
                 "It verifies game-side input events and must not be moved into framework Runtime."
+            },
+            expectedInputs: new[]
+            {
+                "BrotatoLikePlayerInputComponent with AutoTick disabled and a validation player entity",
+                "InputNextSkill, InputPreviousSkill and InputUseSkill game events",
+                "GodotActiveSkillInputComponent with validation ability actions"
+            },
+            expectedObservations: new[]
+            {
+                "movement input writes MovementDataKeys.InputDirection on the player entity",
+                "skill input events belong to BrotatoLike.Game.Events rather than framework Runtime events",
+                "active skill input switches selected ability and triggers the current skill"
+            },
+            passCriteria: new[]
+            {
+                "all BrotatoLike input checks pass",
+                "stdout contains BrotatoLike Game Input validation PASS",
+                "failureReasons is empty"
+            },
+            failCriteria: new[]
+            {
+                "movement write, game event ownership or active skill trigger check fails",
+                "stdout contains BrotatoLike Game Input validation FAIL",
+                "failureReasons identifies the failed game input invariant"
             });
 
         validation.Info("validation start");

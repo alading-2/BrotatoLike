@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-15
+> 更新日期：2026-05-15（新增 Game/Input validation scene）
 
 ## 当前状态
 
@@ -25,6 +25,7 @@
 - **迁移台账**：新增 `DocsAI/MigrationLedger.md`，按旧 `Resources/Else/brotato-my` 主场景、Entity、Component、System、UI、Ability、DataNew、Config、ResourcePaths 和 Test 输入建立第一版映射；该台账用于审计和后续 R07 可玩切片追踪，明确 `DataOS-only` 与 `遗留引用` 不等于资源可加载或玩法完成。
 - **Movement Acceleration 平滑移动**：框架 `MovementDataKeys.Acceleration` + `InputDrivenMovement` Lerp 平滑支持；DataOS `unit.player/deluyi` 已写入 `Movement.Acceleration = 12`；backward-compatible（无 Acceleration 时退化为直接速度）。
 - **BrotatoLikePlayerInputComponent**：游戏侧 Bridge 新增输入桥接组件，每帧 `_Process` 读取 Godot Input Map（MoveLeft/Right/Up/Down + UseSkill/PreviousSkill/NextSkill），写入 `MovementDataKeys.InputDirection`，并发布 `BrotatoLike.Game.Events.InputUseSkill / InputPreviousSkill / InputNextSkill`；支持 `CanMoveInput` 门控和 AI 共存；已定义 BrotatoLike `project.godot` 输入映射（WASD + 方向键 + 手柄左摇杆）。
+- **BrotatoLikeInputEventValidation**：新增游戏侧专项验证场景 `res://Scenes/Validation/Game/Input/BrotatoLikeInputEventValidation.tscn`，脚本位于 `Src/SceneTests/Game/Input/BrotatoLikeInputEventValidationScene.cs`，artifact 为 `artifacts/brotatolike-input-event-validation.json`。该场景验证 `BrotatoLikePlayerInputComponent` 写入 `MovementDataKeys.InputDirection`、技能输入事件类型归属 `BrotatoLike.Game.Events`，以及 `GodotActiveSkillInputComponent` 可由 `InputNextSkill / InputPreviousSkill / InputUseSkill` 切换并触发当前技能。该场景归属 BrotatoLike，不上提为框架 Runtime 场景。
 - **BrotatoLikeGameRuntime 玩家生成**：新增 `SpawnPlayer(recordId, spawnPosition)`，从 DataOS `unit.player/deluyi` 读取数据，创建 `GodotEntity2D`，挂载 `BrotatoLikePlayerInputComponent`，加载视觉场景（`deluyi.tscn`），启动 `MoveMode.PlayerInput` 常驻移动，共享 `GodotMovementDriver`。
 - **Main.tscn 自动创建玩家**：`StartGameRuntime()` 初始化后自动调用 `runtime.SpawnPlayer()`，发布 `Game.Started` 事件时玩家已就位。
 - Smoke 新增 `BrotatoLikePlayerInputProbe`：覆盖组件注册、InputDirection 写入、Acceleration > 0 平滑加速（0.05s 时 ~45px/s，0.55s 时 ~100px/s）、Acceleration = 0 直接速度（瞬时 80px/s）。
@@ -75,9 +76,12 @@
 
 ```bash
 Tools/run-build.sh
+Tools/run-godot-scene.sh run res://Scenes/Validation/Game/Input/BrotatoLikeInputEventValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
 Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
 Tools/analyze-godot-scene-logs.sh
 ```
+
+结果：`Tools/run-build.sh` PASS（0 warnings / 0 errors）；`BrotatoLikeInputEventValidation` 输出 `BrotatoLike Game Input validation PASS`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/18-36-50/index.json`；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS`，analyzer 输出 `status: pass`、`firstError: none`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/18-36-58/index.json`。
 
 结果：`Tools/run-build.sh` PASS（0 errors；XML 注释 warnings 仍存在，其中包含 P4 新 public CommandBuffer 类型的同类 warning）；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS` 且 `bridge:True pool:True dataos:True main:True`；analyzer 输出 `status: pass`、`firstError: none`。P4 最新 passing smoke artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/16-45-27/index.json`。
 
