@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Src/SceneTests/Game/Input/BrotatoLikeInputEventValidationScene.cs" id="1_validation"]
+
+[node name="BrotatoLikeInputEventValidation" type="Node"]
+script = ExtResource("1_validation")
