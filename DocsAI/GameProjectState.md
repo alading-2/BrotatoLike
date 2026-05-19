@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-15（新增 Game/Input validation scene）
+> 更新日期：2026-05-19（框架 `gameos-capability-scoped-services` change 接入）
 
 ## 当前状态
 
@@ -82,6 +82,8 @@ Tools/analyze-godot-scene-logs.sh
 ```
 
 结果：`Tools/run-build.sh` PASS（0 warnings / 0 errors）；`BrotatoLikeInputEventValidation` 输出 `BrotatoLike Game Input validation PASS`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/18-36-50/index.json`；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS`，analyzer 输出 `status: pass`、`firstError: none`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/18-36-58/index.json`。
+
+**gameos-capability-scoped-services 接入（2026-05-19）**：框架 change 修改 `DamageService` 构造（可选注入 `HealService`）、`LifestealProcessor` 构造注入、`AIContext.AbilityService` 移除默认值（`GodotAIComponent` 已显式注入 `AbilityService.Instance`）、`GodotContactDamageComponent` 改为 `DamageService.Default`。BrotatoLike 无游戏侧代码改动；`Tools/run-build.sh` PASS（0 errors）；`run-main-smoke` PASS，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-19/17-22-28/index.json`。
 
 结果：`Tools/run-build.sh` PASS（0 errors；XML 注释 warnings 仍存在，其中包含 P4 新 public CommandBuffer 类型的同类 warning）；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS` 且 `bridge:True pool:True dataos:True main:True`；analyzer 输出 `status: pass`、`firstError: none`。P4 最新 passing smoke artifact 位于 `.ai-temp/scene-tests/runs/2026-05-15/16-45-27/index.json`。
 
