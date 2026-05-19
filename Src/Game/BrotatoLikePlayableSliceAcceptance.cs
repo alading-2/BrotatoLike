@@ -453,10 +453,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
         }
 
         Log.Info($"writing artifact {path}");
-        File.WriteAllText(path, BuildJson(checks, values, damageLogs, failures), Encoding.UTF8);
+        File.WriteAllText(path, BuildJson(path, checks, values, damageLogs, failures), Encoding.UTF8);
     }
 
     private static string BuildJson(
+        string artifactPath,
         IReadOnlyDictionary<string, bool> checks,
         IReadOnlyDictionary<string, string> values,
         IReadOnlyList<string> damageLogs,
@@ -468,6 +469,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
         builder.AppendLine("  \"mode\": \"playable-slice\",");
         builder.Append("  \"status\": \"").Append(failures.Count == 0 ? "pass" : "fail").AppendLine("\",");
         builder.Append("  \"passMarker\": \"").Append(failures.Count == 0 ? "BrotatoLike playable slice PASS" : "BrotatoLike playable slice FAIL").AppendLine("\",");
+        builder.Append("  \"artifactPath\": \"").Append(EscapeJson(artifactPath)).AppendLine("\",");
+        AppendStringArray(builder, "expectedInputs", ExpectedInputs, trailingComma: true);
+        AppendStringArray(builder, "expectedObservations", ExpectedObservations, trailingComma: true);
+        AppendStringArray(builder, "passCriteria", PassCriteria, trailingComma: true);
+        AppendStringArray(builder, "failCriteria", FailCriteria, trailingComma: true);
         AppendCriteriaArray(builder, checks, trailingComma: true);
         builder.AppendLine("  \"checked_criteria\": {");
         var index = 0;
@@ -485,6 +491,34 @@ internal static class BrotatoLikePlayableSliceAcceptance
         builder.AppendLine("}");
         return builder.ToString();
     }
+
+    private static readonly string[] ExpectedInputs =
+    {
+        "GODOT_SCENE_TEST_ARTIFACT_DIR is set by the scene runner",
+        "res://Scenes/Main.tscn initializes BrotatoLikeGameRuntime from DataOS snapshot",
+        "deterministic MoveRight and MoveUp input actions are applied during acceptance"
+    };
+
+    private static readonly string[] ExpectedObservations =
+    {
+        "player runtime data records input direction, last move direction, and changed position",
+        "DataOS-spawned enemies chase, apply contact damage, and expose resource path evidence",
+        "slam and chain abilities produce damage, cooldown, target, visual, and HUD evidence"
+    };
+
+    private static readonly string[] PassCriteria =
+    {
+        "all criteria entries have status pass",
+        "failureReasons and failure_reasons are empty",
+        "passMarker is BrotatoLike playable slice PASS"
+    };
+
+    private static readonly string[] FailCriteria =
+    {
+        "any criteria entry has status fail",
+        "player, enemy, ability, damage, or HUD evidence is missing",
+        "artifactPath is empty or the scene runner does not collect the artifact file"
+    };
 
     private static void AppendCriteriaArray(
         StringBuilder builder,

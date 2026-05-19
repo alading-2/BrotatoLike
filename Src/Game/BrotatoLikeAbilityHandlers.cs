@@ -58,9 +58,9 @@ public sealed class BrotatoLikeDashAbilityHandler : IFeatureHandler
     }
 
     /// <inheritdoc />
-    public object? OnExecute(FeatureContext context)
+    public IFeatureExecutionResult? OnExecute(FeatureContext context)
     {
-        if (context.ActivationData is not AbilityCastContext cast)
+        if (!context.TryGetActivation<AbilityCastContext>(out var cast))
         {
             return new AbilityExecutedResult();
         }
@@ -198,9 +198,9 @@ public sealed class BrotatoLikeAreaDamageAbilityHandler : IFeatureHandler
     }
 
     /// <inheritdoc />
-    public object? OnExecute(FeatureContext context)
+    public IFeatureExecutionResult? OnExecute(FeatureContext context)
     {
-        if (context.ActivationData is not AbilityCastContext cast)
+        if (!context.TryGetActivation<AbilityCastContext>(out var cast))
         {
             return new AbilityExecutedResult();
         }
@@ -347,9 +347,9 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
     }
 
     /// <inheritdoc />
-    public object? OnExecute(FeatureContext context)
+    public IFeatureExecutionResult? OnExecute(FeatureContext context)
     {
-        if (context.ActivationData is not AbilityCastContext cast)
+        if (!context.TryGetActivation<AbilityCastContext>(out var cast))
         {
             return new AbilityExecutedResult();
         }
@@ -695,9 +695,9 @@ public sealed class BrotatoLikeChainLightningHandler : IFeatureHandler
     }
 
     /// <inheritdoc />
-    public object? OnExecute(FeatureContext context)
+    public IFeatureExecutionResult? OnExecute(FeatureContext context)
     {
-        if (context.ActivationData is not AbilityCastContext cast)
+        if (!context.TryGetActivation<AbilityCastContext>(out var cast))
         {
             return new AbilityExecutedResult();
         }

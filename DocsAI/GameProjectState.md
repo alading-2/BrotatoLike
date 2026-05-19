@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-19（框架 `gameos-capability-scoped-services` change 接入）
+> 更新日期：2026-05-19（7 个 GameOS OpenSpec 未完成项收敛验证）
 
 ## 当前状态
 
@@ -22,6 +22,7 @@
 - **R07 可玩切片验收**：普通 `Scenes/Main.tscn` 在 scene runner 的 artifact 环境下会执行 `BrotatoLikePlayableSliceAcceptance`，与 `--gameos-smoke-exit` smoke 路径分离；输出 `BrotatoLike playable slice PASS/FAIL`，并写入 `artifacts/scene-acceptance.json`。当前验收覆盖玩家生成、WASD + 方向键 input map、`Movement.InputDirection` / `Movement.LastMoveDirection`、玩家位移、第 1 波敌人生成、敌人追逐移动、接触伤害、敌人死亡和 cleanup、`slam` 与 `chain_lightning` 触发 / 冷却门禁 / 命中、最小 Health / CurrentSkill HUD Label、结构化 damage logs。
 - **统一 Observation / runner**：`Tools/run-godot-scene.sh` 现在委托 `.codex/skills/godot-scene-test/scripts/godot-scene-runner.mjs`，新日志结构固定为 `index.json + 001_<scene>_attempt1/{stdout,stderr,combined,result,artifacts}`；`BrotatoLikePlayableSliceAcceptance` 写入小写 `status=pass/fail` 和 `artifacts/logs/scene-log.jsonl`，`Main.cs` 使用 `GameOSLog.For("BrotatoLike.Main")` 输出流程日志；`Src/Validation/GameOS/Observation/ObservationLogValidation.tscn` 独立验证通用 log level、格式化、过滤、JSONL sink 和 runner session 路径。
 - **EventBus observation dump**：`--gameos-smoke-exit` smoke 路径会在 runner artifact 环境下导出 `artifacts/eventbus-dump.json`；最新 `.ai-temp/scene-tests/runs/2026-05-13/09-23-37/.../eventbus-dump.json` 中 `SameTypeReentryBlockedCounts={}`、`HandlerExceptions=[]`，用于确认 BrotatoLike smoke 没有事件重入阻断或 handler 异常。
+- **Scene artifact gate**：普通 `Scenes/Main.tscn` 的 `scene-acceptance.json` 和 `--gameos-smoke-exit` 的 `scene-smoke.json` 均输出标准答案字段：`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath`。`run-main-smoke` 继续保留 `eventbus-dump.json`。
 - **迁移台账**：新增 `DocsAI/MigrationLedger.md`，按旧 `Resources/Else/brotato-my` 主场景、Entity、Component、System、UI、Ability、DataNew、Config、ResourcePaths 和 Test 输入建立第一版映射；该台账用于审计和后续 R07 可玩切片追踪，明确 `DataOS-only` 与 `遗留引用` 不等于资源可加载或玩法完成。
 - **Movement Acceleration 平滑移动**：框架 `MovementDataKeys.Acceleration` + `InputDrivenMovement` Lerp 平滑支持；DataOS `unit.player/deluyi` 已写入 `Movement.Acceleration = 12`；backward-compatible（无 Acceleration 时退化为直接速度）。
 - **BrotatoLikePlayerInputComponent**：游戏侧 Bridge 新增输入桥接组件，每帧 `_Process` 读取 Godot Input Map（MoveLeft/Right/Up/Down + UseSkill/PreviousSkill/NextSkill），写入 `MovementDataKeys.InputDirection`，并发布 `BrotatoLike.Game.Events.InputUseSkill / InputPreviousSkill / InputNextSkill`；支持 `CanMoveInput` 门控和 AI 共存；已定义 BrotatoLike `project.godot` 输入映射（WASD + 方向键 + 手柄左摇杆）。
@@ -73,6 +74,17 @@
 4. 玩家技能输入的 game-side event 路径已接入并由主场景 artifact 覆盖 `InputUseSkill` / `InputNextSkill`；后续专项验收聚焦真实手柄 LB/RB、X 按键物理输入和鼠标/手柄 Point 目标点选。
 
 ## 最新验证
+
+**7 个 GameOS OpenSpec 未完成项收敛验证（2026-05-19）**
+
+```bash
+Tools/run-build.sh
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh
+```
+
+结果：`Tools/run-build.sh` PASS（`0 Warning(s), 0 Error(s)`）；普通 Main 输出 `BrotatoLike playable slice PASS`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-19/20-58-59/index.json`；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS`，analyzer 输出 `status: pass`、`firstError: none`，latest artifact 位于 `.ai-temp/scene-tests/runs/2026-05-19/20-59-07/index.json`。`scene-smoke.json` 与普通 Main `scene-acceptance.json` 的 `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。
 
 ```bash
 Tools/run-build.sh

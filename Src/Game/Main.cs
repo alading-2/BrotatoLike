@@ -128,9 +128,140 @@ public partial class Main : Node
             && mainEntryProbe.GameStartedEventEmitted
             && mainEntryProbe.SmokeEntryKeptSeparate
             && mainEntryProbe.CameraMounted;
+        WriteSmokeSceneArtifact(probe, bridgeProbe, dataOsProbe, mainEntryProbe, success);
         GD.Print(success ? "BrotatoLike GameOS smoke PASS" : "BrotatoLike GameOS smoke FAIL");
         ExportWorldEventBusObservation();
         GetTree().Quit(success ? 0 : 1);
+    }
+
+    private static void WriteSmokeSceneArtifact(
+        FrameworkSmokeProbe probe,
+        GodotBridgeProbe bridgeProbe,
+        DataOSProbe dataOsProbe,
+        MainEntryProbe mainEntryProbe,
+        bool success)
+    {
+        using var observation = GameOSObservationSession.FromEnvironment("res://Scenes/Main.tscn", "gameos-smoke");
+        using var validation = new SceneValidationSession(
+            observation,
+            "BrotatoLike.GameOSSmoke",
+            "game",
+            "scene-smoke.json",
+            expectedInputs:
+            [
+                "--gameos-smoke-exit command line argument",
+                "res://Scenes/Main.tscn bootstrap smoke probes",
+                "workspace SlimeAI.GameOS project reference"
+            ],
+            expectedObservations:
+            [
+                "Runtime core smoke probe succeeds",
+                "GodotBridge, pool, DataOS, Ability, Projectile, Effect, AI, Attack, and input probes are synced",
+                "Main entry keeps smoke path separate and emits GameStarted"
+            ],
+            passCriteria:
+            [
+                "BrotatoLike GameOS smoke PASS is printed",
+                "all smoke probe groups pass",
+                "eventbus-dump.json and scene-smoke.json are collected"
+            ],
+            failCriteria:
+            [
+                "any smoke probe group fails",
+                "BrotatoLike GameOS smoke FAIL is printed",
+                "scene artifact is missing or has empty standard-answer fields"
+            ]);
+
+        validation.Check("runtime.core", "runtime", () => CheckResult.From(
+            probe.DataEventCount == 1
+                && probe.RelationshipBound
+                && probe.PoolCreated == 1
+                && probe.TimerCompleted
+                && probe.ScheduleRunning
+                && probe.MainScenePath == "res://Scenes/Main.tscn"
+                && probe.MovementCompleted
+                && Math.Abs(probe.MovementPositionX - 12f) < 0.001f
+                && probe.CollisionEntered
+                && probe.MovementCollision,
+            "runtime core smoke probe",
+            new Dictionary<string, object?>
+            {
+                ["entityId"] = probe.EntityId,
+                ["dataEventCount"] = probe.DataEventCount,
+                ["poolCreated"] = probe.PoolCreated,
+                ["movementPositionX"] = probe.MovementPositionX
+            }));
+
+        validation.Check("godot.bridge", "bridge", () => CheckResult.From(
+            bridgeProbe.EntityRegistered
+                && bridgeProbe.ComponentBound
+                && bridgeProbe.ComponentCallback
+                && bridgeProbe.CollisionBridgeEntered
+                && bridgeProbe.HurtboxBridgeEntered
+                && bridgeProbe.NodePoolReused
+                && bridgeProbe.MovementNodeSynced
+                && bridgeProbe.OrbitNodeSynced
+                && bridgeProbe.SineNodeSynced
+                && bridgeProbe.BezierNodeSynced
+                && bridgeProbe.BoomerangNodeSynced
+                && bridgeProbe.AttachNodeSynced
+                && bridgeProbe.PlayerInputNodeSynced
+                && bridgeProbe.AIControlledNodeSynced
+                && bridgeProbe.ParabolaNodeSynced
+                && bridgeProbe.CircularArcNodeSynced
+                && bridgeProbe.MovementCollisionNodeSynced
+                && bridgeProbe.OrientationNodeSynced
+                && bridgeProbe.OrientationSpinSynced
+                && bridgeProbe.ContactDamageSynced
+                && bridgeProbe.AttackBridgeSynced
+                && bridgeProbe.AttackAnimationSynced
+                && bridgeProbe.AIBridgeSynced
+                && bridgeProbe.AbilityPointSynced
+                && bridgeProbe.AbilityAutoTargetSynced
+                && bridgeProbe.AbilityDataOSHandlerSynced
+                && bridgeProbe.ProjectileRuntimeSynced
+                && bridgeProbe.EffectRuntimeSynced
+                && bridgeProbe.PlayerInputBridgeSynced
+                && bridgeProbe.ActiveSkillInputSynced,
+            "GodotBridge smoke probe",
+            new Dictionary<string, object?>
+            {
+                ["componentBound"] = bridgeProbe.ComponentBound,
+                ["nodePoolReused"] = bridgeProbe.NodePoolReused,
+                ["abilityDataOSHandlerSynced"] = bridgeProbe.AbilityDataOSHandlerSynced,
+                ["activeSkillInputSynced"] = bridgeProbe.ActiveSkillInputSynced
+            }));
+
+        validation.Check("dataos.snapshot", "dataos", () => CheckResult.From(
+            dataOsProbe.SnapshotApplied
+                && dataOsProbe.AbilityApplied
+                && dataOsProbe.ResourcesRegistered
+                && dataOsProbe.SpawnSystemSynced,
+            "DataOS snapshot smoke probe",
+            new Dictionary<string, object?>
+            {
+                ["snapshotApplied"] = dataOsProbe.SnapshotApplied,
+                ["abilityApplied"] = dataOsProbe.AbilityApplied,
+                ["resourcesRegistered"] = dataOsProbe.ResourcesRegistered,
+                ["spawnSystemSynced"] = dataOsProbe.SpawnSystemSynced
+            }));
+
+        validation.Check("main.entry", "scene", () => CheckResult.From(
+            mainEntryProbe.GameStartedEventEmitted
+                && mainEntryProbe.SmokeEntryKeptSeparate
+                && mainEntryProbe.CameraMounted,
+            "Main scene smoke entry probe",
+            new Dictionary<string, object?>
+            {
+                ["gameStartedEventEmitted"] = mainEntryProbe.GameStartedEventEmitted,
+                ["smokeEntryKeptSeparate"] = mainEntryProbe.SmokeEntryKeptSeparate,
+                ["cameraMounted"] = mainEntryProbe.CameraMounted
+            }));
+
+        validation.Check("smoke.overall", "gate", () => CheckResult.From(
+            success,
+            success ? "BrotatoLike GameOS smoke PASS" : "BrotatoLike GameOS smoke FAIL"));
+        validation.WriteArtifact();
     }
 
     private static void ExportWorldEventBusObservation()

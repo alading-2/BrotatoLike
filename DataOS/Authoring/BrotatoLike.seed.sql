@@ -293,16 +293,28 @@ INSERT OR REPLACE INTO data_field(table_id, record_id, field_key, value_type, va
     ('feature.definition', 'slam', 'Feature.HandlerId', 'string', '技能.主动.猛击'),
     ('feature.definition', 'slam', 'Feature.Description', 'string', '在角色周围随机位置猛击地面，对范围内敌人造成物理伤害'),
     ('feature.definition', 'slam', 'Feature.Category', 'string', '技能.主动'),
+    ('feature.definition', 'slam', 'Feature.TriggerMode', 'string', 'Manual'),
+    ('feature.definition', 'slam', 'Feature.Cooldown', 'float', '1'),
+    ('feature.definition', 'slam', 'Feature.TriggerEventType', 'string', ''),
+    ('feature.definition', 'slam', 'Feature.TriggerChance', 'float', '100'),
     ('feature.definition', 'slam', 'Feature.IsEnabled', 'bool', 'true'),
     ('feature.definition', 'chain_lightning', 'Feature.Id', 'string', 'chain_lightning'),
     ('feature.definition', 'chain_lightning', 'Feature.HandlerId', 'string', '技能.主动.连锁闪电'),
     ('feature.definition', 'chain_lightning', 'Feature.Description', 'string', '释放链式闪电，在多个敌人间弹跳造成魔法伤害，每次弹跳伤害衰减'),
     ('feature.definition', 'chain_lightning', 'Feature.Category', 'string', '技能.主动'),
+    ('feature.definition', 'chain_lightning', 'Feature.TriggerMode', 'string', 'Manual'),
+    ('feature.definition', 'chain_lightning', 'Feature.Cooldown', 'float', '1'),
+    ('feature.definition', 'chain_lightning', 'Feature.TriggerEventType', 'string', ''),
+    ('feature.definition', 'chain_lightning', 'Feature.TriggerChance', 'float', '100'),
     ('feature.definition', 'chain_lightning', 'Feature.IsEnabled', 'bool', 'true'),
     ('feature.definition', 'deluyi_starting_stats', 'Feature.Id', 'string', 'deluyi_starting_stats'),
     ('feature.definition', 'deluyi_starting_stats', 'Feature.HandlerId', 'string', ''),
     ('feature.definition', 'deluyi_starting_stats', 'Feature.Description', 'string', '德鲁伊初始属性修改器集合'),
     ('feature.definition', 'deluyi_starting_stats', 'Feature.Category', 'string', 'unit.player'),
+    ('feature.definition', 'deluyi_starting_stats', 'Feature.TriggerMode', 'string', 'Permanent'),
+    ('feature.definition', 'deluyi_starting_stats', 'Feature.Cooldown', 'float', '1'),
+    ('feature.definition', 'deluyi_starting_stats', 'Feature.TriggerEventType', 'string', ''),
+    ('feature.definition', 'deluyi_starting_stats', 'Feature.TriggerChance', 'float', '100'),
     ('feature.definition', 'deluyi_starting_stats', 'Feature.IsEnabled', 'bool', 'true'),
 
     ('feature.modifier', 'deluyi_starting_stats.move_speed', 'Feature.Id', 'string', 'deluyi_starting_stats'),
@@ -824,6 +836,9 @@ SELECT
         WHEN 'Damage.CritDamage' THEN '100'
         WHEN 'Damage.DamageTakenMultiplier' THEN '1'
         WHEN 'Effect.Duration' THEN '-1'
+        WHEN 'Feature.Cooldown' THEN '1'
+        WHEN 'Feature.TriggerChance' THEN '100'
+        WHEN 'Feature.TriggerMode' THEN 'None'
         WHEN 'Movement.BezierDegree' THEN '2'
         WHEN 'Movement.BoomerangReturnSpeedMultiplier' THEN '1'
         WHEN 'Movement.Handler.MaxDistance' THEN '-1'
@@ -866,10 +881,17 @@ SELECT
         WHEN instr(field_key, '.') > 0 THEN substr(field_key, 1, instr(field_key, '.') - 1)
         ELSE ''
     END AS category,
-    NULL AS min_value,
-    NULL AS max_value,
+    CASE
+        WHEN field_key = 'Feature.Cooldown' THEN 0.01
+        WHEN field_key = 'Feature.TriggerChance' THEN 0
+        ELSE NULL
+    END AS min_value,
+    CASE
+        WHEN field_key = 'Feature.TriggerChance' THEN 100
+        ELSE NULL
+    END AS max_value,
     '[]' AS options_json,
-    0 AS is_percentage,
+    CASE WHEN field_key = 'Feature.TriggerChance' THEN 1 ELSE 0 END AS is_percentage,
     0 AS supports_modifiers,
     0 AS is_computed
 FROM (
