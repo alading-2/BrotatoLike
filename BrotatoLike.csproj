@@ -15,6 +15,6 @@
   <ItemGroup>
     <Compile Remove="MigrationInput/**/*.cs" />
     <Compile Remove="SlimeAI/**/*.cs" />
-    <Compile Include="SlimeAI/Src/SceneTests/**/*.cs" />
+    <Compile Include="SlimeAI/Src/Validation/**/*.cs" />
   </ItemGroup>
 </Project>
