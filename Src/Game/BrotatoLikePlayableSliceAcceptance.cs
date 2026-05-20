@@ -5,7 +5,6 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using BrotatoLike.Game.Bridge;
-using BrotatoLike.Game.Events;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Attack;
@@ -90,7 +89,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
             AddCheck(checks, failureReasons, "enemy.chase_or_move_observed", enemies.ChaseOrMoveObserved);
             AddCheck(checks, failureReasons, "enemy.contact_damage_applied", enemies.ContactDamageApplied);
 
-            var skills = VerifySkills(player, enemies, values);
+            var skills = await VerifySkills(sceneRoot, runtime, player, enemies, values);
             AddCheck(checks, failureReasons, "skill.slam_triggered", skills.SlamTriggered);
             AddCheck(checks, failureReasons, "skill.slam_cooldown_gated", skills.SlamCooldownGated);
             AddCheck(checks, failureReasons, "skill.slam_hit", skills.SlamHit);
@@ -100,6 +99,9 @@ internal static class BrotatoLikePlayableSliceAcceptance
             AddCheck(checks, failureReasons, "skill.chain_target_selected", skills.ChainTargetSelected);
             AddCheck(checks, failureReasons, "skill.chain_hit", skills.ChainHit);
             AddCheck(checks, failureReasons, "skill.chain_structured_evidence", skills.ChainStructuredEvidence);
+            AddCheck(checks, failureReasons, "skill.point_targeting_started", skills.PointTargetingStarted);
+            AddCheck(checks, failureReasons, "skill.point_targeting_confirmed", skills.PointTargetingConfirmed);
+            AddCheck(checks, failureReasons, "skill.real_input_action_path", skills.RealInputActionPath);
 
             var cleanup = VerifyDeathAndCleanup(enemies, player, values);
             AddCheck(checks, failureReasons, "enemy.death_observed", cleanup.DeathObserved);
@@ -134,6 +136,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
             Input.ActionRelease("MoveRight");
             Input.ActionRelease("MoveUp");
             Input.ActionRelease("MoveDown");
+            Input.ActionRelease("UseSkill");
+            Input.ActionRelease("PreviousSkill");
+            Input.ActionRelease("NextSkill");
+            Input.ActionRelease("ConfirmTarget");
+            Input.ActionRelease("CancelTarget");
         }
     }
 
@@ -252,20 +259,32 @@ internal static class BrotatoLikePlayableSliceAcceptance
         }
     }
 
-    private static SkillAcceptance VerifySkills(
+    private static async Task PressAction(Node node, string action, int frames = 2)
+    {
+        Input.ActionPress(action);
+        await ProcessFrames(node, frames);
+        Input.ActionRelease(action);
+        await ProcessFrames(node, frames);
+    }
+
+    private static async Task<SkillAcceptance> VerifySkills(
+        Node sceneRoot,
+        BrotatoLikeGameRuntime runtime,
         GodotEntity2D player,
         EnemyAcceptance enemies,
         Dictionary<string, string> values)
     {
         var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds.Count < 2 || enemies.Enemies.Count == 0)
+        var inputComponent = player.GetNodeOrNull<GodotActiveSkillInputComponent>("ActiveSkillInput");
+        if (ownedIds.Count < 3 || enemies.Enemies.Count == 0 || inputComponent == null)
         {
             return SkillAcceptance.Empty;
         }
 
         var slam = EntityManager.Get(ownedIds[0]);
         var chain = EntityManager.Get(ownedIds[1]);
-        if (slam == null || chain == null)
+        var point = EntityManager.Get(ownedIds[2]);
+        if (slam == null || chain == null || point == null)
         {
             return SkillAcceptance.Empty;
         }
@@ -274,41 +293,62 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var playerPosition = player.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
         target.Data.Set(MovementDataKeys.Position, playerPosition + new Vector2Value(24f, 0f));
         target.Position = new Vector2(playerPosition.X + 24f, playerPosition.Y);
+        target.Data.Set(DamageDataKeys.IsDead, false);
 
         var slamHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var slamEffectsBefore = CountEffectEntities(slam.EntityId.Value);
         player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
-        player.Events.Publish(new InputUseSkill(player));
+        await PressAction(sceneRoot, "UseSkill");
         var slamHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var slamEffectsAfter = CountEffectEntities(slam.EntityId.Value);
         var slamCooldown = slam.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
-        var slamCooldownReport = AbilityService.Instance.TryTrigger(new AbilityCastContext
-        {
-            Caster = player,
-            Ability = slam,
-            DamageType = DamageType.Physical
-        });
+        var slamReport = inputComponent.LastTriggerReport;
+        await PressAction(sceneRoot, "UseSkill");
+        var slamCooldownReport = inputComponent.LastTriggerReport;
 
         AbilityService.Instance.TickCooldowns([slam], slamCooldown + 0.1f);
 
-        player.Events.Publish(new InputNextSkill(player));
+        await PressAction(sceneRoot, "NextSkill");
         var currentIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         AbilityTargetingTool.TryBuildContext(player, chain, out var chainContext);
         var chainHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
-        player.Events.Publish(new InputUseSkill(player));
+        await PressAction(sceneRoot, "UseSkill");
         TimerManager.Instance.Tick(chain.Data.Get<float>(AbilityDataKeys.ChainDelay, 0f) + 0.05f);
+        await ProcessFrames(sceneRoot, 2);
         var chainHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var chainCooldown = chain.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
-        var chainCooldownReport = chainContext == null
-            ? new AbilityTriggerReport(AbilityTriggerResult.FailNoTarget, null, "missing chain context")
-            : AbilityService.Instance.TryTrigger(chainContext);
+        var chainReport = inputComponent.LastTriggerReport;
+        await PressAction(sceneRoot, "UseSkill");
+        var chainCooldownReport = inputComponent.LastTriggerReport;
+
+        AbilityService.Instance.TickCooldowns([chain], chainCooldown + 0.1f);
+        await PressAction(sceneRoot, "NextSkill");
+        var pointTarget = enemies.Enemies.Count > 1 ? enemies.Enemies[1] : target;
+        pointTarget.Data.Set(DamageDataKeys.IsDead, false);
+        pointTarget.Data.Set(DamageDataKeys.CurrentHp, MathF.Max(50f, pointTarget.Data.Get<float>(DamageDataKeys.CurrentHp, 0f)));
+        var pointTargetPosition = playerPosition + new Vector2Value(120f, 0f);
+        pointTarget.Data.Set(MovementDataKeys.Position, pointTargetPosition);
+        pointTarget.Position = new Vector2(pointTargetPosition.X, pointTargetPosition.Y);
+        var pointHpBefore = pointTarget.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var pointCooldownBeforeStart = point.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
+        await PressAction(sceneRoot, "UseSkill");
+        var pointTargetingStarted = runtime.TargetingController?.IsTargeting == true;
+        var pointCooldownAfterStart = point.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
+        runtime.TargetingController?.SetRequestedTargetPosition(pointTarget.Position);
+        await ProcessFrames(sceneRoot, 1);
+        await PressAction(sceneRoot, "ConfirmTarget");
+        var pointReport = runtime.TargetingController?.LastTriggerReport;
+        var pointHpAfter = pointTarget.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var pointCooldownAfterConfirm = point.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
 
         values["skill_slam_id"] = slam.EntityId.Value;
+        values["skill_slam_report"] = slamReport?.Result.ToString() ?? string.Empty;
         values["skill_slam_hp_before"] = FormatFloat(slamHpBefore);
         values["skill_slam_hp_after"] = FormatFloat(slamHpAfter);
         values["skill_slam_cooldown"] = FormatFloat(slamCooldown);
         values["skill_slam_effect_count"] = (slamEffectsAfter - slamEffectsBefore).ToString(CultureInfo.InvariantCulture);
         values["skill_chain_id"] = chain.EntityId.Value;
+        values["skill_chain_report"] = chainReport?.Result.ToString() ?? string.Empty;
         values["skill_chain_target"] = chainContext?.Targets != null && chainContext.Targets.Count > 0
             ? chainContext.Targets[0].EntityId.Value
             : string.Empty;
@@ -316,18 +356,32 @@ internal static class BrotatoLikePlayableSliceAcceptance
         values["skill_chain_hp_after"] = FormatFloat(chainHpAfter);
         values["skill_chain_cooldown"] = FormatFloat(chainCooldown);
         values["skill_current_index"] = currentIndex.ToString(CultureInfo.InvariantCulture);
+        values["skill_point_id"] = point.EntityId.Value;
+        values["skill_point_target"] = pointTarget.EntityId.Value;
+        values["skill_point_targeting_started"] = pointTargetingStarted.ToString(CultureInfo.InvariantCulture);
+        values["skill_point_cooldown_before_start"] = FormatFloat(pointCooldownBeforeStart);
+        values["skill_point_cooldown_after_start"] = FormatFloat(pointCooldownAfterStart);
+        values["skill_point_cooldown_after_confirm"] = FormatFloat(pointCooldownAfterConfirm);
+        values["skill_point_report"] = pointReport?.Result.ToString() ?? string.Empty;
+        values["skill_point_hp_before"] = FormatFloat(pointHpBefore);
+        values["skill_point_hp_after"] = FormatFloat(pointHpAfter);
 
         return new SkillAcceptance(
-            SlamTriggered: slamCooldown > 0f,
-            SlamCooldownGated: slamCooldownReport.Result == AbilityTriggerResult.FailCooldown,
+            SlamTriggered: slamReport?.Result == AbilityTriggerResult.Success && slamCooldown > 0f,
+            SlamCooldownGated: slamCooldownReport?.Result == AbilityTriggerResult.FailCooldown,
             SlamHit: slamHpAfter < slamHpBefore,
             SlamVisualEvidence: slamEffectsAfter > slamEffectsBefore,
-            ChainTriggered: chainCooldown > 0f,
-            ChainCooldownGated: chainCooldownReport.Result == AbilityTriggerResult.FailCooldown,
+            ChainTriggered: chainReport?.Result == AbilityTriggerResult.Success && chainCooldown > 0f,
+            ChainCooldownGated: chainCooldownReport?.Result == AbilityTriggerResult.FailCooldown,
             ChainTargetSelected: chainContext?.Targets != null && chainContext.Targets.Count > 0,
             ChainHit: chainHpAfter < chainHpBefore,
             ChainStructuredEvidence: chainHpAfter < chainHpBefore && string.IsNullOrWhiteSpace(chain.Data.Get(AbilityDataKeys.LineEffectScenePath, string.Empty)),
-            CurrentSkillName: chain.Data.Get(AbilityDataKeys.Name, chain.EntityId.Value));
+            PointTargetingStarted: pointTargetingStarted && Math.Abs(pointCooldownAfterStart - pointCooldownBeforeStart) < 0.001f,
+            PointTargetingConfirmed: pointReport?.Result == AbilityTriggerResult.Success
+                && pointCooldownAfterConfirm > 0f
+                && pointHpAfter < pointHpBefore,
+            RealInputActionPath: true,
+            CurrentSkillName: point.Data.Get(AbilityDataKeys.Name, point.EntityId.Value));
     }
 
     private static EnemyCleanupAcceptance VerifyDeathAndCleanup(
@@ -365,28 +419,41 @@ internal static class BrotatoLikePlayableSliceAcceptance
         IReadOnlyList<string> damageLogs,
         Dictionary<string, string> values)
     {
-        var hud = new CanvasLayer { Name = "PlayableSliceHUD" };
-        var health = new Label { Name = "HealthLabel" };
-        var skill = new Label { Name = "CurrentSkillLabel" };
-        var damage = new Label { Name = "DamageLogLabel" };
-
+        var hud = sceneRoot.FindChild("BrotatoLikeHUD", recursive: true, owned: false);
+        var health = sceneRoot.FindChild("PlayerHealthLabel", recursive: true, owned: false) as Label;
+        var skillBar = sceneRoot.FindChild("ActiveSkillBar", recursive: true, owned: false) as Control;
+        var damageLayer = sceneRoot.FindChild("DamageNumberLayer", recursive: true, owned: false);
+        var headHealthLayer = sceneRoot.FindChild("HeadHealthBarLayer", recursive: true, owned: false);
+        var progressionSummary = sceneRoot.FindChild("ProgressionSummary", recursive: true, owned: false) as Label;
         var currentHp = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
-        health.Text = FormattableString.Invariant($"HP {currentHp:0.##}");
-        skill.Text = $"Skill {currentSkillName}";
-        damage.Text = damageLogs.Count > 0 ? damageLogs[^1] : "Damage none";
-        hud.AddChild(health);
-        hud.AddChild(skill);
-        hud.AddChild(damage);
-        sceneRoot.AddChild(hud);
+        var selectedIndex = skillBar != null && skillBar.HasMeta("SelectedIndex")
+            ? skillBar.GetMeta("SelectedIndex").AsInt32()
+            : -1;
+        var damageNumberCount = damageLayer?.GetChildCount() ?? 0;
+        var headHealthBarCount = headHealthLayer?.GetChildCount() ?? 0;
 
-        values["hud_health_text"] = health.Text;
-        values["hud_skill_text"] = skill.Text;
-        values["hud_damage_text"] = damage.Text;
+        values["formal_hud_found"] = (hud != null).ToString(CultureInfo.InvariantCulture);
+        values["formal_hud_health_text"] = health?.Text ?? string.Empty;
+        values["formal_hud_skill_selected_index"] = selectedIndex.ToString(CultureInfo.InvariantCulture);
+        values["formal_hud_current_skill"] = currentSkillName;
+        values["formal_hud_damage_number_count"] = damageNumberCount.ToString(CultureInfo.InvariantCulture);
+        values["formal_hud_head_health_bar_count"] = headHealthBarCount.ToString(CultureInfo.InvariantCulture);
+        values["formal_hud_progression_summary"] = progressionSummary?.Text ?? string.Empty;
         values["damage_log_count"] = damageLogs.Count.ToString(CultureInfo.InvariantCulture);
         return new HudAcceptance(
-            !string.IsNullOrWhiteSpace(health.Text),
-            !string.IsNullOrWhiteSpace(skill.Text) && !string.IsNullOrWhiteSpace(currentSkillName),
-            damageLogs.Count > 0 && !string.IsNullOrWhiteSpace(damage.Text));
+            hud != null
+                && health != null
+                && health.Text.StartsWith("HP ", StringComparison.Ordinal)
+                && health.HasMeta("CurrentHp")
+                && health.HasMeta("MaxHp"),
+            skillBar != null
+                && selectedIndex >= 0
+                && !string.IsNullOrWhiteSpace(currentSkillName)
+                && progressionSummary != null,
+            damageLogs.Count > 0
+                && damageLayer != null
+                && damageNumberCount > 0
+                && headHealthLayer != null);
     }
 
     private static void AddCheck(
@@ -498,14 +565,15 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         "GODOT_SCENE_TEST_ARTIFACT_DIR is set by the scene runner",
         "res://Scenes/Main.tscn initializes BrotatoLikeGameRuntime from DataOS snapshot",
-        "deterministic MoveRight and MoveUp input actions are applied during acceptance"
+        "deterministic MoveRight, MoveUp, UseSkill, NextSkill and ConfirmTarget input actions are applied during acceptance"
     };
 
     private static readonly string[] ExpectedObservations =
     {
         "player runtime data records input direction, last move direction, and changed position",
         "DataOS-spawned enemies chase, apply contact damage, and expose resource path evidence",
-        "slam and chain abilities produce damage, cooldown, target, visual, and HUD evidence"
+        "formal HUD, head health bar, skill bar, damage number and progression summary nodes expose player-facing evidence",
+        "slam, chain and point-target abilities produce input-action damage, cooldown, targeting and visual evidence"
     };
 
     private static readonly string[] PassCriteria =
@@ -624,9 +692,12 @@ internal readonly record struct SkillAcceptance(
     bool ChainTargetSelected,
     bool ChainHit,
     bool ChainStructuredEvidence,
+    bool PointTargetingStarted,
+    bool PointTargetingConfirmed,
+    bool RealInputActionPath,
     string CurrentSkillName)
 {
-    public static SkillAcceptance Empty => new(false, false, false, false, false, false, false, false, false, string.Empty);
+    public static SkillAcceptance Empty => new(false, false, false, false, false, false, false, false, false, false, false, false, string.Empty);
 }
 
 internal readonly record struct EnemyCleanupAcceptance(bool DeathObserved, bool CleanupQueued);

@@ -1,5 +1,7 @@
 using System;
 using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.Progression;
+using BrotatoLike.Game.UI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Movement;
@@ -23,6 +25,9 @@ public partial class BrotatoLikeGameRuntime : Node
     private GodotMovementDriver? movementDriver;
     private GameOSTimerDriver? timerDriver;
     private GodotEntity2D? playerEntity;
+    private BrotatoLikeHud? hud;
+    private BrotatoLikeTargetingController? targetingController;
+    private BrotatoLikeProgressionService? progressionService;
 
     /// <summary>
     /// 进入场景树后是否自动初始化 DataOS。
@@ -80,6 +85,21 @@ public partial class BrotatoLikeGameRuntime : Node
     public GodotMovementDriver? MovementDriver => movementDriver;
 
     /// <summary>
+    /// 正式 HUD。
+    /// </summary>
+    public BrotatoLikeHud? Hud => hud;
+
+    /// <summary>
+    /// 点选技能控制器。
+    /// </summary>
+    public BrotatoLikeTargetingController? TargetingController => targetingController;
+
+    /// <summary>
+    /// 游戏侧进度服务。
+    /// </summary>
+    public BrotatoLikeProgressionService? ProgressionService => progressionService;
+
+    /// <summary>
     /// 最近一次 Tick 结果。
     /// </summary>
     public SystemExecuteResult<BrotatoLikeSpawnTickResult> LastSpawnTickResult { get; private set; }
@@ -111,6 +131,7 @@ public partial class BrotatoLikeGameRuntime : Node
         worldSchedule.RunPhase(SchedulePhase.BeginTick);
         worldSchedule.RunPhase(SchedulePhase.BeforeSystemTick);
         LastSpawnTickResult = TickSpawn(delta);
+        TickPlayerAbilityCooldowns((float)delta);
         worldSchedule.RunPhase(SchedulePhase.AfterSystemTick);
         worldSchedule.RunPhase(SchedulePhase.AfterEventDispatch);
         worldSchedule.RunPhase(SchedulePhase.EndOfFrame);
@@ -172,6 +193,7 @@ public partial class BrotatoLikeGameRuntime : Node
     public void OpenPauseMenu()
     {
         schedule?.ProjectState.OpenPauseMenu();
+        progressionService?.SetPaused(true);
     }
 
     /// <summary>
@@ -180,6 +202,7 @@ public partial class BrotatoLikeGameRuntime : Node
     public void ClosePauseMenu()
     {
         schedule?.ProjectState.ClosePauseMenu();
+        progressionService?.SetPaused(false);
     }
 
     /// <summary>
@@ -265,9 +288,14 @@ public partial class BrotatoLikeGameRuntime : Node
         var ownedAbilityIds = EntityIdList.Empty;
         ownedAbilityIds = SpawnPlayerAbility(entity, "slam", ownedAbilityIds);
         ownedAbilityIds = SpawnPlayerAbility(entity, "chain_lightning", ownedAbilityIds);
+        ownedAbilityIds = SpawnPlayerAbility(entity, "target_point_skill", ownedAbilityIds);
+        ownedAbilityIds = SpawnPlayerAbility(entity, "dash", ownedAbilityIds);
 
         entity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedAbilityIds);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
+        entity.SetMeta("Level", 1);
+        entity.SetMeta("Experience", 0);
+        entity.SetMeta("NextLevelExperience", 5);
 
         // 游戏侧输入和技能 Adapter 不属于框架 composer。
         entity.AddChild(new BrotatoLikePlayerInputComponent { Name = "PlayerInput" });
@@ -275,6 +303,7 @@ public partial class BrotatoLikeGameRuntime : Node
 
         AddChild(entity);
         playerEntity = entity;
+        EnsureBrotatoLikeGameServices();
 
         // 启动 PlayerInput 移动
         movementDriver!.MovementSystem.Start(entity, new MovementParams
@@ -291,6 +320,56 @@ public partial class BrotatoLikeGameRuntime : Node
         var abilityEntityId = $"ability-{abilityRecordId}-{player.EntityId}";
         var ability = bootstrap!.SpawnEntityFromRecord("ability", abilityRecordId, abilityEntityId);
         return ownedIds.Add(ability.EntityId);
+    }
+
+    private void EnsureBrotatoLikeGameServices()
+    {
+        if (hud == null || !GodotObject.IsInstanceValid(hud))
+        {
+            hud = new BrotatoLikeHud { Name = "BrotatoLikeHUD" };
+            hud.Bind(this);
+            AddChild(hud);
+        }
+
+        if (targetingController == null || !GodotObject.IsInstanceValid(targetingController))
+        {
+            targetingController = new BrotatoLikeTargetingController { Name = "BrotatoLikeTargetingController" };
+            targetingController.Bind(this);
+            AddChild(targetingController);
+        }
+
+        if (progressionService == null || !GodotObject.IsInstanceValid(progressionService))
+        {
+            progressionService = new BrotatoLikeProgressionService { Name = "BrotatoLikeProgressionService" };
+            progressionService.Bind(this);
+            AddChild(progressionService);
+        }
+    }
+
+    private void TickPlayerAbilityCooldowns(float deltaSeconds)
+    {
+        if (playerEntity == null || deltaSeconds <= 0f)
+        {
+            return;
+        }
+
+        var ownedIds = playerEntity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        if (ownedIds.Count == 0)
+        {
+            return;
+        }
+
+        var abilities = new System.Collections.Generic.List<IEntity>(ownedIds.Count);
+        for (var i = 0; i < ownedIds.Count; i++)
+        {
+            var ability = EntityManager.Get(ownedIds[i]);
+            if (ability != null)
+            {
+                abilities.Add(ability);
+            }
+        }
+
+        AbilityService.Instance.TickCooldowns(abilities, deltaSeconds);
     }
 
     /// <summary>
@@ -314,6 +393,24 @@ public partial class BrotatoLikeGameRuntime : Node
         {
             timerDriver.QueueFree();
             timerDriver = null;
+        }
+
+        if (hud != null)
+        {
+            hud.QueueFree();
+            hud = null;
+        }
+
+        if (targetingController != null)
+        {
+            targetingController.QueueFree();
+            targetingController = null;
+        }
+
+        if (progressionService != null)
+        {
+            progressionService.QueueFree();
+            progressionService = null;
         }
 
         schedule?.Clear();

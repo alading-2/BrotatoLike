@@ -21,6 +21,11 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
     private IDisposable? previousSkillSub;
     private IDisposable? nextSkillSub;
 
+    /// <summary>
+    /// 最近一次主动技能触发报告。
+    /// </summary>
+    public AbilityTriggerReport? LastTriggerReport { get; private set; }
+
     /// <inheritdoc />
     public void OnComponentRegistered(IEntity entity, Node entityNode)
     {
@@ -71,18 +76,27 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             return;
         }
 
+        if (TryFindTargetingController() is { } targetingController
+            && targetingController.TryHandleUseSkill(entity, ability, out var targetingReport))
+        {
+            LastTriggerReport = targetingReport;
+            return;
+        }
+
         // 尝试自动索敌构建施法上下文
         if (!AbilityTargetingTool.TryBuildContext(entity, ability, out var context))
         {
+            LastTriggerReport = new AbilityTriggerReport(AbilityTriggerResult.FailNoTarget, null, "failed to build ability target context");
             return;
         }
 
         if (context == null)
         {
+            LastTriggerReport = new AbilityTriggerReport(AbilityTriggerResult.FailNoTarget, null, "ability target context is null");
             return;
         }
 
-        AbilityService.Instance.TryTrigger(context);
+        LastTriggerReport = AbilityService.Instance.TryTrigger(context);
     }
 
     private void OnPreviousSkill(InputPreviousSkill data)
@@ -119,5 +133,21 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         var currentIndex = entity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         var newIndex = Mathf.PosMod(currentIndex + 1, ownedIds.Count);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, newIndex);
+    }
+
+    private BrotatoLikeTargetingController? TryFindTargetingController()
+    {
+        var current = GetParent();
+        while (current != null)
+        {
+            if (current is BrotatoLikeGameRuntime runtime)
+            {
+                return runtime.TargetingController;
+            }
+
+            current = current.GetParent();
+        }
+
+        return GetTree()?.Root.FindChild("BrotatoLikeTargetingController", recursive: true, owned: false) as BrotatoLikeTargetingController;
     }
 }

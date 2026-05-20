@@ -1,0 +1,429 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using BrotatoLike.Game;
+using Godot;
+using SlimeAI.GameOS.Capabilities.Ability;
+using SlimeAI.GameOS.Capabilities.Collision;
+using SlimeAI.GameOS.Capabilities.Damage;
+using SlimeAI.GameOS.Capabilities.Movement;
+using SlimeAI.GameOS.GodotBridge;
+using SlimeAI.GameOS.Observation;
+using SlimeAI.GameOS.Runtime.Entity;
+
+namespace BrotatoLike.Validation.Game.PlayableUX;
+
+/// <summary>
+/// BrotatoLike 正式可玩 UX 的 Godot headless 验证场景。
+/// </summary>
+public partial class BrotatoLikePlayableUXValidationScene : Node
+{
+    private const string ScenePath = "res://Src/Validation/Game/PlayableUX/BrotatoLikePlayableUXValidation.tscn";
+    private const string ArtifactFileName = "brotatolike-playable-ux-validation.json";
+    private const string PassMarker = "BrotatoLike Playable UX validation PASS";
+    private const string FailMarker = "BrotatoLike Playable UX validation FAIL";
+
+    /// <inheritdoc />
+    public override async void _Ready()
+    {
+        EntityManager.Clear();
+        ReleaseValidationActions();
+        BrotatoLikeAbilityHandlers.RegisterAll();
+
+        using var observation = GameOSObservationSession.FromEnvironment(
+            ScenePath,
+            "validation",
+            Path.Combine(Directory.GetCurrentDirectory(), ".ai-temp", "scene-tests", "manual", "artifacts"));
+        using var validation = new SceneValidationSession(
+            observation,
+            "BrotatoLikePlayableUXValidation",
+            "Game/PlayableUX",
+            ArtifactFileName,
+            dependencies: new[]
+            {
+                "BrotatoLike.Game.BrotatoLikeGameRuntime",
+                "BrotatoLike.Game.UI",
+                "BrotatoLike.Game.GodotActiveSkillInputComponent",
+                "SlimeAI.GameOS.Capabilities.Ability",
+                "SlimeAI.GameOS.Capabilities.Damage"
+            },
+            notes: new[]
+            {
+                "Validation does not create formal UX nodes; production gameplay must mount them.",
+                "Skill input is pressed through Godot Input actions instead of direct event publishing."
+            },
+            expectedInputs: new[]
+            {
+                "BrotatoLikeGameRuntime initialized from DataOS snapshot",
+                "DataOS player and DataOS-spawned enemy entities",
+                "Godot input actions MoveRight, NextSkill, PreviousSkill and UseSkill"
+            },
+            expectedObservations: new[]
+            {
+                "formal HUD host exposes player HP, skill slots, selection, cooldown and progression nodes",
+                "enemy head health bars update and clean up from runtime HP/death state",
+                "real input actions drive skill UX, point targeting, damage numbers and visible movement"
+            },
+            passCriteria: new[]
+            {
+                $"stdout contains {PassMarker}",
+                "artifact status is pass",
+                "failureReasons is empty and standard-answer fields are non-empty"
+            },
+            failCriteria: new[]
+            {
+                $"stdout contains {FailMarker}",
+                "formal HUD, health bar, skill bar, point targeting, damage number or visibility evidence is missing",
+                "artifact status is fail with feature-level failureReasons"
+            });
+
+        validation.Info("validation start");
+        var values = await RunPlayableUxProbe();
+        validation.Check("formal_hud_host_mounted", "HUD", () => Result(values, "formal_hud_host_mounted"));
+        validation.Check("player_hp_ui_updates", "HUD", () => Result(values, "player_hp_ui_updates"));
+        validation.Check("enemy_head_health_bar_updates_and_cleans", "HealthBar", () => Result(values, "enemy_head_health_bar_updates_and_cleans"));
+        validation.Check("skill_bar_action_input_updates", "SkillBar", () => Result(values, "skill_bar_action_input_updates"));
+        validation.Check("point_targeting_indicator_session", "Targeting", () => Result(values, "point_targeting_indicator_session"));
+        validation.Check("damage_and_heal_numbers_lifecycle", "CombatFeedback", () => Result(values, "damage_and_heal_numbers_lifecycle"));
+        validation.Check("camera_player_visibility", "Visibility", () => Result(values, "camera_player_visibility"));
+
+        var success = validation.Success;
+        if (success)
+        {
+            validation.Pass("all checks passed");
+        }
+        else
+        {
+            validation.Fail($"{validation.FailureReasons.Count} checks failed");
+        }
+
+        ReleaseValidationActions();
+        EntityManager.Clear();
+        validation.WriteArtifact();
+
+        GD.Print(success ? PassMarker : FailMarker);
+        if (!success)
+        {
+            GD.Print($"BrotatoLike Playable UX failures: {string.Join("; ", validation.FailureReasons)}");
+        }
+
+        GetTree().Quit(success ? 0 : 1);
+    }
+
+    private async Task<Dictionary<string, object?>> RunPlayableUxProbe()
+    {
+        var values = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var runtime = new BrotatoLikeGameRuntime
+        {
+            Name = "GameRuntime",
+            AutoInitialize = false,
+            AutoTick = true
+        };
+        AddChild(runtime);
+        runtime.InitializeFromDataOS(1, runtime);
+        runtime.BeginGameplay();
+        var player = runtime.SpawnPlayer("deluyi", Vector2.Zero);
+        await ProcessFrames(20);
+
+        var enemy = FindFirstEnemy();
+        values["player_entity"] = player.EntityId.Value;
+        values["enemy_entity"] = enemy?.EntityId.Value ?? string.Empty;
+
+        Input.ActionPress("MoveRight");
+        await ProcessFrames(10);
+        Input.ActionRelease("MoveRight");
+        await ProcessFrames(2);
+
+        var camera = new Camera2D { Name = "ValidationCamera", Position = player.Position, Enabled = true };
+        AddChild(camera);
+
+        var hud = FindDescendant(this, "BrotatoLikeHUD");
+        var playerHpText = FindDescendant(this, "PlayerHealthLabel") as Label;
+        var skillBar = FindDescendant(this, "ActiveSkillBar");
+        var targetIndicator = FindDescendant(this, "PointTargetingIndicator") as CanvasItem;
+        var damageNumberLayer = FindDescendant(this, "DamageNumberLayer");
+        values["hud_found"] = hud != null;
+        values["player_health_label_found"] = playerHpText != null;
+        values["skill_bar_found"] = skillBar != null;
+        values["point_indicator_found"] = targetIndicator != null;
+        values["damage_number_layer_found"] = damageNumberLayer != null;
+
+        var hpBefore = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        player.Data.Set(DamageDataKeys.CurrentHp, Math.Max(0f, hpBefore - 7f));
+        await ProcessFrames(2);
+        var hpAfterDamage = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var hpTextAfterDamage = playerHpText?.Text ?? string.Empty;
+        var hpLabelMetaAfterDamage = ReadFloatMeta(playerHpText, "CurrentHp");
+        values["player_hp_before"] = hpBefore;
+        values["player_hp_after"] = hpAfterDamage;
+        values["player_hp_label_text"] = hpTextAfterDamage;
+        values["player_hp_label_meta"] = hpLabelMetaAfterDamage;
+
+        var enemyBar = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
+        var enemyHpBefore = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
+        if (enemy != null)
+        {
+            enemy.Data.Set(DamageDataKeys.CurrentHp, Math.Max(0f, enemyHpBefore - 5f));
+            await ProcessFrames(2);
+        }
+
+        var enemyHpAfterDamage = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
+        var enemyBarAfterDamage = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
+        var enemyBarValueAfterDamage = enemyBarAfterDamage is ProgressBar progressBar ? progressBar.Value : -1d;
+        var enemyBarPositionAfterDamage = enemyBarAfterDamage is Control control ? Format(control.GlobalPosition) : string.Empty;
+        if (enemy != null)
+        {
+            enemy.Data.Set(DamageDataKeys.CurrentHp, 0f);
+            enemy.Data.Set(DamageDataKeys.IsDead, true);
+            enemy.DestroyEntity();
+            await ProcessFrames(5);
+        }
+
+        values["enemy_head_bar_found"] = enemyBar != null;
+        values["enemy_hp_before"] = enemyHpBefore;
+        values["enemy_hp_after_damage"] = enemyHpAfterDamage;
+        values["enemy_bar_value_after_damage"] = enemyBarValueAfterDamage;
+        values["enemy_bar_position"] = enemyBarPositionAfterDamage;
+        values["enemy_bar_cleanup_done"] = enemy == null || FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}") == null;
+
+        var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        var oldIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        Input.ActionPress("NextSkill");
+        await ProcessFrames(2);
+        Input.ActionRelease("NextSkill");
+        await ProcessFrames(2);
+        var nextIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        Input.ActionPress("PreviousSkill");
+        await ProcessFrames(2);
+        Input.ActionRelease("PreviousSkill");
+        await ProcessFrames(2);
+        var previousIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        values["skill_owned_count"] = ownedIds.Count;
+        values["skill_old_index"] = oldIndex;
+        values["skill_next_index"] = nextIndex;
+        values["skill_previous_index"] = previousIndex;
+
+        var selectedAbility = ownedIds.Count > 0 ? EntityManager.Get(ownedIds[Mathf.Clamp(previousIndex, 0, ownedIds.Count - 1)]) : null;
+        var cooldownBeforeUse = selectedAbility?.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f) ?? 0f;
+        Input.ActionPress("UseSkill");
+        await ProcessFrames(2);
+        Input.ActionRelease("UseSkill");
+        await ProcessFrames(2);
+        var cooldownAfterUse = selectedAbility?.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f) ?? 0f;
+        values["skill_cooldown_before_use"] = cooldownBeforeUse;
+        values["skill_cooldown_after_use"] = cooldownAfterUse;
+
+        var pointAbilityIndex = FindAbilityIndexByRecordFragment(ownedIds, "target_point_skill");
+        var pointAbility = pointAbilityIndex >= 0 ? EntityManager.Get(ownedIds[pointAbilityIndex]) : null;
+        var pointCooldownBeforeStart = pointAbility?.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f) ?? -1f;
+        if (pointAbilityIndex >= 0)
+        {
+            AbilityService.Instance.TickCooldowns([pointAbility!], pointCooldownBeforeStart + 0.1f);
+            player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, pointAbilityIndex);
+        }
+
+        var pointTargetEnemy = FindFirstEnemy();
+        if (pointTargetEnemy != null)
+        {
+            var targetPosition = player.GlobalPosition + new Vector2(120f, 0f);
+            pointTargetEnemy.GlobalPosition = targetPosition;
+            pointTargetEnemy.Data.Set(MovementDataKeys.Position, new Vector2Value(targetPosition.X, targetPosition.Y));
+        }
+
+        var pointTarget = pointTargetEnemy?.GlobalPosition ?? player.GlobalPosition + new Vector2(160f, 0f);
+        Input.ActionPress("UseSkill");
+        await ProcessFrames(2);
+        Input.ActionRelease("UseSkill");
+        await ProcessFrames(2);
+        runtime.TargetingController?.SetRequestedTargetPosition(pointTarget);
+        await ProcessFrames(1);
+        var targetingStarted = runtime.TargetingController?.IsTargeting == true;
+        var cooldownAfterTargetingStart = pointAbility?.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f) ?? -1f;
+        var indicatorVisibleAfterStart = targetIndicator?.Visible ?? false;
+        var sessionFoundAfterStart = FindDescendant(this, "PointTargetingSession") != null;
+        var clampedTarget = runtime.TargetingController?.Indicator.GetMeta("ClampedTargetPosition").AsString() ?? string.Empty;
+        var targetHpBeforeConfirm = pointTargetEnemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
+        Input.ActionPress("ConfirmTarget");
+        await ProcessFrames(2);
+        Input.ActionRelease("ConfirmTarget");
+        await ProcessFrames(2);
+        var pointReport = runtime.TargetingController?.LastTriggerReport;
+        var pointCooldownAfterConfirm = pointAbility?.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f) ?? -1f;
+        var targetHpAfterConfirm = pointTargetEnemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
+
+        if (pointAbility != null)
+        {
+            AbilityService.Instance.TickCooldowns([pointAbility], pointCooldownAfterConfirm + 0.1f);
+            player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, pointAbilityIndex);
+            Input.ActionPress("UseSkill");
+            await ProcessFrames(2);
+            Input.ActionRelease("UseSkill");
+            await ProcessFrames(2);
+            Input.ActionPress("CancelTarget");
+            await ProcessFrames(2);
+            Input.ActionRelease("CancelTarget");
+            await ProcessFrames(2);
+        }
+
+        var cancelCleared = runtime.TargetingController?.IsTargeting == false
+            && FindDescendant(this, "PointTargetingSession") == null
+            && targetIndicator?.Visible == false;
+
+        values["point_ability_index"] = pointAbilityIndex;
+        values["point_target_enemy"] = pointTargetEnemy?.EntityId.Value ?? string.Empty;
+        values["point_cooldown_before_start"] = pointCooldownBeforeStart;
+        values["point_cooldown_after_start"] = cooldownAfterTargetingStart;
+        values["point_targeting_started"] = targetingStarted;
+        values["point_indicator_visible_after_start"] = indicatorVisibleAfterStart;
+        values["point_session_found_after_start"] = sessionFoundAfterStart;
+        values["point_clamped_target"] = clampedTarget;
+        values["point_report"] = pointReport?.Result.ToString() ?? string.Empty;
+        values["point_cooldown_after_confirm"] = pointCooldownAfterConfirm;
+        values["point_target_hp_before_confirm"] = targetHpBeforeConfirm;
+        values["point_target_hp_after_confirm"] = targetHpAfterConfirm;
+        values["point_cancel_cleared"] = cancelCleared;
+
+        values["formal_hud_host_mounted"] = hud != null
+            && playerHpText != null
+            && skillBar != null
+            && FindDescendant(this, "ProgressionSummary") != null;
+        values["player_hp_ui_updates"] = playerHpText != null
+            && hpBefore > hpAfterDamage
+            && hpLabelMetaAfterDamage < hpBefore
+            && Mathf.RoundToInt(hpLabelMetaAfterDamage) == Mathf.RoundToInt(hpAfterDamage)
+            && hpTextAfterDamage.Contains(Mathf.RoundToInt(hpAfterDamage).ToString(), StringComparison.Ordinal);
+        values["enemy_head_health_bar_updates_and_cleans"] = enemy != null
+            && enemyBar != null
+            && enemyBarAfterDamage != null
+            && enemyHpAfterDamage < enemyHpBefore
+            && Math.Abs(enemyBarValueAfterDamage - enemyHpAfterDamage) < 0.01d
+            && FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}") == null;
+        values["skill_bar_action_input_updates"] = skillBar != null
+            && ownedIds.Count >= 2
+            && nextIndex != oldIndex
+            && previousIndex == oldIndex
+            && cooldownAfterUse > cooldownBeforeUse;
+        values["point_targeting_indicator_session"] = targetIndicator != null
+            && pointAbility != null
+            && targetingStarted
+            && indicatorVisibleAfterStart
+            && sessionFoundAfterStart
+            && Math.Abs(cooldownAfterTargetingStart) < 0.001f
+            && pointReport?.Result == AbilityTriggerResult.Success
+            && pointCooldownAfterConfirm > 0f
+            && targetHpAfterConfirm < targetHpBeforeConfirm
+            && cancelCleared;
+        values["damage_and_heal_numbers_lifecycle"] = damageNumberLayer != null
+            && FindDescendant(this, "DamageNumber_Enemy") != null
+            && FindDescendant(this, "HealNumber_Player") != null;
+        values["camera_player_visibility"] = camera.Enabled
+            && player.Position.DistanceTo(camera.Position) < 4096f
+            && player.Position != Vector2.Zero;
+
+        return values;
+    }
+
+    private async Task ProcessFrames(int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
+    private static CheckResult Result(IReadOnlyDictionary<string, object?> values, string key)
+    {
+        var success = values.TryGetValue(key, out var raw) && raw is bool value && value;
+        return CheckResult.From(success, success ? $"{key} passed" : $"{key} failed", values);
+    }
+
+    private static GodotEntity2D? FindFirstEnemy()
+    {
+        var entities = EntityManager.GetAll();
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i] is GodotEntity2D node
+                && node.EntityId.Value.StartsWith("spawn-", StringComparison.Ordinal)
+                && node.Data.Get<int>(CollisionDataKeys.Team, 0) == 2
+                && !node.IsQueuedForDeletion()
+                && !node.Data.Get<bool>(DamageDataKeys.IsDead, false)
+                && node.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) > 0f)
+            {
+                return node;
+            }
+        }
+
+        return null;
+    }
+
+    private static int FindAbilityIndexByRecordFragment(EntityIdList ownedIds, string fragment)
+    {
+        for (var i = 0; i < ownedIds.Count; i++)
+        {
+            if (ownedIds[i].Value.Contains(fragment, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static float ReadFloatMeta(Node? node, string key)
+    {
+        if (node == null || !node.HasMeta(key))
+        {
+            return float.NaN;
+        }
+
+        var value = node.GetMeta(key);
+        return value.VariantType switch
+        {
+            Variant.Type.Float => value.AsSingle(),
+            Variant.Type.Int => value.AsInt32(),
+            Variant.Type.String => float.TryParse(value.AsString(), out var parsed) ? parsed : float.NaN,
+            _ => float.NaN
+        };
+    }
+
+    private static Node? FindDescendant(Node root, string name)
+    {
+        if (root.Name == name)
+        {
+            return root;
+        }
+
+        foreach (var child in root.GetChildren())
+        {
+            if (child.Name == name)
+            {
+                return child;
+            }
+
+            var descendant = FindDescendant(child, name);
+            if (descendant != null)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
+    }
+
+    private static string Format(Vector2 value)
+    {
+        return $"{value.X:0.###},{value.Y:0.###}";
+    }
+
+    private static void ReleaseValidationActions()
+    {
+        Input.ActionRelease("MoveLeft");
+        Input.ActionRelease("MoveRight");
+        Input.ActionRelease("MoveUp");
+        Input.ActionRelease("MoveDown");
+        Input.ActionRelease("UseSkill");
+        Input.ActionRelease("PreviousSkill");
+        Input.ActionRelease("NextSkill");
+    }
+}
