@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-20（restore-brotatolike-playable-ux）
+> 更新日期：2026-05-20（DataOS table-first authoring）
 
 ## 当前状态
 
@@ -8,6 +8,7 @@
 
 本轮追加：
 
+- **DataOS table-first authoring**：OpenSpec change `refactor-dataos-table-authoring` 已把 BrotatoLike seed 从手写 `data_field` 业务行迁到清晰业务表：`unit_player / unit_enemy / unit_targeting_indicator / ability / ability_effect / ability_projectile / ability_movement_* / feature_definition / feature_modifier / system_config / system_preset / spawn_config`。`runtime_snapshot.json` shape 保持 `manifest / descriptors / records / resources`，unit / ability 的 `table/id/field/type/value` 归一化对比无差异（16 条记录、497 个字段行一致）；`resource_entry` 收敛为 ResourceCatalog lookup / legacy 分类面，content-owned effect/projectile/unit visual 路径改由业务表持有，snapshot resources 从 27 收敛到 18。
 - **restore-brotatolike-playable-ux**：OpenSpec change `restore-brotatolike-playable-ux` 已把审计中 P0/P1 体验缺口按 AI-first 游戏侧实现补齐到可验证状态。普通 `Scenes/Main.tscn` 现在由正式 `BrotatoLikeHUD` 暴露玩家 HP、当前技能、四槽技能栏、头顶血条、伤害/治疗飘字和 progression summary；玩家默认技能扩展为 `slam / chain_lightning / target_point_skill / dash`；`GodotActiveSkillInputComponent` 通过真实 Godot input action 触发技能，Point 目标技能进入游戏侧 `BrotatoLikeTargetingController`，确认后才调用 `AbilityService.TryTrigger`，取消/死亡会清理指示器和会话；游戏侧 `BrotatoLikeProgressionService` 记录 wave runtime state、暂停菜单、pause schedule gate、HP recovery、dead skip、经验拾取、经验/等级和 level-up 反馈；legacy `resources[]` 路径新增 `legacyStatus` 分类门禁，25 个旧 `res://Src/...` / `res://Data/...` 路径已通过分类验证。验证证据见“最新验证”。
 - **typed `EntityId` 同步（P2a）**：框架仓 OpenSpec change `refactor-runtime-entity-id-typed-value` 把 Runtime Entity 引用从 raw `string` 升级为 `readonly record struct EntityId`，所有 IEntity / RuntimeEntity / EntityManager / EntitySpawnConfig / Capability DataKey / Event payload / GodotBridge adapter 已 typed 化。BrotatoLike submodule 工作树已 rsync 同步框架最新 GameOS / Tests / SceneTests，游戏侧 `Src/Game/*.cs` 已 typed 适配（`new EntityId("...")` 字面量、`.Value` 适配 string-based registry / Relationship 调用、`HashSet<string>` 改 `HashSet<EntityId>`、`DataKey<IEntity?>` 改 `DataKey<EntityId?>`）。BrotatoLike `Tools/run-build.sh` 0 errors，`Tools/run-godot-scene.sh run-main-smoke` PASS（`BrotatoLike GameOS smoke PASS`，artifact 写到 `.ai-temp/scene-tests/runs/2026-05-15/06-34-59/`）。submodule 指针未 commit / push，仅工作树同步（默认开发期策略）。
 - **Runtime LifecycleTree 迁移（P1）**：框架仓 commit `b73b54f` 已移除旧 `RelationshipManager / RelationshipType / RelationshipRecord`，改用 `LifecycleTree / LifecycleLink` 表达生命周期父子树，用 `EntityIdList` typed DataKey 表达 Ability / Projectile / Effect 等业务引用，并通过 `RuntimeOwnedReferenceRegistry` 清理 owner 列表。BrotatoLike commit `b3ce009` 已同步 submodule 指针到 `b73b54f`，游戏侧 `Main.cs`、`GameBootstrap.cs`、`GodotActiveSkillInputComponent.cs`、`BrotatoLikePlayableSliceAcceptance.cs` 和 runtime glue 已迁到 `LifecycleTree.IsAttached`、`GodotNodeRegistry.IsAdapterRegistered`、`EntityIdList` 与 typed DataKey。最新验证见本文件“最新验证”。
@@ -76,6 +77,17 @@
 4. 继续做手动设备专项：物理手柄 LB/RB/X、摇杆、鼠标/手柄 Point target 细节和窗口焦点问题，作为自动 `Input.ActionPress` 之外的人工 QA 或专门设备测试。
 
 ## 最新验证
+
+**DataOS table-first authoring（2026-05-20）**
+
+```bash
+Tools/run-build.sh
+Tools/run-godot-scene.sh run res://SlimeAI/Src/Validation/Runtime/Data/RuntimeDataValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh
+```
+
+结果：`Tools/run-build.sh` PASS（DataOS validation PASS，snapshot regenerated，`0 Warning(s), 0 Error(s)`）。Runtime/Data 场景输出 `GameOS Runtime Data validation PASS`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-20/22-30-25/index.json`。`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS`，`scene-smoke.json` 中 `dataos.snapshot` check 为 pass，`snapshotApplied / abilityApplied / resourcesRegistered / spawnSystemSynced` 均为 true，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-20/22-30-33/index.json`。Scene gate 已检查 `index.json`、`result.json` 和 scene artifact，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。注意：本次 analyzer 捕获到 `BrotatoLikeGameRuntime.SpawnPlayer()` 的既有 reparent stderr，需要后续 DebugFix 跟进；DataOS snapshot probe 本身通过。
 
 **restore-brotatolike-playable-ux（2026-05-20）**
 

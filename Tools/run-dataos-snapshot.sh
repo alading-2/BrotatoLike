@@ -9,7 +9,9 @@ snapshot_path="$repo_root/DataOS/Snapshots/runtime_snapshot.json"
 mkdir -p "$(dirname "$db_path")" "$(dirname "$snapshot_path")"
 rm -f "$db_path"
 
-sqlite3 "$db_path" ".read $framework_root/DataOS/Migrations/001_initial.sql"
+while IFS= read -r migration; do
+    sqlite3 "$db_path" ".read $migration"
+done < <(find "$framework_root/DataOS/Migrations" -maxdepth 1 -name '*.sql' | sort)
 sqlite3 "$db_path" ".read $repo_root/DataOS/Authoring/BrotatoLike.seed.sql"
 DATAOS_PROFILE=brotatolike DATAOS_CATALOG_ID=brotatolike "$framework_root/DataOS/Generators/generate-runtime-snapshot.sh" "$db_path" "$snapshot_path"
 
