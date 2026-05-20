@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Events;
 using Godot;
@@ -42,7 +43,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
     /// <summary>
     /// Runs deterministic acceptance checks against the live BrotatoLike main scene.
     /// </summary>
-    public static PlayableSliceAcceptanceResult Run(Node sceneRoot, BrotatoLikeGameRuntime runtime)
+    public static async Task<PlayableSliceAcceptanceResult> Run(Node sceneRoot, BrotatoLikeGameRuntime runtime)
     {
         ArgumentNullException.ThrowIfNull(sceneRoot);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -76,14 +77,14 @@ internal static class BrotatoLikePlayableSliceAcceptance
                 return new PlayableSliceAcceptanceResult(false, failureReasons);
             }
 
-            var movement = VerifyPlayerMovement(runtime, player, values);
+            var movement = await VerifyPlayerMovement(sceneRoot, player, values);
             AddCheck(checks, failureReasons, "player.input_map_has_wasd", movement.InputMapHasWasd);
             AddCheck(checks, failureReasons, "player.input_map_has_arrows", movement.InputMapHasArrows);
             AddCheck(checks, failureReasons, "player.input_direction_written", movement.InputDirectionWritten);
             AddCheck(checks, failureReasons, "player.last_move_direction_written", movement.LastMoveDirectionWritten);
             AddCheck(checks, failureReasons, "player.position_changed", movement.PositionChanged);
 
-            var enemies = VerifyEnemySpawnAndChase(runtime, player, values);
+            var enemies = await VerifyEnemySpawnAndChase(sceneRoot, runtime, player, values);
             AddCheck(checks, failureReasons, "enemy.spawned_from_dataos", enemies.SpawnedFromDataOS);
             AddCheck(checks, failureReasons, "enemy.resource_paths_recorded", enemies.ResourcePathsRecorded);
             AddCheck(checks, failureReasons, "enemy.chase_or_move_observed", enemies.ChaseOrMoveObserved);
@@ -136,8 +137,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
         }
     }
 
-    private static PlayerMovementAcceptance VerifyPlayerMovement(
-        BrotatoLikeGameRuntime runtime,
+    private static async Task<PlayerMovementAcceptance> VerifyPlayerMovement(
+        Node sceneRoot,
         GodotEntity2D player,
         Dictionary<string, string> values)
     {
@@ -150,21 +151,21 @@ internal static class BrotatoLikePlayableSliceAcceptance
             && HasPhysicalKey("MoveRight", (Key)4194321)
             && HasPhysicalKey("MoveUp", (Key)4194320)
             && HasPhysicalKey("MoveDown", (Key)4194322);
-        if (inputComponent == null || runtime.MovementDriver == null)
+        if (inputComponent == null)
         {
             return new PlayerMovementAcceptance(inputMapHasWasd, inputMapHasArrows, false, false, false);
         }
 
         var start = player.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
         Input.ActionPress("MoveRight");
-        inputComponent.TickInput();
-        runtime.MovementDriver.TickMovement(0.25f);
+        await ProcessFrames(sceneRoot, 20);
+        var inputDirectionDuringPress = player.Data.Get<Vector2Value>(MovementDataKeys.InputDirection, Vector2Value.Zero);
         Input.ActionRelease("MoveRight");
 
         Input.ActionPress("MoveUp");
-        inputComponent.TickInput();
-        runtime.MovementDriver.TickMovement(0.25f);
+        await ProcessFrames(sceneRoot, 20);
         Input.ActionRelease("MoveUp");
+        await ProcessFrames(sceneRoot, 2);
 
         var inputDirection = player.Data.Get<Vector2Value>(MovementDataKeys.InputDirection, Vector2Value.Zero);
         var lastMoveDirection = player.Data.Get<Vector2Value>(MovementDataKeys.LastMoveDirection, Vector2Value.Zero);
@@ -177,17 +178,19 @@ internal static class BrotatoLikePlayableSliceAcceptance
         return new PlayerMovementAcceptance(
             inputMapHasWasd,
             inputMapHasArrows,
-            inputDirection != Vector2Value.Zero,
+            inputDirectionDuringPress != Vector2Value.Zero || inputDirection != Vector2Value.Zero,
             lastMoveDirection != Vector2Value.Zero,
             Vector2Value.Distance(start, end) > 0.001f);
     }
 
-    private static EnemyAcceptance VerifyEnemySpawnAndChase(
+    private static async Task<EnemyAcceptance> VerifyEnemySpawnAndChase(
+        Node sceneRoot,
         BrotatoLikeGameRuntime runtime,
         GodotEntity2D player,
         Dictionary<string, string> values)
     {
-        var tick = runtime.TickSpawn(0d);
+        await ProcessFrames(sceneRoot, 20);
+        var tick = runtime.LastSpawnTickResult;
         var entities = EntityManager.GetAll();
         var enemies = new List<GodotEntity2D>();
         for (var i = 0; i < entities.Count; i++)
@@ -214,24 +217,15 @@ internal static class BrotatoLikePlayableSliceAcceptance
         first.Data.Set(MovementDataKeys.Position, playerPosition + new Vector2Value(48f, 0f));
         first.Position = new Vector2(playerPosition.X + 48f, playerPosition.Y);
         var start = first.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
-        var chaseDirection = (playerPosition - start).Normalized();
-        first.Data.Set(MovementDataKeys.AIMoveDirection, chaseDirection);
-        runtime.MovementDriver.MovementSystem.Start(first, new MovementParams
-        {
-            Mode = MoveMode.AIControlled,
-            MaxDuration = -1f
-        });
-        runtime.MovementDriver.TickMovement(0.25f);
+        await ProcessFrames(sceneRoot, 30);
         var end = first.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
+        var chaseDirection = first.Data.Get<Vector2Value>(MovementDataKeys.AIMoveDirection, Vector2Value.Zero);
 
         var playerHpBefore = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
-        var contactDamage = Math.Max(1f, first.Data.Get<float>(DamageDataKeys.ContactDamage, first.Data.Get<float>(AttackDataKeys.Damage, 5f)));
-        var contactResult = DamageTool.Apply([player], new DamageApplyOptions(contactDamage)
-        {
-            Attacker = first,
-            Type = DamageType.Physical,
-            Tags = DamageTags.Contact
-        });
+        var hurtbox = player.GetNodeOrNull<GodotHurtboxComponent>("Hurtbox");
+        var enemyHurtbox = first.GetNodeOrNull<GodotHurtboxComponent>("Hurtbox");
+        var contactEmitted = hurtbox != null && enemyHurtbox != null && hurtbox.EmitEntered(enemyHurtbox);
+        await ProcessFrames(sceneRoot, 2);
         var playerHpAfter = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
 
         values["enemy_first_id"] = first.EntityId.Value;
@@ -247,7 +241,15 @@ internal static class BrotatoLikePlayableSliceAcceptance
             tick.Success && tick.Value.TotalSpawned > 0,
             enemies.TrueForAll(enemy => !string.IsNullOrWhiteSpace(enemy.Data.Get(UnitDataKeys.VisualScenePath, string.Empty))),
             chaseDirection != Vector2Value.Zero && Vector2Value.Distance(start, end) > 0.001f,
-            contactResult.AppliedCount > 0 && playerHpAfter < playerHpBefore);
+            contactEmitted && playerHpAfter < playerHpBefore);
+    }
+
+    private static async Task ProcessFrames(Node node, int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            await node.ToSignal(node.GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
     }
 
     private static SkillAcceptance VerifySkills(

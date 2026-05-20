@@ -26,32 +26,59 @@ INSERT OR REPLACE INTO data_record(table_id, record_id, display_name, descriptio
 
 INSERT OR REPLACE INTO data_field(table_id, record_id, field_key, value_type, value_text) VALUES
     ('unit.player', 'deluyi', 'Collision.Team', 'int', '1'),
+    ('unit.player', 'deluyi', 'Collision.Layer', 'int', '1'),
+    ('unit.player', 'deluyi', 'Collision.Mask', 'int', '2'),
+    ('unit.player', 'deluyi', 'Collision.Radius', 'float', '26'),
     ('unit.player', 'deluyi', 'Damage.MaxHp', 'float', '100'),
     ('unit.player', 'deluyi', 'Damage.CurrentHp', 'float', '100'),
     ('unit.player', 'deluyi', 'Damage.Armor', 'float', '5'),
     ('unit.player', 'deluyi', 'Damage.CritRate', 'float', '5'),
     ('unit.player', 'deluyi', 'Damage.LifeSteal', 'float', '0'),
+    ('unit.player', 'deluyi', 'Damage.ContactDamage', 'float', '0'),
+    ('unit.player', 'deluyi', 'Damage.ContactDamageInterval', 'float', '1'),
     ('unit.player', 'deluyi', 'Movement.MoveSpeed', 'float', '200'),
     ('unit.player', 'deluyi', 'Movement.Acceleration', 'float', '12'),
     ('unit.player', 'deluyi', 'Attack.Damage', 'float', '10'),
     ('unit.player', 'deluyi', 'Attack.Range', 'float', '150'),
+    ('unit.player', 'deluyi', 'Attack.Interval', 'float', '1'),
+    ('unit.player', 'deluyi', 'Attack.WindUpTime', 'float', '0'),
+    ('unit.player', 'deluyi', 'Attack.RecoveryTime', 'float', '0'),
+    ('unit.player', 'deluyi', 'AI.IsEnabled', 'bool', 'false'),
 
     ('unit.enemy', 'yuren', 'Collision.Team', 'int', '2'),
+    ('unit.enemy', 'yuren', 'Collision.Layer', 'int', '2'),
+    ('unit.enemy', 'yuren', 'Collision.Mask', 'int', '1'),
+    ('unit.enemy', 'yuren', 'Collision.Radius', 'float', '17'),
     ('unit.enemy', 'yuren', 'Damage.MaxHp', 'float', '150'),
     ('unit.enemy', 'yuren', 'Damage.CurrentHp', 'float', '150'),
     ('unit.enemy', 'yuren', 'Damage.Armor', 'float', '1'),
+    ('unit.enemy', 'yuren', 'Damage.ContactDamage', 'float', '6'),
+    ('unit.enemy', 'yuren', 'Damage.ContactDamageInterval', 'float', '1'),
     ('unit.enemy', 'yuren', 'Movement.MoveSpeed', 'float', '150'),
     ('unit.enemy', 'yuren', 'Attack.Damage', 'float', '6'),
     ('unit.enemy', 'yuren', 'Attack.Range', 'float', '200'),
+    ('unit.enemy', 'yuren', 'Attack.Interval', 'float', '1'),
+    ('unit.enemy', 'yuren', 'Attack.WindUpTime', 'float', '0'),
+    ('unit.enemy', 'yuren', 'Attack.RecoveryTime', 'float', '0'),
+    ('unit.enemy', 'yuren', 'AI.IsEnabled', 'bool', 'true'),
     ('unit.enemy', 'yuren', 'AI.AttackRange', 'float', '200'),
 
     ('unit.enemy', 'chailangren', 'Collision.Team', 'int', '2'),
+    ('unit.enemy', 'chailangren', 'Collision.Layer', 'int', '2'),
+    ('unit.enemy', 'chailangren', 'Collision.Mask', 'int', '1'),
+    ('unit.enemy', 'chailangren', 'Collision.Radius', 'float', '34'),
     ('unit.enemy', 'chailangren', 'Damage.MaxHp', 'float', '100'),
     ('unit.enemy', 'chailangren', 'Damage.CurrentHp', 'float', '100'),
     ('unit.enemy', 'chailangren', 'Damage.Armor', 'float', '3'),
+    ('unit.enemy', 'chailangren', 'Damage.ContactDamage', 'float', '5'),
+    ('unit.enemy', 'chailangren', 'Damage.ContactDamageInterval', 'float', '1'),
     ('unit.enemy', 'chailangren', 'Movement.MoveSpeed', 'float', '150'),
     ('unit.enemy', 'chailangren', 'Attack.Damage', 'float', '5'),
     ('unit.enemy', 'chailangren', 'Attack.Range', 'float', '100'),
+    ('unit.enemy', 'chailangren', 'Attack.Interval', 'float', '1'),
+    ('unit.enemy', 'chailangren', 'Attack.WindUpTime', 'float', '0'),
+    ('unit.enemy', 'chailangren', 'Attack.RecoveryTime', 'float', '0'),
+    ('unit.enemy', 'chailangren', 'AI.IsEnabled', 'bool', 'true'),
 
     ('ability', 'slam', 'Ability.Name', 'string', '猛击'),
     ('ability', 'slam', 'Ability.Type', 'string', 'Active'),
@@ -830,6 +857,7 @@ SELECT
         WHEN 'Ability.TriggerMode' THEN 'None'
         WHEN 'Ability.Type' THEN 'Passive'
         WHEN 'AI.AttackRange' THEN '100'
+        WHEN 'AI.IsEnabled' THEN 'true'
         WHEN 'Attack.Interval' THEN '1'
         WHEN 'Attack.Range' THEN '100'
         WHEN 'Damage.ContactDamageInterval' THEN '1'

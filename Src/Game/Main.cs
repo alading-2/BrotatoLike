@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Events;
 using SlimeAI.GameOS.Capabilities.AI;
@@ -43,14 +44,14 @@ public partial class Main : Node
     private static readonly GameOSContextLog Log = GameOSLog.For("BrotatoLike.Main");
 
     /// <inheritdoc />
-    public override void _Ready()
+    public override async void _Ready()
     {
         if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--gameos-smoke-exit") < 0)
         {
             var runtime = StartGameRuntime();
             if (BrotatoLikePlayableSliceAcceptance.ShouldRun())
             {
-                var result = BrotatoLikePlayableSliceAcceptance.Run(this, runtime);
+                var result = await BrotatoLikePlayableSliceAcceptance.Run(this, runtime);
                 if (result.Success)
                 {
                     Log.Pass("BrotatoLike playable slice acceptance");

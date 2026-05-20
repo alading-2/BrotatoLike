@@ -6,7 +6,6 @@ using SlimeAI.GameOS.Capabilities.Movement;
 using SlimeAI.GameOS.Capabilities.Unit;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
-using SlimeAI.GameOS.Runtime.Resource;
 using SlimeAI.GameOS.Runtime.Schedule;
 using SlimeAI.GameOS.Runtime.World;
 
@@ -22,6 +21,7 @@ public partial class BrotatoLikeGameRuntime : Node
     private BrotatoLikeSpawnCatalog? spawnCatalog;
     private SystemConfig? spawnScheduleConfig;
     private GodotMovementDriver? movementDriver;
+    private GameOSTimerDriver? timerDriver;
     private GodotEntity2D? playerEntity;
 
     /// <summary>
@@ -147,12 +147,13 @@ public partial class BrotatoLikeGameRuntime : Node
         bootstrap.RegisterResources();
         spawnCatalog = bootstrap.BuildEnemySpawnCatalog(wave);
         spawnScheduleConfig = bootstrap.BuildSpawnSystemScheduleConfig();
+        EnsureRuntimeDrivers();
         schedule = new RuntimeSchedule();
         var parent = enemyParent ?? this;
         schedule.Register(
             new SystemDescriptor(
                 spawnScheduleConfig.SystemId,
-                () => new BrotatoLikeScheduledEnemySpawnSystem(bootstrap, spawnCatalog, parent)),
+                () => new BrotatoLikeScheduledEnemySpawnSystem(bootstrap, spawnCatalog, parent, movementDriver!)),
             spawnScheduleConfig);
         schedule.Bootstrap();
     }
@@ -240,12 +241,7 @@ public partial class BrotatoLikeGameRuntime : Node
             playerEntity = null;
         }
 
-        // 创建共享 MovementDriver（若不存在）
-        if (movementDriver == null)
-        {
-            movementDriver = new GodotMovementDriver { Name = "MovementDriver" };
-            AddChild(movementDriver);
-        }
+        EnsureRuntimeDrivers();
 
         var position = spawnPosition ?? Vector2.Zero;
         var entity = new GodotEntity2D
@@ -259,13 +255,11 @@ public partial class BrotatoLikeGameRuntime : Node
         bootstrap.ApplyRecordToData("unit.player", recordId, entity.Data);
         entity.Data.Set(MovementDataKeys.Position, new Vector2Value(position.X, position.Y));
 
-        // 挂载输入组件
-        var inputComponent = new BrotatoLikePlayerInputComponent { Name = "PlayerInput" };
-        entity.AddChild(inputComponent);
-
-        // 挂载主动技能输入组件
-        var skillInputComponent = new GodotActiveSkillInputComponent { Name = "ActiveSkillInput" };
-        entity.AddChild(skillInputComponent);
+        var composition = GodotUnitComposer.Compose(entity, BrotatoLikeUnitProfiles.Player);
+        if (!composition.Success)
+        {
+            throw new InvalidOperationException(composition.FailureReason);
+        }
 
         // 从 DataOS 创建初始技能实体
         var ownedAbilityIds = EntityIdList.Empty;
@@ -275,24 +269,15 @@ public partial class BrotatoLikeGameRuntime : Node
         entity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedAbilityIds);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
 
-        // 加载视觉场景
-        var visualPath = entity.Data.Get(UnitDataKeys.VisualScenePath, string.Empty);
-        if (!string.IsNullOrEmpty(visualPath))
-        {
-            var visualScene = ResourceManagement.LoadPath<PackedScene>(visualPath);
-            if (visualScene != null)
-            {
-                var visual = visualScene.Instantiate();
-                visual.Name = "VisualRoot";
-                entity.AddChild(visual);
-            }
-        }
+        // 游戏侧输入和技能 Adapter 不属于框架 composer。
+        entity.AddChild(new BrotatoLikePlayerInputComponent { Name = "PlayerInput" });
+        entity.AddChild(new GodotActiveSkillInputComponent { Name = "ActiveSkillInput" });
 
         AddChild(entity);
         playerEntity = entity;
 
         // 启动 PlayerInput 移动
-        movementDriver.MovementSystem.Start(entity, new MovementParams
+        movementDriver!.MovementSystem.Start(entity, new MovementParams
         {
             Mode = MoveMode.PlayerInput,
             MaxDuration = -1f // 不限制时长，持续响应输入
@@ -325,6 +310,12 @@ public partial class BrotatoLikeGameRuntime : Node
             movementDriver = null;
         }
 
+        if (timerDriver != null)
+        {
+            timerDriver.QueueFree();
+            timerDriver = null;
+        }
+
         schedule?.Clear();
         schedule = null;
         bootstrap = null;
@@ -341,5 +332,20 @@ public partial class BrotatoLikeGameRuntime : Node
         }
 
         return GetNodeOrNull<Node>(EnemyParentPath) ?? this;
+    }
+
+    private void EnsureRuntimeDrivers()
+    {
+        if (movementDriver == null || !GodotObject.IsInstanceValid(movementDriver))
+        {
+            movementDriver = new GodotMovementDriver { Name = "MovementDriver" };
+            AddChild(movementDriver);
+        }
+
+        if (timerDriver == null || !GodotObject.IsInstanceValid(timerDriver))
+        {
+            timerDriver = new GameOSTimerDriver { Name = "TimerDriver" };
+            AddChild(timerDriver);
+        }
     }
 }

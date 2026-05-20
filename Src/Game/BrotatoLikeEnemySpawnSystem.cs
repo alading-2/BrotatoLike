@@ -5,7 +5,6 @@ using SlimeAI.GameOS.Capabilities.Movement;
 using SlimeAI.GameOS.Capabilities.Unit;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
-using SlimeAI.GameOS.Runtime.Resource;
 using SlimeAI.GameOS.Runtime.Schedule;
 
 namespace BrotatoLike.Game;
@@ -20,6 +19,7 @@ public sealed class BrotatoLikeEnemySpawnSystem
     private BrotatoLikeDataOSBootstrap? bootstrap;
     private BrotatoLikeSpawnCatalog? catalog;
     private Node? activeParent;
+    private GodotMovementDriver? movementDriver;
     private double elapsedSeconds;
     private int totalSpawned;
 
@@ -34,7 +34,11 @@ public sealed class BrotatoLikeEnemySpawnSystem
     /// <param name="bootstrap">DataOS bootstrap 入口。</param>
     /// <param name="spawnCatalog">当前波次敌人生成规则目录。</param>
     /// <param name="parent">实例化敌人的 Godot 父节点。</param>
-    public void Configure(BrotatoLikeDataOSBootstrap bootstrap, BrotatoLikeSpawnCatalog spawnCatalog, Node parent)
+    public void Configure(
+        BrotatoLikeDataOSBootstrap bootstrap,
+        BrotatoLikeSpawnCatalog spawnCatalog,
+        Node parent,
+        GodotMovementDriver? sharedMovementDriver = null)
     {
         ArgumentNullException.ThrowIfNull(bootstrap);
         ArgumentNullException.ThrowIfNull(spawnCatalog);
@@ -43,6 +47,7 @@ public sealed class BrotatoLikeEnemySpawnSystem
         this.bootstrap = bootstrap;
         catalog = spawnCatalog;
         activeParent = parent;
+        movementDriver = sharedMovementDriver;
         elapsedSeconds = 0d;
         totalSpawned = 0;
         ruleStates.Clear();
@@ -110,17 +115,24 @@ public sealed class BrotatoLikeEnemySpawnSystem
         bootstrap.ApplyRecordToData(rule.TableId, rule.RecordId, entity.Data);
         entity.Data.Set(MovementDataKeys.Position, new Vector2Value(position.X, position.Y));
 
-        var visualPath = entity.Data.Get(UnitDataKeys.VisualScenePath, rule.VisualScenePath);
-        var visualScene = ResourceManagement.LoadPath<PackedScene>(visualPath);
-        if (visualScene == null)
+        if (!entity.Data.Has(UnitDataKeys.VisualScenePath))
         {
-            throw new InvalidOperationException($"Enemy visual scene load failed: {visualPath}");
+            entity.Data.Set(UnitDataKeys.VisualScenePath, rule.VisualScenePath);
         }
 
-        var visual = visualScene.Instantiate();
-        visual.Name = "VisualRoot";
-        entity.AddChild(visual);
+        var composition = GodotUnitComposer.Compose(entity, BrotatoLikeUnitProfiles.EnemyMelee);
+        if (!composition.Success)
+        {
+            throw new InvalidOperationException(composition.FailureReason);
+        }
+
         activeParent.AddChild(entity);
+        movementDriver?.MovementSystem.Start(entity, new MovementParams
+        {
+            Mode = MoveMode.AIControlled,
+            MaxDuration = -1f
+        });
+
         return entity;
     }
 
@@ -218,10 +230,11 @@ public sealed class BrotatoLikeScheduledEnemySpawnSystem :
     public BrotatoLikeScheduledEnemySpawnSystem(
         BrotatoLikeDataOSBootstrap bootstrap,
         BrotatoLikeSpawnCatalog spawnCatalog,
-        Node parent)
+        Node parent,
+        GodotMovementDriver? sharedMovementDriver = null)
     {
         innerSystem = new BrotatoLikeEnemySpawnSystem();
-        innerSystem.Configure(bootstrap, spawnCatalog, parent);
+        innerSystem.Configure(bootstrap, spawnCatalog, parent, sharedMovementDriver);
     }
 
     /// <summary>

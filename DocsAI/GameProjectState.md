@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-19（7 个 GameOS OpenSpec 未完成项收敛验证）
+> 更新日期：2026-05-20（单位组合 profile 迁移）
 
 ## 当前状态
 
@@ -20,6 +20,7 @@
 - **submodule 承载策略**：BrotatoLike 的 `SlimeAI/` 是框架仓 git submodule 镜像。当前初始开发阶段，BrotatoLike 作为默认承载游戏，框架侧验证场景可直接同步到该工作树以跑通 Godot；后续多游戏 / 成品阶段不默认同步所有游戏，改按每个游戏的框架版本策略更新 submodule 指针。
 - **drift evidence**：typed loader / validator 曾捕获 `Movement.OrbitTotalAngle` descriptor default mirror 与 C# runtime default 不一致，修正 seed 中 default mirror 为 `-1` 后通过验证。
 - **R07 可玩切片验收**：普通 `Scenes/Main.tscn` 在 scene runner 的 artifact 环境下会执行 `BrotatoLikePlayableSliceAcceptance`，与 `--gameos-smoke-exit` smoke 路径分离；输出 `BrotatoLike playable slice PASS/FAIL`，并写入 `artifacts/scene-acceptance.json`。当前验收覆盖玩家生成、WASD + 方向键 input map、`Movement.InputDirection` / `Movement.LastMoveDirection`、玩家位移、第 1 波敌人生成、敌人追逐移动、接触伤害、敌人死亡和 cleanup、`slam` 与 `chain_lightning` 触发 / 冷却门禁 / 命中、最小 Health / CurrentSkill HUD Label、结构化 damage logs。
+- **单位组合 profile 迁移**：玩家和近战敌人生成改为 DataOS 写入后调用框架 `GodotUnitComposer`，由 `BrotatoLikeUnitProfiles.Player / EnemyMelee` 选择 visual、animation、orientation、AI、attack、hurtbox 和 contact damage adapter；游戏侧仍只挂 `BrotatoLikePlayerInputComponent` 与 `GodotActiveSkillInputComponent`。`BrotatoLikeEnemySpawnSystem` 使用共享 `GodotMovementDriver` 并启动 `MoveMode.AIControlled`，验证不再手写 `Movement.AIMoveDirection`。
 - **统一 Observation / runner**：`Tools/run-godot-scene.sh` 现在委托 `.codex/skills/godot-scene-test/scripts/godot-scene-runner.mjs`，新日志结构固定为 `index.json + 001_<scene>_attempt1/{stdout,stderr,combined,result,artifacts}`；`BrotatoLikePlayableSliceAcceptance` 写入小写 `status=pass/fail` 和 `artifacts/logs/scene-log.jsonl`，`Main.cs` 使用 `GameOSLog.For("BrotatoLike.Main")` 输出流程日志；`Src/Validation/GameOS/Observation/ObservationLogValidation.tscn` 独立验证通用 log level、格式化、过滤、JSONL sink 和 runner session 路径。
 - **EventBus observation dump**：`--gameos-smoke-exit` smoke 路径会在 runner artifact 环境下导出 `artifacts/eventbus-dump.json`；最新 `.ai-temp/scene-tests/runs/2026-05-13/09-23-37/.../eventbus-dump.json` 中 `SameTypeReentryBlockedCounts={}`、`HandlerExceptions=[]`，用于确认 BrotatoLike smoke 没有事件重入阻断或 handler 异常。
 - **Scene artifact gate**：普通 `Scenes/Main.tscn` 的 `scene-acceptance.json` 和 `--gameos-smoke-exit` 的 `scene-smoke.json` 均输出标准答案字段：`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath`。`run-main-smoke` 继续保留 `eventbus-dump.json`。
@@ -68,12 +69,24 @@
 
 ## 下一步
 
-1. 继续把真实 UI、SpawnSystem 专项场景和更细的输入专项测试接入 `Tools/run-godot-scene.sh`；普通 `Scenes/Main.tscn` 可玩切片和 smoke 已有 PASS artifact。
+1. 继续把真实 UI、SpawnSystem 专项场景和更细的输入专项测试接入 `Tools/run-godot-scene.sh`；普通 `Scenes/Main.tscn` 可玩切片、UnitComposition validation 和 smoke 已有 PASS artifact。
 2. 继续迁 Feature actions 和 Ability 具体 handler 执行逻辑；SineWave / Boomerang / BezierCurve / CircularArc / Orbit / AttachToHost、Dash、ChainLightning、Slam、TargetPoint、CircleDamage、AuraShield 与 ArcShot 已接入 DataOS 到真实执行闭环，后续继续迁尚未接线的被动 Feature actions。
 3. 从 `MigrationInput/` 继续适配真实 UI、剩余输入细节和游戏场景内容。
 4. 玩家技能输入的 game-side event 路径已接入并由主场景 artifact 覆盖 `InputUseSkill` / `InputNextSkill`；后续专项验收聚焦真实手柄 LB/RB、X 按键物理输入和鼠标/手柄 Point 目标点选。
 
 ## 最新验证
+
+**单位组合 profile 迁移（2026-05-20）**
+
+```bash
+Tools/run-build.sh
+Tools/run-godot-scene.sh run res://Src/Validation/Game/UnitComposition/BrotatoLikeUnitCompositionValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh
+```
+
+结果：`Tools/run-build.sh` PASS（`0 Warning(s), 0 Error(s)`）；`BrotatoLikeUnitCompositionValidation` 输出 `BrotatoLike UnitComposition validation PASS`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-20/09-18-27/index.json`；普通 Main 输出 `BrotatoLike playable slice PASS`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-20/09-20-05/index.json`；`run-main-smoke` 输出 `BrotatoLike GameOS smoke PASS`，artifact 位于 `.ai-temp/scene-tests/runs/2026-05-20/09-20-45/index.json`。Scene gate 已检查对应 `index.json`、`result.json` 和 artifact，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。
 
 **7 个 GameOS OpenSpec 未完成项收敛验证（2026-05-19）**
 
