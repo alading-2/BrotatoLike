@@ -1,3 +1,4 @@
+using BrotatoLike.Game.UI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Damage;
@@ -30,9 +31,9 @@ public partial class BrotatoLikeTargetingController : Node2D
     public bool IsTargeting => activeCaster != null && activeAbility != null;
 
     /// <summary>
-    /// 指示器节点。
+    /// 指示器节点（scene-backed: TargetingIndicatorUI.tscn）。
     /// </summary>
-    public Node2D Indicator { get; private set; } = null!;
+    public TargetingIndicatorUI Indicator { get; private set; } = null!;
 
     /// <summary>
     /// 绑定运行时。
@@ -47,11 +48,11 @@ public partial class BrotatoLikeTargetingController : Node2D
     public override void _Ready()
     {
         Name = "BrotatoLikeTargetingController";
-        Indicator = new Node2D
-        {
-            Name = "PointTargetingIndicator",
-            Visible = false
-        };
+
+        // scene-backed: 点选指示器来自 TargetingIndicatorUI.tscn
+        var indicatorScene = GD.Load<PackedScene>("res://Scenes/UI/TargetingIndicatorUI.tscn");
+        Indicator = indicatorScene.Instantiate<TargetingIndicatorUI>();
+        Indicator.Name = "PointTargetingIndicator";
         AddChild(Indicator);
     }
 
@@ -179,6 +180,7 @@ public partial class BrotatoLikeTargetingController : Node2D
         Indicator.SetMeta("RequestedTargetPosition", Format(requestedTargetPosition));
         Indicator.SetMeta("ClampedTargetPosition", Format(clampedTargetPosition));
 
+        // scene-first exception: metadata-only runtime session node
         sessionNode = new Node { Name = "PointTargetingSession" };
         sessionNode.SetMeta("AbilityId", ability.EntityId.Value);
         sessionNode.SetMeta("CooldownBeforeConfirm", ability.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f));

@@ -361,7 +361,7 @@ public partial class Main : Node
             && Math.Abs(ability.Data.Get<float>(AbilityDataKeys.ChainRange) - 300f) < 0.001f
             && Math.Abs(ability.Data.Get<float>(AbilityDataKeys.ChainDelay) - 0.2f) < 0.001f
             && Math.Abs(ability.Data.Get<float>(AbilityDataKeys.ChainDamageDecay) - 100f) < 0.001f
-            && ability.Data.Get(AbilityDataKeys.LineEffectScenePath) == string.Empty
+            && ability.Data.Get(AbilityDataKeys.LineEffectScenePath) == "res://Scenes/VFX/LightningLineEffect.tscn"
             && ability.Data.Get<int>(AbilityDataKeys.AutoTargetMaxTargets) == 1
             && ability.Data.Get<bool>(AbilityDataKeys.AutoTargetIgnoreSameTeam)
             && ability.Data.Get<bool>(AbilityDataKeys.AutoTargetRequiresDamageable)

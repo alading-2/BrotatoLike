@@ -62,7 +62,8 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
             {
                 "wave runtime state records elapsed time, spawned count, remaining enemies and completion",
                 "formal pause menu opens, blocks schedule-gated gameplay, and resumes",
-                "HP recovery, pickup collection, experience gain and level-up feedback are observable"
+                "HP recovery, pickup collection, experience gain and level-up feedback are observable",
+                "formal pause menu node has non-empty SceneFilePath (scene-backed, not code-created)"
             },
             passCriteria: new[]
             {
@@ -85,6 +86,7 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
         validation.Check("enemy_death_spawns_experience_pickup", "Pickup", () => Result(values, "enemy_death_spawns_experience_pickup"));
         validation.Check("pickup_grants_experience_and_cleans", "Experience", () => Result(values, "pickup_grants_experience_and_cleans"));
         validation.Check("level_up_feedback", "LevelUp", () => Result(values, "level_up_feedback"));
+        validation.Check("scene_backed_pause_menu", "SceneBacked", () => Result(values, "scene_backed_pause_menu"));
 
         var success = validation.Success;
         if (success)
@@ -233,6 +235,9 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
             && levelUpFeedback != null
             && level > 1;
 
+        values["scene_backed_pause_menu"] = pauseMenu != null && IsSceneBacked(pauseMenu);
+        values["pause_menu_scene_file_path"] = pauseMenu is Node n ? n.SceneFilePath : string.Empty;
+
         return values;
     }
 
@@ -347,5 +352,10 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
         return node != null && node.HasMeta(key)
             ? node.GetMeta(key).AsString()
             : string.Empty;
+    }
+
+    private static bool IsSceneBacked(Node? node)
+    {
+        return node != null && GodotObject.IsInstanceValid(node) && !string.IsNullOrEmpty(node.SceneFilePath);
     }
 }

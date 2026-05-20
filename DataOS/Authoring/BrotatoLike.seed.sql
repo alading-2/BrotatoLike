@@ -314,7 +314,7 @@ INSERT OR REPLACE INTO data_field(table_id, record_id, field_key, value_type, va
     ('ability', 'chain_lightning', 'Ability.ChainRange', 'float', '300'),
     ('ability', 'chain_lightning', 'Ability.ChainDelay', 'float', '0.2'),
     ('ability', 'chain_lightning', 'Ability.ChainDamageDecay', 'float', '100'),
-    ('ability', 'chain_lightning', 'Ability.LineEffectScenePath', 'string', ''),
+    ('ability', 'chain_lightning', 'Ability.LineEffectScenePath', 'string', 'res://Scenes/VFX/LightningLineEffect.tscn'),
 
     ('feature.definition', 'slam', 'Feature.Id', 'string', 'slam'),
     ('feature.definition', 'slam', 'Feature.HandlerId', 'string', '技能.主动.猛击'),

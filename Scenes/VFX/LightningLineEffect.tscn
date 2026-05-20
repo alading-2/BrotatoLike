@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bxxlightningline"]
+
+[ext_resource type="Script" path="res://Src/Game/VFX/LightningLineEffect.cs" id="1"]
+
+[node name="LightningLineEffect" type="Line2D"]
+script = ExtResource("1")

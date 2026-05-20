@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BrotatoLike.Game.UI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Collision;
 using SlimeAI.GameOS.Capabilities.Damage;
@@ -37,9 +38,9 @@ public partial class BrotatoLikeProgressionService : Node
     public Node WaveRuntimeState { get; private set; } = null!;
 
     /// <summary>
-    /// 暂停菜单节点。
+    /// 暂停菜单节点（scene-backed: PauseMenuUI.tscn）。
     /// </summary>
-    public Control PauseMenu { get; private set; } = null!;
+    public PauseMenuUI PauseMenu { get; private set; } = null!;
 
     /// <summary>
     /// 拾取层节点。
@@ -64,32 +65,26 @@ public partial class BrotatoLikeProgressionService : Node
     public override void _Ready()
     {
         Name = "BrotatoLikeProgressionService";
+
+        // scene-first exception: metadata-only runtime session node
         WaveRuntimeState = new Node { Name = "WaveRuntimeState" };
         AddChild(WaveRuntimeState);
 
+        // scene-first exception: metadata-only node
         var recoveryNode = new Node { Name = "RecoveryTickService" };
         AddChild(recoveryNode);
 
+        // scene-first exception: 极小运行时 marker，不构成复合 UI
         ExperiencePickupLayer = new Node2D { Name = "ExperiencePickupLayer" };
         AddChild(ExperiencePickupLayer);
 
-        PauseMenu = new Control
-        {
-            Name = "BrotatoLikePauseMenu",
-            Visible = false,
-            MouseFilter = Control.MouseFilterEnum.Stop
-        };
-        PauseMenu.SetMeta("Paused", false);
+        // scene-backed: 暂停菜单来自 PauseMenuUI.tscn
+        var pauseScene = GD.Load<PackedScene>("res://Scenes/UI/PauseMenuUI.tscn");
+        PauseMenu = pauseScene.Instantiate<PauseMenuUI>();
+        PauseMenu.Name = "BrotatoLikePauseMenu";
         AddChild(PauseMenu);
 
-        var pauseLabel = new Label
-        {
-            Name = "PauseTitle",
-            Text = "Paused",
-            Position = new Vector2(16f, 16f)
-        };
-        PauseMenu.AddChild(pauseLabel);
-
+        // scene-first exception: 简单 Label，后续迁移到 scene
         LevelUpFeedback = new Label
         {
             Name = "LevelUpFeedback",
@@ -116,7 +111,7 @@ public partial class BrotatoLikeProgressionService : Node
         elapsedSeconds += (float)delta;
         if (Input.IsActionJustPressed("PauseGame"))
         {
-            if (PauseMenu.Visible)
+            if (PauseMenu.IsMenuVisible)
             {
                 runtime?.ClosePauseMenu();
             }
@@ -138,7 +133,15 @@ public partial class BrotatoLikeProgressionService : Node
     /// <param name="paused">是否暂停。</param>
     public void SetPaused(bool paused)
     {
-        PauseMenu.Visible = paused;
+        if (paused)
+        {
+            PauseMenu.ShowMenu();
+        }
+        else
+        {
+            PauseMenu.HideMenu();
+        }
+
         PauseMenu.SetMeta("Paused", paused);
     }
 

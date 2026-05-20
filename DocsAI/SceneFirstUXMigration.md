@@ -58,6 +58,47 @@ BrotatoLike 的玩家可见 UX 迁移应优先使用 Godot 场景，而不是在
 | 旧 `PlayerEntity.tscn` / `EnemyEntity.tscn` / `UnitCorePreset.tscn` | Adopt Later | 当前优先保留 `GodotUnitComposer` AI-first 组合方式，只提炼 scene shell 或视觉子场景。 |
 | 旧 `UIManager.tscn` / `UIManager.cs` | Reject | 不恢复旧 UIManager / 旧对象池架构；只采纳必要 scene asset 和布局思想。 |
 
+## Phase 1 清点确认（2026-05-20）
+
+### 代码创建正式 UI 清单（`grep` 已排除 validation/debug）
+
+| 文件 | 行号 | 模式 | 表面 | 需迁移 |
+| --- | --- | --- | --- | --- |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 64 | `new Control` | HUD 根 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 73 | `new Label` | 玩家 HP 标签 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 81 | `new Label` | 进度摘要 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 89 | `new HBoxContainer` | 技能栏容器 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 99 | `new Label` | 技能槽 ×4 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 112 | `new Control` | 头顶血条层 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 121 | `new Control` | 伤害数字层 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 288 | `new ProgressBar` | 每敌人血条 | 是 |
+| `Src/Game/UI/BrotatoLikeHud.cs` | 351 | `new Label` | 飘字 | 是 |
+| `Src/Game/Progression/BrotatoLikeProgressionService.cs` | 76 | `new Control` | 暂停菜单 | 是 |
+| `Src/Game/Progression/BrotatoLikeProgressionService.cs` | 85 | `new Label` | 暂停标题 | 是 |
+| `Src/Game/Progression/BrotatoLikeProgressionService.cs` | 93 | `new Label` | 升级反馈 | 是 |
+| `Src/Game/BrotatoLikeTargetingController.cs` | 50 | `new Node2D` | 点选指示器 | 是 |
+
+### 允许保留的代码创建
+
+| 文件 | 行号 | 模式 | 原因 |
+| --- | --- | --- | --- |
+| `BrotatoLikeProgressionService.cs` | 67-68 | `new Node` (WaveRuntimeState, RecoveryTickService) | metadata-only runtime session node |
+| `BrotatoLikeProgressionService.cs` | 73 | `new Node2D` (ExperiencePickupLayer) | 极小运行时 marker，不构成复合 UI |
+| `BrotatoLikeProgressionService.cs` | 232 | `new Node2D` (pickup) | 极小拾取物 marker |
+| `BrotatoLikeTargetingController.cs` | 183 | `new Node` (PointTargetingSession) | metadata-only |
+
+### 旧场景路径确认（全部 7 个已验证存在）
+
+| 旧场景 | 完整路径 | 关键视觉结构 |
+| --- | --- | --- |
+| HealthBarUI | `Resources/Else/brotato-my/Src/ECS/UI/UI/HealthBarUI/HealthBarUI.tscn` | Control + ProgressBar(show_percentage=false) |
+| DamageNumberUI | `Resources/Else/brotato-my/Src/ECS/UI/UI/DamageNumberUI/DamageNumberUI.tscn` | Control + Label("DamageLabel") + AnimationPlayer(float_up, float_up_crit) |
+| ActiveSkillBarUI | `Resources/Else/brotato-my/Src/ECS/UI/UI/SkillUI/ActiveSkillBarUI.tscn` | Control(bottom-center) + HBoxContainer("SlotContainer") + 4× Slot 预实例 |
+| ActiveSkillSlotUI | `Resources/Else/brotato-my/Src/ECS/UI/UI/SkillUI/ActiveSkillSlotUI.tscn` | Control(80×100) + Panel + TextureRect + ColorRect + ChargeLabel + KeyHintLabel + SkillNameLabel，全部 unique_name_in_owner |
+| PauseMenuSystem | `Resources/Else/brotato-my/Src/ECS/Base/System/PauseMenu/PauseMenuSystem.tscn` | CanvasLayer + ColorRect(backdrop) + PanelContainer(styled) + TitleLabel + HintLabel + ResumeButton |
+| TargetingIndicatorEntity | `Resources/Else/brotato-my/Src/ECS/Base/Entity/Unit/TargetingIndicator/TargetingIndicatorEntity.tscn` | Node2D(z_index=100) + Sprite2D(icon.svg, hidden) |
+| LightningLineEffect | `Resources/Else/brotato-my/Src/ECS/Base/Entity/Effect/LightningLineEffect/LightningLineEffect.tscn` | 纯 Line2D 节点，无复杂依赖 |
+
 ## 验收口径
 
 后续涉及正式 UI/UX 的任务，不能只验收“节点存在”或“数值变化”。必须补充以下证据：

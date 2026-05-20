@@ -111,6 +111,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
             AddCheck(checks, failureReasons, "hud.health_evidence", hud.HealthEvidence);
             AddCheck(checks, failureReasons, "hud.current_skill_evidence", hud.CurrentSkillEvidence);
             AddCheck(checks, failureReasons, "hud.damage_evidence", hud.DamageEvidence);
+            AddCheck(checks, failureReasons, "hud.scene_backed_formal_ui", hud.SceneBacked);
 
             var success = failureReasons.Count == 0;
             values["result"] = success ? "pass" : "fail";
@@ -375,7 +376,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
             ChainCooldownGated: chainCooldownReport?.Result == AbilityTriggerResult.FailCooldown,
             ChainTargetSelected: chainContext?.Targets != null && chainContext.Targets.Count > 0,
             ChainHit: chainHpAfter < chainHpBefore,
-            ChainStructuredEvidence: chainHpAfter < chainHpBefore && string.IsNullOrWhiteSpace(chain.Data.Get(AbilityDataKeys.LineEffectScenePath, string.Empty)),
+            ChainStructuredEvidence: chainHpAfter < chainHpBefore && !string.IsNullOrWhiteSpace(chain.Data.Get(AbilityDataKeys.LineEffectScenePath, string.Empty)),
             PointTargetingStarted: pointTargetingStarted && Math.Abs(pointCooldownAfterStart - pointCooldownBeforeStart) < 0.001f,
             PointTargetingConfirmed: pointReport?.Result == AbilityTriggerResult.Success
                 && pointCooldownAfterConfirm > 0f
@@ -440,6 +441,21 @@ internal static class BrotatoLikePlayableSliceAcceptance
         values["formal_hud_head_health_bar_count"] = headHealthBarCount.ToString(CultureInfo.InvariantCulture);
         values["formal_hud_progression_summary"] = progressionSummary?.Text ?? string.Empty;
         values["damage_log_count"] = damageLogs.Count.ToString(CultureInfo.InvariantCulture);
+
+        values["scene_backed_hud"] = FormatSceneBacked(hud);
+        values["scene_backed_health"] = FormatSceneBacked(health);
+        values["scene_backed_skill_bar"] = FormatSceneBacked(skillBar);
+        values["scene_backed_damage_layer"] = FormatSceneBacked(damageLayer);
+        values["scene_backed_head_health_layer"] = FormatSceneBacked(headHealthLayer);
+        values["scene_backed_progression"] = FormatSceneBacked(progressionSummary);
+
+        var sceneBacked = IsSceneBacked(hud)
+            && IsSceneBacked(health)
+            && IsSceneBacked(skillBar)
+            && IsSceneBacked(damageLayer)
+            && IsSceneBacked(headHealthLayer)
+            && IsSceneBacked(progressionSummary);
+
         return new HudAcceptance(
             hud != null
                 && health != null
@@ -453,7 +469,23 @@ internal static class BrotatoLikePlayableSliceAcceptance
             damageLogs.Count > 0
                 && damageLayer != null
                 && damageNumberCount > 0
-                && headHealthLayer != null);
+                && headHealthLayer != null,
+            sceneBacked);
+    }
+
+    private static bool IsSceneBacked(Node? node)
+    {
+        return node != null && GodotObject.IsInstanceValid(node) && !string.IsNullOrEmpty(node.SceneFilePath);
+    }
+
+    private static string FormatSceneBacked(Node? node)
+    {
+        if (node == null)
+        {
+            return "null";
+        }
+
+        return string.IsNullOrEmpty(node.SceneFilePath) ? "false" : node.SceneFilePath;
     }
 
     private static void AddCheck(
@@ -573,7 +605,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
         "player runtime data records input direction, last move direction, and changed position",
         "DataOS-spawned enemies chase, apply contact damage, and expose resource path evidence",
         "formal HUD, head health bar, skill bar, damage number and progression summary nodes expose player-facing evidence",
-        "slam, chain and point-target abilities produce input-action damage, cooldown, targeting and visual evidence"
+        "slam, chain and point-target abilities produce input-action damage, cooldown, targeting and visual evidence",
+        "formal UI nodes (HUD root, skill bar slots, head health bars, damage number layer, point indicator) have non-empty SceneFilePath"
     };
 
     private static readonly string[] PassCriteria =
@@ -587,6 +620,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         "any criteria entry has status fail",
         "player, enemy, ability, damage, or HUD evidence is missing",
+        "formal UI node has empty SceneFilePath (code-created, not scene-backed)",
         "artifactPath is empty or the scene runner does not collect the artifact file"
     };
 
@@ -702,4 +736,4 @@ internal readonly record struct SkillAcceptance(
 
 internal readonly record struct EnemyCleanupAcceptance(bool DeathObserved, bool CleanupQueued);
 
-internal readonly record struct HudAcceptance(bool HealthEvidence, bool CurrentSkillEvidence, bool DamageEvidence);
+internal readonly record struct HudAcceptance(bool HealthEvidence, bool CurrentSkillEvidence, bool DamageEvidence, bool SceneBacked);

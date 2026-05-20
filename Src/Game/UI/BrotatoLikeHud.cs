@@ -12,26 +12,28 @@ using SlimeAI.GameOS.Runtime.Entity;
 namespace BrotatoLike.Game.UI;
 
 /// <summary>
-/// BrotatoLike 正式运行 HUD，读取 Runtime Data 并输出玩家可见状态。
+/// BrotatoLike 正式运行 HUD，使用 PackedScene 实例化复合 UI，代码只负责数据绑定。
 /// </summary>
 public partial class BrotatoLikeHud : CanvasLayer
 {
-    private readonly Dictionary<EntityId, ProgressBar> headHealthBars = new();
+    private readonly Dictionary<EntityId, HealthBarUI> headHealthBars = new();
     private readonly Dictionary<EntityId, float> lastHpByEntity = new();
-    private readonly Dictionary<Label, float> floatingTextLife = new();
-    private readonly List<Label> skillSlots = new();
+    private readonly List<DamageNumberUI> activeDamageNumbers = new();
 
     private BrotatoLikeGameRuntime? runtime;
-    private Label? playerHealthLabel;
-    private Label? progressionSummary;
-    private HBoxContainer? activeSkillBar;
+    private ActiveSkillBarUI? activeSkillBar;
     private Control? headHealthBarLayer;
     private Control? damageNumberLayer;
+    private Label? playerHealthLabel;
+    private Label? progressionSummary;
+
+    private PackedScene? healthBarScene;
+    private PackedScene? damageNumberScene;
+    private PackedScene? activeSkillBarScene;
 
     /// <summary>
     /// 绑定游戏运行时。
     /// </summary>
-    /// <param name="runtime">BrotatoLike 运行时。</param>
     public void Bind(BrotatoLikeGameRuntime runtime)
     {
         this.runtime = runtime;
@@ -42,6 +44,11 @@ public partial class BrotatoLikeHud : CanvasLayer
     {
         Name = "BrotatoLikeHUD";
         Layer = 20;
+
+        healthBarScene = GD.Load<PackedScene>("res://Scenes/UI/HealthBarUI.tscn");
+        damageNumberScene = GD.Load<PackedScene>("res://Scenes/UI/DamageNumberUI.tscn");
+        activeSkillBarScene = GD.Load<PackedScene>("res://Scenes/UI/ActiveSkillBarUI.tscn");
+
         BuildTree();
     }
 
@@ -56,11 +63,12 @@ public partial class BrotatoLikeHud : CanvasLayer
         UpdatePlayerHud();
         UpdateSkillBar();
         UpdateHeadHealthBars();
-        UpdateFloatingText((float)delta);
+        UpdateDamageNumbers((float)delta);
     }
 
     private void BuildTree()
     {
+        // scene-first exception: root 是简单布局容器，非复合 UI
         var root = new Control
         {
             Name = "HudRoot",
@@ -70,6 +78,7 @@ public partial class BrotatoLikeHud : CanvasLayer
         };
         AddChild(root);
 
+        // scene-first exception: 简单 Label，后续迁移到 HUD root scene
         playerHealthLabel = new Label
         {
             Name = "PlayerHealthLabel",
@@ -78,6 +87,7 @@ public partial class BrotatoLikeHud : CanvasLayer
         };
         root.AddChild(playerHealthLabel);
 
+        // scene-first exception: 简单 Label，后续迁移到 HUD root scene
         progressionSummary = new Label
         {
             Name = "ProgressionSummary",
@@ -86,29 +96,13 @@ public partial class BrotatoLikeHud : CanvasLayer
         };
         root.AddChild(progressionSummary);
 
-        activeSkillBar = new HBoxContainer
-        {
-            Name = "ActiveSkillBar",
-            Position = new Vector2(16f, 72f),
-            CustomMinimumSize = new Vector2(420f, 36f)
-        };
+        // scene-backed: 技能栏来自 ActiveSkillBarUI.tscn
+        activeSkillBar = activeSkillBarScene!.Instantiate<ActiveSkillBarUI>();
+        activeSkillBar.Name = "ActiveSkillBar";
+        activeSkillBar.Position = new Vector2(16f, 72f);
         root.AddChild(activeSkillBar);
 
-        for (var i = 0; i < 4; i++)
-        {
-            var slot = new Label
-            {
-                Name = $"SkillSlot{i}",
-                Text = $"{i + 1}: -",
-                CustomMinimumSize = new Vector2(100f, 30f)
-            };
-            slot.SetMeta("SlotIndex", i);
-            slot.SetMeta("Selected", false);
-            slot.SetMeta("CooldownRemaining", 0f);
-            activeSkillBar.AddChild(slot);
-            skillSlots.Add(slot);
-        }
-
+        // scene-first exception: 简单容器层，非复合 UI
         headHealthBarLayer = new Control
         {
             Name = "HeadHealthBarLayer",
@@ -118,6 +112,7 @@ public partial class BrotatoLikeHud : CanvasLayer
         };
         root.AddChild(headHealthBarLayer);
 
+        // scene-first exception: 简单容器层，非复合 UI
         damageNumberLayer = new Control
         {
             Name = "DamageNumberLayer",
@@ -155,33 +150,38 @@ public partial class BrotatoLikeHud : CanvasLayer
 
     private void UpdateSkillBar()
     {
+        if (activeSkillBar == null)
+        {
+            return;
+        }
+
         var player = runtime?.PlayerEntity;
         if (player == null)
         {
+            activeSkillBar.ClearAll();
             return;
         }
 
         var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
         var selectedIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
-        for (var i = 0; i < skillSlots.Count; i++)
+        for (var i = 0; i < 4; i++)
         {
-            var slot = skillSlots[i];
+            var slot = activeSkillBar.GetSlot(i);
+            if (slot == null)
+            {
+                continue;
+            }
+
             if (i >= ownedIds.Count)
             {
-                slot.Text = $"{i + 1}: -";
-                slot.SetMeta("Selected", false);
-                slot.SetMeta("CooldownRemaining", 0f);
-                slot.SetMeta("AbilityId", string.Empty);
+                slot.Clear();
                 continue;
             }
 
             var ability = EntityManager.Get(ownedIds[i]);
             if (ability == null)
             {
-                slot.Text = $"{i + 1}: missing";
-                slot.SetMeta("Selected", i == selectedIndex);
-                slot.SetMeta("CooldownRemaining", 0f);
-                slot.SetMeta("AbilityId", ownedIds[i].Value);
+                slot.Bind("-", $"{i + 1}", 0f, 0, 0, i == selectedIndex);
                 continue;
             }
 
@@ -191,22 +191,16 @@ public partial class BrotatoLikeHud : CanvasLayer
                 name = ability.EntityId.Value;
             }
 
-            var cooldown = MathF.Max(0f, ability.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f));
+            var cooldown = ability.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
+            var cooldownMax = ability.Data.Get<float>(AbilityDataKeys.Cooldown, 1f);
+            var cooldownFraction = cooldownMax > 0f ? Mathf.Clamp(cooldown / cooldownMax, 0f, 1f) : 0f;
             var charges = ability.Data.Get<int>(AbilityDataKeys.CurrentCharges, 0);
             var maxCharges = ability.Data.Get<int>(AbilityDataKeys.MaxCharges, 0);
-            var selected = i == selectedIndex;
-            var prefix = selected ? ">" : " ";
-            var cooldownText = cooldown > 0f ? $" cd {cooldown:0.0}" : " ready";
-            var chargeText = maxCharges > 0 ? $" {charges}/{maxCharges}" : string.Empty;
-            slot.Text = $"{prefix}{i + 1}: {name}{cooldownText}{chargeText}";
-            slot.SetMeta("Selected", selected);
-            slot.SetMeta("CooldownRemaining", cooldown);
-            slot.SetMeta("AbilityId", ability.EntityId.Value);
-            slot.SetMeta("AbilityName", name);
+            slot.Bind(name, $"{i + 1}", cooldownFraction, charges, maxCharges, i == selectedIndex);
         }
 
-        activeSkillBar?.SetMeta("SelectedIndex", selectedIndex);
-        activeSkillBar?.SetMeta("SlotCount", Math.Min(4, ownedIds.Count));
+        activeSkillBar.SetMeta("SelectedIndex", selectedIndex);
+        activeSkillBar.SetMeta("SlotCount", Math.Min(4, ownedIds.Count));
     }
 
     private void UpdateHeadHealthBars()
@@ -251,9 +245,8 @@ public partial class BrotatoLikeHud : CanvasLayer
 
             liveEnemyIds.Add(node.EntityId);
             var bar = EnsureHeadHealthBar(node);
-            bar.MaxValue = maxHp;
-            bar.Value = Mathf.Clamp(currentHp, 0f, maxHp);
-            bar.Position = node.GlobalPosition + new Vector2(-32f, -MathF.Max(24f, node.Data.Get<float>(UnitDataKeys.HealthBarHeight, 48f) * 0.25f));
+            bar.BindHealth(currentHp, maxHp);
+            bar.SetWorldPosition(node.GlobalPosition);
             bar.SetMeta("EntityId", node.EntityId.Value);
             bar.SetMeta("CurrentHp", currentHp);
             bar.SetMeta("MaxHp", maxHp);
@@ -277,7 +270,7 @@ public partial class BrotatoLikeHud : CanvasLayer
         }
     }
 
-    private ProgressBar EnsureHeadHealthBar(GodotEntity2D enemy)
+    private HealthBarUI EnsureHeadHealthBar(GodotEntity2D enemy)
     {
         if (headHealthBars.TryGetValue(enemy.EntityId, out var existing)
             && GodotObject.IsInstanceValid(existing))
@@ -285,16 +278,8 @@ public partial class BrotatoLikeHud : CanvasLayer
             return existing;
         }
 
-        var bar = new ProgressBar
-        {
-            Name = $"HeadHealthBar_{enemy.EntityId.Value}",
-            MinValue = 0,
-            MaxValue = 1,
-            Value = 1,
-            CustomMinimumSize = new Vector2(64f, 8f),
-            ShowPercentage = false,
-            MouseFilter = Control.MouseFilterEnum.Ignore
-        };
+        var bar = healthBarScene!.Instantiate<HealthBarUI>();
+        bar.Name = $"HeadHealthBar_{enemy.EntityId.Value}";
         headHealthBarLayer!.AddChild(bar);
         headHealthBars[enemy.EntityId] = bar;
         return bar;
@@ -329,80 +314,39 @@ public partial class BrotatoLikeHud : CanvasLayer
 
         var delta = currentHp - previousHp;
         lastHpByEntity[entity.EntityId] = currentHp;
-        SpawnFloatingNumber(entity, delta);
+        SpawnDamageNumber(entity, delta);
     }
 
-    private void SpawnFloatingNumber(IEntity entity, float hpDelta)
+    private void SpawnDamageNumber(IEntity entity, float hpDelta)
     {
-        if (damageNumberLayer == null || Math.Abs(hpDelta) < 0.001f)
+        if (damageNumberLayer == null || damageNumberScene == null || Math.Abs(hpDelta) < 0.001f)
         {
             return;
-        }
-
-        var isHeal = hpDelta > 0f;
-        var team = entity.Data.Get<int>(CollisionDataKeys.Team, 0);
-        var stableName = isHeal && team == 1 ? "HealNumber_Player" : team == 2 ? "DamageNumber_Enemy" : "DamageNumber_Player";
-        if (damageNumberLayer.GetNodeOrNull<Label>(stableName) != null)
-        {
-            stableName = $"{stableName}_{floatingTextLife.Count + 1}";
         }
 
         var position = entity.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
-        var label = new Label
+        var worldPosition = new Vector2(position.X, position.Y - 36f);
+        var damageNumber = damageNumberScene.Instantiate<DamageNumberUI>();
+        var isHeal = hpDelta > 0f;
+        damageNumber.Name = isHeal ? $"HealNumber_Player_{activeDamageNumbers.Count}" : $"DamageNumber_Enemy_{activeDamageNumbers.Count}";
+        damageNumber.ShowDamage(hpDelta, worldPosition);
+        damageNumber.TreeExiting += () =>
         {
-            Name = stableName,
-            Text = isHeal ? $"+{hpDelta:0}" : $"{hpDelta:0}",
-            Position = new Vector2(position.X, position.Y - 36f)
+            activeDamageNumbers.Remove(damageNumber);
         };
-        label.SetMeta("Value", hpDelta);
-        label.SetMeta("DamageType", isHeal ? "Heal" : "Damage");
-        label.SetMeta("WorldPosition", $"{position.X:0.###},{position.Y:0.###}");
-        damageNumberLayer.AddChild(label);
-        floatingTextLife[label] = 0.8f;
+        damageNumberLayer.AddChild(damageNumber);
+        activeDamageNumbers.Add(damageNumber);
     }
 
-    private void UpdateFloatingText(float deltaSeconds)
+    private void UpdateDamageNumbers(float deltaSeconds)
     {
-        if (floatingTextLife.Count == 0)
+        // DamageNumberUI 自带动画生命周期，由 AnimationPlayer 控制自动释放。
+        // 保留此方法以支持未来的非动画 fallback 清理。
+        for (var i = activeDamageNumbers.Count - 1; i >= 0; i--)
         {
-            return;
-        }
-
-        var expired = new List<Label>();
-        var updates = new List<(Label Label, float Remaining)>();
-        foreach (var entry in floatingTextLife)
-        {
-            var label = entry.Key;
-            if (!GodotObject.IsInstanceValid(label))
+            if (!GodotObject.IsInstanceValid(activeDamageNumbers[i]))
             {
-                expired.Add(label);
-                continue;
-            }
-
-            var remaining = entry.Value - deltaSeconds;
-            label.Position += new Vector2(0f, -18f * deltaSeconds);
-            label.Modulate = new Color(label.Modulate.R, label.Modulate.G, label.Modulate.B, Mathf.Clamp(remaining / 0.8f, 0f, 1f));
-            if (remaining <= 0f)
-            {
-                expired.Add(label);
-            }
-            else
-            {
-                updates.Add((label, remaining));
-            }
-        }
-
-        for (var i = 0; i < updates.Count; i++)
-        {
-            floatingTextLife[updates[i].Label] = updates[i].Remaining;
-        }
-
-        for (var i = 0; i < expired.Count; i++)
-        {
-            floatingTextLife.Remove(expired[i]);
-            if (GodotObject.IsInstanceValid(expired[i]))
-            {
-                expired[i].QueueFree();
+                activeDamageNumbers.RemoveAt(i);
             }
         }
     }

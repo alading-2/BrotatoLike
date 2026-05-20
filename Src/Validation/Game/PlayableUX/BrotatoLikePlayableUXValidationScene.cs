@@ -1,3 +1,4 @@
+using BrotatoLike.Game.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -63,7 +64,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             {
                 "formal HUD host exposes player HP, skill slots, selection, cooldown and progression nodes",
                 "enemy head health bars update and clean up from runtime HP/death state",
-                "real input actions drive skill UX, point targeting, damage numbers and visible movement"
+                "real input actions drive skill UX, point targeting, damage numbers and visible movement",
+                "formal UI nodes (HUD root, skill slots, head health bars, damage numbers, targeting indicator) have non-empty SceneFilePath"
             },
             passCriteria: new[]
             {
@@ -87,6 +89,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         validation.Check("point_targeting_indicator_session", "Targeting", () => Result(values, "point_targeting_indicator_session"));
         validation.Check("damage_and_heal_numbers_lifecycle", "CombatFeedback", () => Result(values, "damage_and_heal_numbers_lifecycle"));
         validation.Check("camera_player_visibility", "Visibility", () => Result(values, "camera_player_visibility"));
+        validation.Check("scene_backed_formal_ui", "SceneBacked", () => Result(values, "scene_backed_formal_ui"));
 
         var success = validation.Success;
         if (success)
@@ -149,6 +152,11 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["point_indicator_found"] = targetIndicator != null;
         values["damage_number_layer_found"] = damageNumberLayer != null;
 
+        values["scene_backed_hud"] = IsSceneBacked(hud);
+        values["scene_backed_player_hp"] = IsSceneBacked(playerHpText);
+        values["scene_backed_skill_bar"] = IsSceneBacked(FindDescendant(this, "ActiveSkillBar"));
+        values["scene_backed_indicator"] = IsSceneBacked(targetIndicator);
+
         var hpBefore = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         player.Data.Set(DamageDataKeys.CurrentHp, Math.Max(0f, hpBefore - 7f));
         await ProcessFrames(2);
@@ -162,6 +170,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
 
         var enemyBar = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
         var enemyHpBefore = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
+        values["scene_backed_head_health_bar"] = IsSceneBacked(enemyBar);
         if (enemy != null)
         {
             enemy.Data.Set(DamageDataKeys.CurrentHp, Math.Max(0f, enemyHpBefore - 5f));
@@ -170,7 +179,10 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
 
         var enemyHpAfterDamage = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
         var enemyBarAfterDamage = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
-        var enemyBarValueAfterDamage = enemyBarAfterDamage is ProgressBar progressBar ? progressBar.Value : -1d;
+        var enemyBarValueAfterDamage = enemyBarAfterDamage is HealthBarUI healthBarUI
+            && healthBarUI.GetNodeOrNull<ProgressBar>("HealthBar") is ProgressBar bar
+            ? bar.Value
+            : -1d;
         var enemyBarPositionAfterDamage = enemyBarAfterDamage is Control control ? Format(control.GlobalPosition) : string.Empty;
         if (enemy != null)
         {
@@ -315,11 +327,22 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && targetHpAfterConfirm < targetHpBeforeConfirm
             && cancelCleared;
         values["damage_and_heal_numbers_lifecycle"] = damageNumberLayer != null
-            && FindDescendant(this, "DamageNumber_Enemy") != null
-            && FindDescendant(this, "HealNumber_Player") != null;
+            && FindDescendantByNamePrefix(this, "DamageNumber_Enemy") != null
+            && FindDescendantByNamePrefix(this, "HealNumber_Player") != null;
         values["camera_player_visibility"] = camera.Enabled
             && player.Position.DistanceTo(camera.Position) < 4096f
             && player.Position != Vector2.Zero;
+
+        values["scene_backed_formal_ui"] = ReadSceneBacked(values, "scene_backed_hud")
+            && ReadSceneBacked(values, "scene_backed_player_hp")
+            && ReadSceneBacked(values, "scene_backed_progression")
+            && ReadSceneBacked(values, "scene_backed_skill_bar")
+            && ReadSceneBacked(values, "scene_backed_head_health_bar")
+            && ReadSceneBacked(values, "scene_backed_damage_number")
+            && ReadSceneBacked(values, "scene_backed_indicator");
+        values["scene_backed_progression_summary"] = IsSceneBacked(FindDescendant(this, "ProgressionSummary"));
+        values["scene_backed_skill_bar"] = IsSceneBacked(FindDescendant(this, "ActiveSkillBar"));
+        values["scene_backed_damage_number"] = IsSceneBacked(FindDescendant(this, "DamageNumber_Enemy"));
 
         return values;
     }
@@ -411,9 +434,38 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         return null;
     }
 
+    private static Node? FindDescendantByNamePrefix(Node root, string prefix)
+    {
+        if (root.Name.ToString().StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return root;
+        }
+
+        foreach (var child in root.GetChildren())
+        {
+            var found = FindDescendantByNamePrefix(child, prefix);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     private static string Format(Vector2 value)
     {
         return $"{value.X:0.###},{value.Y:0.###}";
+    }
+
+    private static bool IsSceneBacked(Node? node)
+    {
+        return node != null && GodotObject.IsInstanceValid(node) && !string.IsNullOrEmpty(node.SceneFilePath);
+    }
+
+    private static bool ReadSceneBacked(IReadOnlyDictionary<string, object?> values, string key)
+    {
+        return values.TryGetValue(key, out var raw) && raw is bool value && value;
     }
 
     private static void ReleaseValidationActions()

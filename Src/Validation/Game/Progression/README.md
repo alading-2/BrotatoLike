@@ -11,6 +11,7 @@
 - Wave runtime state records wave index, elapsed time, spawned count, remaining enemies, and completion.
 - Pause input or runtime pause opens formal UI and blocks schedule-gated gameplay until resume.
 - HP recovery, enemy drop, pickup collection, experience gain, and level-up feedback are observable.
+- **Scene-backed evidence**: formal pause menu node MUST have non-empty `SceneFilePath`, proving it was instantiated from PackedScene, not built via `new Control`/`new Label` in C#.
 
 ## passCriteria
 
@@ -22,6 +23,7 @@
 
 - Stdout contains `BrotatoLike Progression Loop validation FAIL`.
 - Wave completion, pause UI, recovery, pickup, experience, or level-up feedback evidence is missing.
+- Formal pause menu node has empty `SceneFilePath` (code-created, not scene-backed).
 - The artifact is missing or standard-answer fields are empty.
 
 ## artifactPath
