@@ -1,5 +1,6 @@
 using BrotatoLike.Game.Events;
 using Godot;
+using SlimeAI.GameOS.Capabilities.Damage;
 using SlimeAI.GameOS.Capabilities.Movement;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
@@ -97,6 +98,13 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
         }
 
         if (!IgnoreCanMoveInputGate && !entity.Data.Get<bool>(MovementDataKeys.CanMoveInput, true))
+        {
+            LastInputDirection = Vector2Value.Zero;
+            entity.Data.Set(MovementDataKeys.InputDirection, Vector2Value.Zero);
+            return;
+        }
+
+        if (entity.Data.Get<bool>(DamageDataKeys.IsDead, false))
         {
             LastInputDirection = Vector2Value.Zero;
             entity.Data.Set(MovementDataKeys.InputDirection, Vector2Value.Zero);

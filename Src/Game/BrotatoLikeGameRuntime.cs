@@ -4,6 +4,7 @@ using BrotatoLike.Game.Progression;
 using BrotatoLike.Game.UI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
+using SlimeAI.GameOS.Capabilities.Damage;
 using SlimeAI.GameOS.Capabilities.Movement;
 using SlimeAI.GameOS.Capabilities.Unit;
 using SlimeAI.GameOS.GodotBridge;
@@ -28,6 +29,9 @@ public partial class BrotatoLikeGameRuntime : Node
     private BrotatoLikeHud? hud;
     private BrotatoLikeTargetingController? targetingController;
     private BrotatoLikeProgressionService? progressionService;
+    private Camera2D? playerCamera;
+    private float deathElapsedSeconds;
+    private const float RespawnDelaySeconds = 2f;
 
     /// <summary>
     /// 进入场景树后是否自动初始化 DataOS。
@@ -127,6 +131,11 @@ public partial class BrotatoLikeGameRuntime : Node
             return;
         }
 
+        if (HandleDeathAndRespawn((float)delta))
+        {
+            return;
+        }
+
         var worldSchedule = RuntimeWorld.Default.Schedule;
         worldSchedule.RunPhase(SchedulePhase.BeginTick);
         worldSchedule.RunPhase(SchedulePhase.BeforeSystemTick);
@@ -135,6 +144,42 @@ public partial class BrotatoLikeGameRuntime : Node
         worldSchedule.RunPhase(SchedulePhase.AfterSystemTick);
         worldSchedule.RunPhase(SchedulePhase.AfterEventDispatch);
         worldSchedule.RunPhase(SchedulePhase.EndOfFrame);
+    }
+
+    private bool HandleDeathAndRespawn(float deltaSeconds)
+    {
+        if (playerEntity == null || !GodotObject.IsInstanceValid(playerEntity))
+        {
+            return false;
+        }
+
+        var isDead = playerEntity.Data.Get<bool>(DamageDataKeys.IsDead, false)
+            || playerEntity.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) <= 0f;
+
+        if (!isDead)
+        {
+            deathElapsedSeconds = 0f;
+            return false;
+        }
+
+        // 死亡后禁止移动
+        playerEntity.Data.Set(MovementDataKeys.CanMoveInput, false);
+        deathElapsedSeconds += deltaSeconds;
+
+        if (deathElapsedSeconds < RespawnDelaySeconds)
+        {
+            return true;
+        }
+
+        // 重生
+        RespawnPlayer();
+        deathElapsedSeconds = 0f;
+        return false;
+    }
+
+    private void RespawnPlayer()
+    {
+        SpawnPlayer();
     }
 
     /// <inheritdoc />
@@ -303,6 +348,22 @@ public partial class BrotatoLikeGameRuntime : Node
 
         AddChild(entity);
         playerEntity = entity;
+
+        // 镜头跟随玩家
+        if (playerCamera == null || !GodotObject.IsInstanceValid(playerCamera))
+        {
+            playerCamera = new Camera2D
+            {
+                Name = "PlayerCamera",
+                Enabled = true,
+                PositionSmoothingEnabled = true,
+                PositionSmoothingSpeed = 5f
+            };
+        }
+
+        playerCamera.Reparent(entity, false);
+        playerCamera.Enabled = true;
+
         EnsureBrotatoLikeGameServices();
 
         // 启动 PlayerInput 移动

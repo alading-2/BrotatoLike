@@ -30,10 +30,10 @@ public partial class HealthBarUI : Control
     }
 
     /// <summary>
-    /// 设置血条世界位置。
+    /// 设置血条世界位置，以 ProgressBar 中心对齐目标头上方。
     /// </summary>
-    public void SetWorldPosition(Vector2 position)
+    public void SetWorldPosition(Vector2 worldPosition)
     {
-        GlobalPosition = position + new Vector2(-32f, -24f);
+        Position = worldPosition + new Vector2(-50f, -36f);
     }
 }

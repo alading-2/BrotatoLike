@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"ls -la /home/slime/Code/SlimeAI/Resources/Else/brotato-my/Src/ECS/UI/HealthBarUI/ 2>/dev/null; echo \\\"---\\\"; ls -la /home/slime/Code/SlimeAI/Resources/Else/brotato-my/Src/ECS/UI/DamageNumb...",
-  "error": "Exit code 2\n---\n---\n---\n---\n---\n---",
-  "timestamp": "2026-05-20T06:34:44.444Z",
+  "tool_input_preview": "{\"command\":\"bash Tools/scan-scene-first-compliance.sh 2>&1\",\"description\":\"Static scan after refactor\"}",
+  "error": "Exit code 1\n=== Scene-First Compliance Scan ===\nSource: /home/slime/Code/SlimeAI/Games/BrotatoLike/Src/Game\n\nScanning matches...\n\n  \u001b[0;31mVIOLATION\u001b[0m /home/slime/Code/SlimeAI/Games/BrotatoLike/Src/Game/UI/BrotatoLikeHud.cs:72\n            var root = new Control\n  \u001b[0;31mVIOLATION\u001b[0m /home/slime/Code/SlimeAI/Games/BrotatoLike/Src/Game/UI/BrotatoLikeHud.cs:82\n            playerHealthLabel = new Label\n  \u001b[0;31mVIOLATION\u001b[0m /home/slime/Code/SlimeAI/Games/BrotatoLike/Src/Game/UI/BrotatoLikeHud.cs...",
+  "timestamp": "2026-05-20T07:10:14.476Z",
   "retry_count": 1
 }
