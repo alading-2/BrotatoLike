@@ -7,6 +7,7 @@
 - Godot 场景测试：`DocsAI/GodotSceneTesting.md`
 - 迁移台账：`DocsAI/MigrationLedger.md`
 - 功能迁移审计：`DocsAI/BrotatoMyFeatureMigrationAudit.md`
+- Scene-first UX 迁移原则：`DocsAI/SceneFirstUXMigration.md`
 - 验证场景索引：`DocsAI/ValidationCatalog.md`
 
 ## 当前阶段

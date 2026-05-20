@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ls -la /home/slime/Code/SlimeAI/Resources/Else/brotato-my/Src/ECS/UI/HealthBarUI/ 2>/dev/null; echo \\\"---\\\"; ls -la /home/slime/Code/SlimeAI/Resources/Else/brotato-my/Src/ECS/UI/DamageNumb...",
+  "error": "Exit code 2\n---\n---\n---\n---\n---\n---",
+  "timestamp": "2026-05-20T06:34:44.444Z",
+  "retry_count": 1
+}
