@@ -29,6 +29,7 @@
 - Input / Skill slot：`brotatolike-input-event-validation.json` 记录 `InputSelectSkillSlot`、`SkillSlot3 -> index 2`、越界槽位 ignored、Next/Previous/Use 仍可用；Main artifact 记录 `SkillSlot1` 与 `SkillSlot4` 真实 action path。
 - HUD / PlayableUX：`brotatolike-playable-ux-validation.json` 的 `skill_bar_direct_slot_input_updates / damage_and_heal_numbers_lifecycle / enemy_head_health_bar_canvas_coordinates` 均 pass，记录鱼人/豺狼人血条高度、伤害/治疗飘字 active/idle pool evidence。
 - RunFlow / Main：RunFlow artifact 记录开放式 authoring、`ExpectedSpawnCount=-1`、spawned count 增长超过 5；Main artifact 记录 `wave_current_id=1`、`wave_phase=Running`、`wave_expected_spawn_count=-1`、`wave_actual_spawned_count=16`、`wave_authoring_kind=open`。
+- Scene-first UX：PlayableUX / RunFlow / Main artifact 记录 scene-backed HUD、头顶血条、技能栏、伤害飘字、ExperienceBarUI wave phase、正式 composite UI scene path 与 open wave evidence；旧 finite 5 只敌人证据只保留为历史回归记录。
 - Scene gate：已检查 `.ai-temp/scene-tests/runs/2026-05-21/23-01-36/index.json`、4 个 per-scene `result.json`、4 个 scene artifact 和 `gate-report.json`；所有 artifact 的 `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空，`failureReasons=[]`。
 
 2026-05-21 `brotatolike-character-selection`：
