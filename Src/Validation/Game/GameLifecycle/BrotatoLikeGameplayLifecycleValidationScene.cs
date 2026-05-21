@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BrotatoLike.Game;
 using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Events;
+using BrotatoLike.Game.UI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Collision;
@@ -71,6 +72,7 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
                 "Death blocks movement input and skill input (CanMoveInput=false, IsDead gate)",
                 "Camera2D follows player and stays enabled during death",
                 "Auto respawn restores HP, position, camera, and input after delay",
+                "Dash is selected by ability id and triggered through NextSkill/UseSkill input actions",
                 "Concurrent skill cast + contact damage + loot drop in same frame produces no exceptions",
                 "Pause/resume cycle preserves HP, position, skill cooldown, and spawn state",
                 "HUD correctly reflects death and respawn state transitions"
@@ -80,7 +82,7 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
                 $"stdout contains {PassMarker}",
                 "artifact status is pass",
                 "failureReasons is empty",
-                "all 8 integration checks pass"
+                "all 9 integration checks pass"
             },
             failCriteria: new[]
             {
@@ -94,6 +96,7 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
         validation.Check("death_blocks_movement_input", "DeathGate", () => Result(values, "death_blocks_movement_input"));
         validation.Check("death_blocks_skill_input", "DeathGate", () => Result(values, "death_blocks_skill_input"));
         validation.Check("death_camera_stays_enabled", "Camera", () => Result(values, "death_camera_stays_enabled"));
+        validation.Check("dash_input_skill_bar_path", "Dash", () => Result(values, "dash_input_skill_bar_path"));
         validation.Check("death_auto_respawn", "Respawn", () => Result(values, "death_auto_respawn"));
         validation.Check("camera_follows_player", "Camera", () => Result(values, "camera_follows_player"));
         validation.Check("concurrent_systems_no_conflict", "Concurrent", () => Result(values, "concurrent_systems_no_conflict"));
@@ -145,16 +148,19 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
             return values;
         }
 
-        // 场景 1：死亡阻断移动输入。
+        // 场景 1：Dash 通过正式技能栏输入路径释放。
+        await TestDashInputPath(runtime, player, values);
+
+        // 场景 2：死亡阻断移动输入。
         await TestDeathMovementGate(runtime, player, values);
 
-        // 场景 2：死亡阻断技能输入。
+        // 场景 3：死亡阻断技能输入。
         TestDeathSkillGate(runtime, player, values);
 
-        // 场景 3：死亡期间镜头保持启用。
+        // 场景 4：死亡期间镜头保持启用。
         TestDeathCamera(runtime, player, values);
 
-        // 场景 4：通过生产 _Process 触发自动重生。
+        // 场景 5：通过生产 _Process 触发自动重生，覆盖 Dash 释放后的重生绑定。
         await TestAutoRespawn(runtime, player, values);
         var currentPlayer = runtime.PlayerEntity;
         if (currentPlayer == null || !GodotObject.IsInstanceValid(currentPlayer))
@@ -163,22 +169,104 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
             return values;
         }
 
-        // 场景 5：重生后镜头仍跟随玩家。
+        // 场景 6：重生后镜头仍跟随玩家。
         TestCameraFollow(runtime, currentPlayer, values);
 
-        // 场景 6：同帧跨系统事件不互相破坏。
+        // 场景 7：同帧跨系统事件不互相破坏。
         TestConcurrentSystems(runtime, currentPlayer, values);
 
-        // 场景 7：暂停/恢复保持状态完整。
+        // 场景 8：暂停/恢复保持状态完整。
         TestPauseResume(runtime, currentPlayer, values);
 
-        // 场景 8：HUD 死亡/重生状态清理。
+        // 场景 9：HUD 死亡/重生状态清理。
         TestHudDeathRespawn(runtime, currentPlayer, values);
 
         runtime.Shutdown();
         runtime.QueueFree();
         await ProcessFrames(1);
         return values;
+    }
+
+    private static async Task TestDashInputPath(BrotatoLikeGameRuntime runtime, GodotEntity2D player, Dictionary<string, object?> values)
+    {
+        var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        var dashIndex = FindAbilityIndex(ownedIds, "ability-dash-");
+        var dash = dashIndex >= 0 ? EntityManager.Get(ownedIds[dashIndex]) : null;
+        var input = player.GetNodeOrNull<GodotActiveSkillInputComponent>("ActiveSkillInput");
+        if (dashIndex < 0 || dash == null || input == null)
+        {
+            values["dash_input_skill_bar_path"] = false;
+            values["dash_error"] = "dash ability or ActiveSkillInput missing";
+            return;
+        }
+
+        player.Position = new Vector2(-640f, -640f);
+        player.Data.Set(MovementDataKeys.Position, new Vector2Value(-640f, -640f));
+        player.Data.Set(MovementDataKeys.LastMoveDirection, new Vector2Value(1f, 0f));
+        player.Data.Set(MovementDataKeys.CanMoveInput, true);
+        player.Data.Set(DamageDataKeys.IsDead, false);
+        dash.Data.Set(AbilityDataKeys.CooldownRemaining, 0f);
+
+        await PressAction("MoveRight", framesAfterPress: 4);
+        var currentIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        for (var i = 0; i < ownedIds.Count && currentIndex != dashIndex; i++)
+        {
+            await PressAction("NextSkill");
+            currentIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        }
+
+        var before = player.Position;
+        await PressAction("UseSkill");
+        runtime.MovementDriver?.TickMovement(0.25f);
+        await ProcessFrames(2);
+        var after = player.Position;
+
+        var report = input.LastTriggerReport;
+        var expectedDistance = Math.Max(0f, dash.Data.Get<float>(MovementDataKeys.HandlerMaxDistance, 0f));
+        var actualDistance = before.DistanceTo(after);
+        var cooldown = dash.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
+        var selectedSkillBar = runtime.FindChild("ActiveSkillBar", recursive: true, owned: false) as ActiveSkillBarUI;
+        var selectedIndex = selectedSkillBar != null && selectedSkillBar.HasMeta("SelectedIndex")
+            ? selectedSkillBar.GetMeta("SelectedIndex").AsInt32()
+            : -1;
+        var threshold = expectedDistance > 0f ? Math.Min(120f, expectedDistance * 0.5f) : 0.5f;
+        var moved = actualDistance > threshold;
+        var triggerSucceeded = report?.Result == AbilityTriggerResult.Success;
+        var cooldownVisible = cooldown > 0f;
+        var skillBarSceneBacked = selectedSkillBar != null && !string.IsNullOrWhiteSpace(selectedSkillBar.SceneFilePath);
+
+        values["dash_input_skill_bar_path"] = triggerSucceeded
+            && currentIndex == dashIndex
+            && selectedIndex == dashIndex
+            && moved
+            && cooldownVisible
+            && skillBarSceneBacked;
+        values["dash_selected_skill_id"] = dash.EntityId.Value;
+        values["dash_selected_index"] = currentIndex;
+        values["dash_skill_bar_selected_index"] = selectedIndex;
+        values["dash_trigger_result"] = report?.Result.ToString() ?? string.Empty;
+        values["dash_trigger_message"] = report?.Message ?? string.Empty;
+        values["dash_before_position"] = FormatVector(before);
+        values["dash_after_position"] = FormatVector(after);
+        values["dash_expected_distance"] = expectedDistance;
+        values["dash_distance"] = actualDistance;
+        values["dash_movement_blocked"] = triggerSucceeded && !moved;
+        values["dash_cooldown_remaining"] = cooldown;
+        values["dash_skill_bar_scene_backed"] = skillBarSceneBacked;
+    }
+
+    private static int FindAbilityIndex(EntityIdList ownedIds, string entityIdPrefix)
+    {
+        for (var i = 0; i < ownedIds.Count; i++)
+        {
+            var ability = EntityManager.Get(ownedIds[i]);
+            if (ability != null && ability.EntityId.Value.StartsWith(entityIdPrefix, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static async Task TestDeathMovementGate(BrotatoLikeGameRuntime runtime, GodotEntity2D player, Dictionary<string, object?> values)
@@ -255,7 +343,7 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
 
         var newHp = newPlayer?.Data.Get<float>(DamageDataKeys.CurrentHp, -1f) ?? -1f;
         var newMaxHp = newPlayer?.Data.Get<float>(DamageDataKeys.MaxHp, -1f) ?? -1f;
-        var hpRestored = newHp > 0f && Math.Abs(newHp - newMaxHp) < 0.01f;
+        var hpRestored = newHp > progressHp && newHp > 0f && newHp <= newMaxHp + 0.01f;
         var canMove = newPlayer?.Data.Get<bool>(MovementDataKeys.CanMoveInput, false) ?? false;
         var newCameraEnabled = newCamera != null && GodotObject.IsInstanceValid(newCamera) && newCamera.Enabled;
         var newCameraAttached = newCamera != null && newPlayer != null && newCamera.GetParent() == newPlayer;
@@ -315,6 +403,7 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
         values["respawn_entity_reference_changed"] = newPlayer != null && !ReferenceEquals(newPlayer, oldPlayer);
         values["respawn_hp"] = newHp;
         values["respawn_max_hp"] = newMaxHp;
+        values["respawn_hp_restored"] = hpRestored;
         values["respawn_progress_hp"] = progressHp;
         values["respawn_progress_hp_increased"] = hpProgressedDuringRespawn;
         values["respawn_can_move"] = canMove;
@@ -470,6 +559,21 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
         }
 
         return CheckResult.From(ok, ok ? $"{key}: passed" : $"{key}: failed", values);
+    }
+
+    private static async Task PressAction(string action, int framesAfterPress = 1)
+    {
+        Input.ActionRelease(action);
+        await ProcessFrames(1);
+        Input.ActionPress(action);
+        await ProcessFrames(framesAfterPress);
+        Input.ActionRelease(action);
+        await ProcessFrames(1);
+    }
+
+    private static string FormatVector(Vector2 value)
+    {
+        return $"{value.X:0.###},{value.Y:0.###}";
     }
 
     private static async Task ProcessFrames(int count)

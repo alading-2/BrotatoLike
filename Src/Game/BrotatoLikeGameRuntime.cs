@@ -272,6 +272,7 @@ public partial class BrotatoLikeGameRuntime : Node
         spawnCatalog = bootstrap.BuildEnemySpawnCatalog(wave);
         spawnScheduleConfig = bootstrap.BuildSpawnSystemScheduleConfig();
         EnsureRuntimeDrivers();
+        BrotatoLikeAbilityHandlers.RegisterAll(movementDriver!.MovementSystem);
         schedule = new RuntimeSchedule();
         var parent = enemyParent ?? this;
         schedule.Register(

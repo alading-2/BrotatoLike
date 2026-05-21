@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-21（release-batch stability）
+> 更新日期：2026-05-21（dash main skill validation）
 
 ## 当前状态
 
@@ -9,6 +9,7 @@
 本轮追加：
 
 - **Release-batch stability**：OpenSpec change `stabilize-brotatolike-release-batch` 已复跑 BrotatoLike manifest release-batch 并解除历史 PlayableUX / Progression blocker。`Tools/run-build.sh` 通过（DataOS validation PASS，26 个既有 XML comment warnings，0 errors）；完整 release-batch `.ai-temp/scene-tests/runs/2026-05-21/14-57-55/index.json` 为 25/25 passed，analyzer 生成 `.ai-temp/scene-tests/runs/2026-05-21/14-57-55/gate-report.json`，verdict `pass`、requested 25、passed 25、failed 0、missing 0。PlayableUX 和 Progression 的 targeted run 分别为 `.ai-temp/scene-tests/runs/2026-05-21/14-57-13/index.json`、`.ai-temp/scene-tests/runs/2026-05-21/14-55-15/index.json`，完整 batch 中对应 artifact 也为 `status=pass` 且标准答案五字段非空。
+- **Dash main skill validation**：OpenSpec change `validate-brotatolike-dash-main-skill` 已把 Dash 从 handler/smoke 证据推进到玩家技能栏主路径验收。`BrotatoLikeGameRuntime.Initialize()` 现在用共享 `GodotMovementDriver.MovementSystem` 注册 Dash handler，避免 input 触发 Dash 后只改 Runtime movement、不同步 Godot player position；`BrotatoLikeGameplayLifecycleValidation` 新增 `dash_input_skill_bar_path` check，通过 `NextSkill` 选中 `ability-dash-player-deluyi` 后用 `UseSkill` 触发，artifact 记录 selected skill id/index、释放前后位置、Dash 距离、冷却和 scene-backed skill bar。最新 GameLifecycle evidence 为 `.ai-temp/scene-tests/runs/2026-05-21/15-14-41/index.json`，Main 回归 evidence 为 `.ai-temp/scene-tests/runs/2026-05-21/15-17-40/index.json`，两者 `index.json`、`result.json` 和 scene artifact 均通过，标准答案五字段非空。
 - **Lifecycle regression fix**：OpenSpec change `fix-brotatolike-lifecycle-regressions` 已修复 Main 运行中暴露的三条生命周期回归。复活路径通过框架 `GodotBridgeContext.DestroyEntity()` 同步注销 Runtime Entity、node registry 和 adapter registry 后再 `QueueFree()`，同 EntityId 新玩家可重新绑定 `BrotatoLikePlayerInputComponent` 与 `GodotActiveSkillInputComponent`；AI target selector 会过滤无有效 team / HP evidence 的非战斗实体，避免敌人攻击 ability-like entity；HUD 头顶血条和伤害/治疗飘字改由 `BrotatoLikeHud` 基于当前 viewport canvas transform 统一做 world-to-canvas 映射。Targeted 验证见“最新验证”。
 - **SystemAgent integrated validation governance**：OpenSpec change `systemagent-integrated-validation-governance` 将 BrotatoLike Godot 验证纳入 manifest / batch runner / analyzer / scene-gate 证据闭环。`DocsAI/ValidationManifest.json` 是 release-batch 权威选择源，当前包含 25 个 `releaseBatch=true` 场景；`Tools/run-godot-scene.sh run-all --manifest DocsAI/ValidationManifest.json --release-batch` 会写入结构化 `index.json`，analyzer 会写入 `gate-report.json` 并检查 README 五字段、`index.json`、per-scene `result.json`、scene artifact 五字段、manifest checks、catalog 和 freshness。历史 release-batch `2026-05-21/10-13-37` 曾被 PlayableUX / Progression 两个 feature-slice artifact 失败阻断；新 release-batch `2026-05-21/14-57-55` 已覆盖同一 manifest 并通过。
 - **DataOS table-first authoring**：OpenSpec change `refactor-dataos-table-authoring` 已把 BrotatoLike seed 从手写 `data_field` 业务行迁到清晰业务表：`unit_player / unit_enemy / unit_targeting_indicator / ability / ability_effect / ability_projectile / ability_movement_* / feature_definition / feature_modifier / system_config / system_preset / spawn_config`。`runtime_snapshot.json` shape 保持 `manifest / descriptors / records / resources`，unit / ability 的 `table/id/field/type/value` 归一化对比无差异（16 条记录、497 个字段行一致）；`resource_entry` 收敛为 ResourceCatalog lookup / legacy 分类面，content-owned effect/projectile/unit visual 路径改由业务表持有，snapshot resources 从 27 收敛到 18。
@@ -24,7 +25,7 @@
 - **Runtime/Data 专项场景**：框架侧新增 `res://SlimeAI/Src/Validation/Runtime/Data/RuntimeDataValidation.tscn`，BrotatoLike runner 可作为承载工程运行；该场景覆盖 typed `DataKey<T>` lifecycle、`DataCatalog` resolve、modifier/computed dirty、category reset 和 Data-to-Event bridge artifact。
 - **submodule 承载策略**：BrotatoLike 的 `SlimeAI/` 是框架仓 git submodule 镜像。当前初始开发阶段，BrotatoLike 作为默认承载游戏，框架侧验证场景可直接同步到该工作树以跑通 Godot；后续多游戏 / 成品阶段不默认同步所有游戏，改按每个游戏的框架版本策略更新 submodule 指针。
 - **drift evidence**：typed loader / validator 曾捕获 `Movement.OrbitTotalAngle` descriptor default mirror 与 C# runtime default 不一致，修正 seed 中 default mirror 为 `-1` 后通过验证。
-- **R07 可玩切片验收**：普通 `Scenes/Main.tscn` 在 scene runner 的 artifact 环境下会执行 `BrotatoLikePlayableSliceAcceptance`，与 `--gameos-smoke-exit` smoke 路径分离；输出 `BrotatoLike playable slice PASS/FAIL`，并写入 `artifacts/scene-acceptance.json`。当前验收覆盖玩家生成、WASD + 方向键 input map、`Movement.InputDirection` / `Movement.LastMoveDirection`、玩家位移和摄像机/视口可见性、第 1 波敌人生成、敌人追逐移动、接触伤害、敌人死亡和 cleanup、`slam` / `chain_lightning` / `target_point_skill` 真实 input action 触发、点选确认、冷却门禁、命中、正式 HUD、玩家 HP Label、四槽技能栏、头顶血条、伤害数字、progression summary 和结构化 damage logs。`PlayableSliceHUD` 测试专用 Label 不再作为完成证据。
+- **R07 可玩切片验收**：普通 `Scenes/Main.tscn` 在 scene runner 的 artifact 环境下会执行 `BrotatoLikePlayableSliceAcceptance`，与 `--gameos-smoke-exit` smoke 路径分离；输出 `BrotatoLike playable slice PASS/FAIL`，并写入 `artifacts/scene-acceptance.json`。当前验收覆盖玩家生成、WASD + 方向键 input map、`Movement.InputDirection` / `Movement.LastMoveDirection`、玩家位移和摄像机/视口可见性、第 1 波敌人生成、敌人追逐移动、接触伤害、敌人死亡和 cleanup、`slam` / `chain_lightning` / `target_point_skill` 真实 input action 触发、Dash 在 GameLifecycle 中通过技能栏 input path 触发并位移、点选确认、冷却门禁、命中、正式 HUD、玩家 HP Label、四槽技能栏、头顶血条、伤害数字、progression summary 和结构化 damage logs。`PlayableSliceHUD` 测试专用 Label 不再作为完成证据。
 - **单位组合 profile 迁移**：玩家和近战敌人生成改为 DataOS 写入后调用框架 `GodotUnitComposer`，由 `BrotatoLikeUnitProfiles.Player / EnemyMelee` 选择 visual、animation、orientation、AI、attack、hurtbox 和 contact damage adapter；游戏侧仍只挂 `BrotatoLikePlayerInputComponent` 与 `GodotActiveSkillInputComponent`。`BrotatoLikeEnemySpawnSystem` 使用共享 `GodotMovementDriver` 并启动 `MoveMode.AIControlled`，验证不再手写 `Movement.AIMoveDirection`。
 - **统一 Observation / runner**：`Tools/run-godot-scene.sh` 现在委托 `.codex/skills/godot-scene-test/scripts/godot-scene-runner.mjs`，新日志结构固定为 `index.json + 001_<scene>_attempt1/{stdout,stderr,combined,result,artifacts}`；`BrotatoLikePlayableSliceAcceptance` 写入小写 `status=pass/fail` 和 `artifacts/logs/scene-log.jsonl`，`Main.cs` 使用 `GameOSLog.For("BrotatoLike.Main")` 输出流程日志；`Src/Validation/GameOS/Observation/ObservationLogValidation.tscn` 独立验证通用 log level、格式化、过滤、JSONL sink 和 runner session 路径。
 - **EventBus observation dump**：`--gameos-smoke-exit` smoke 路径会在 runner artifact 环境下导出 `artifacts/eventbus-dump.json`；最新 `.ai-temp/scene-tests/runs/2026-05-13/09-23-37/.../eventbus-dump.json` 中 `SameTypeReentryBlockedCounts={}`、`HandlerExceptions=[]`，用于确认 BrotatoLike smoke 没有事件重入阻断或 handler 异常。
@@ -81,6 +82,18 @@
 5. 继续做手动设备专项：物理手柄 LB/RB/X、摇杆、鼠标/手柄 Point target 细节和窗口焦点问题，作为自动 `Input.ActionPress` 之外的人工 QA 或专门设备测试。
 
 ## 最新验证
+
+**validate-brotatolike-dash-main-skill（2026-05-21）**
+
+```bash
+cd /home/slime/Code/SlimeAI/Games/BrotatoLike
+Tools/run-build.sh
+Tools/run-godot-scene.sh run res://Src/Validation/Game/GameLifecycle/BrotatoLikeGameplayLifecycleValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir .ai-temp/scene-tests/runs/2026-05-21/15-17-40
+```
+
+结果：`Tools/run-build.sh` PASS（26 个既有 XML comment warnings，0 errors）。GameLifecycle `.ai-temp/scene-tests/runs/2026-05-21/15-14-41/index.json` PASS，artifact `brotatolike-gameplay-lifecycle-validation.json` 为 `status=pass`、`failureReasons=[]`；`dash_input_skill_bar_path` 通过，记录 `dash_selected_skill_id=ability-dash-player-deluyi`、selected index `3`、skill bar selected index `3`、`dash_trigger_result=Success`、位置从 `-638.769,-640` 到 `-338.769,-640`、`dash_distance=300`、`dash_cooldown_remaining>0`、`dash_skill_bar_scene_backed=true`。Main `.ai-temp/scene-tests/runs/2026-05-21/15-17-40/index.json` PASS，`scene-acceptance.json` 为 `status=pass`、`failureReasons=[]`；analyzer `gate-report.json` verdict `pass`。Scene gate 已检查上述 run 的 `index.json`、per-scene `result.json` 和 scene artifact，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。GameLifecycle stderr 仍有既有 Godot RID leak 诊断，不作为无 error 证明。
 
 **stabilize-brotatolike-release-batch（2026-05-21）**
 

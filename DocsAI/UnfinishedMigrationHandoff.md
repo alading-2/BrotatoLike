@@ -45,7 +45,7 @@
 - HUD：正式 `BrotatoLikeHud`，左上角状态面板、玩家 HP、progression summary、底部四槽技能栏。
 - 血条：`HealthBarKind.Player / Enemy / Neutral`，玩家绿色、敌人红色、通用语义入口已经存在。
 - 技能栏：普通玩家默认四槽为 `slam / chain_lightning / target_point_skill / dash`。
-- 技能输入：`UseSkill / PreviousSkill / NextSkill` action 可驱动当前技能栏状态。
+- 技能输入：`UseSkill / PreviousSkill / NextSkill` action 可驱动当前技能栏状态；Dash 已有通过技能栏 input path 触发并位移的 GameLifecycle 专项证据。
 - 点选技能：`target_point_skill` 有指示器、确认、取消和死亡清理。
 - 伤害反馈：敌人头顶血条、伤害数字、治疗数字有 scene-backed UI。
 - 运行时：`BrotatoLikeGameRuntime` 是主运行时节点，`Main.cs` 负责启动路径和 acceptance。
@@ -53,8 +53,8 @@
 
 最近可引用证据：
 
-- Main artifact：`.ai-temp/scene-tests/runs/2026-05-21/13-46-25/001_Scenes_Main.tscn_attempt1/artifacts/scene-acceptance.json`
-- GameLifecycle artifact：`.ai-temp/scene-tests/runs/2026-05-21/13-47-13/001_Src_Validation_Game_GameLifecycle_BrotatoLikeGameplayLifecycleValidation.tscn_attempt1/artifacts/brotatolike-gameplay-lifecycle-validation.json`
+- Main artifact：`.ai-temp/scene-tests/runs/2026-05-21/15-17-40/001_Scenes_Main.tscn_attempt1/artifacts/scene-acceptance.json`
+- GameLifecycle artifact：`.ai-temp/scene-tests/runs/2026-05-21/15-14-41/001_Src_Validation_Game_GameLifecycle_BrotatoLikeGameplayLifecycleValidation.tscn_attempt1/artifacts/brotatolike-gameplay-lifecycle-validation.json`
 - PlayableUX artifact：`.ai-temp/scene-tests/runs/2026-05-21/13-47-13-002/001_Src_Validation_Game_PlayableUX_BrotatoLikePlayableUXValidation.tscn_attempt1/artifacts/brotatolike-playable-ux-validation.json`
 
 如果新对话要声明这些功能仍然通过，需要重新跑对应命令并读取新 artifact。历史 artifact 只能说明当时通过。
@@ -166,19 +166,22 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 - OpenSpec `validate-brotatolike-projectile-skills`：逐个验收 projectile 技能轨迹、命中、生命周期。
 - OpenSpec `validate-brotatolike-passive-skills`：验收 `orbit_skill / circle_damage / aura_shield` 的持续效果和清理。
 
-### 5.2 Dash 已装配但缺玩家输入位移专项验收
+### 5.2 Dash 玩家输入位移专项验收已补齐
 
 现状：
 
 - `dash` 已进入默认四槽。
 - DataOS 中有 `ability/dash`、`ability_movement_charge` 和 dash effect。
-- `BrotatoLikeDashAbilityHandler` 能启动 Charge Movement 并生成 Effect。
-- `Main.cs` 的 smoke/dataos handler probe 覆盖了 Dash handler 和移动结果。
+- `BrotatoLikeDashAbilityHandler` 能启动 Charge Movement 并生成 Effect，且在正式 runtime 初始化时使用共享 `GodotMovementDriver.MovementSystem`，input path 触发后可同步 Godot player position。
+- `BrotatoLikeGameplayLifecycleValidation` 已新增 `dash_input_skill_bar_path`，通过 `NextSkill` 按 ability id 选中 `ability-dash-player-deluyi`，再用 `UseSkill` 触发 Dash。
+- 最新 GameLifecycle artifact `.ai-temp/scene-tests/runs/2026-05-21/15-14-41/001_Src_Validation_Game_GameLifecycle_BrotatoLikeGameplayLifecycleValidation.tscn_attempt1/artifacts/brotatolike-gameplay-lifecycle-validation.json` 记录 `dash_trigger_result=Success`、释放前后位置 `-638.769,-640 -> -338.769,-640`、距离 `300`、cooldown remaining `>0`、scene-backed skill bar。
+- Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/15-17-40/index.json` 通过，analyzer `gate-report.json` verdict `pass`。
 
-缺什么：
+仍需注意：
 
-- 普通玩家通过技能栏选择 `dash` 后按 `UseSkill`，在 `Scenes/Main.tscn` 或 `GameLifecycle` 中验证玩家位移、冷却、碰撞边界和 UI 状态。
-- 验证 Dash 过程中是否能穿过敌人、是否与死亡/复活/暂停冲突。
+- 当前自动验收覆盖 runner `Input.ActionPress`，不等于真实键鼠/手柄设备 QA。
+- Dash 视觉样式仍是当前 effect 资源路径和 runtime event 证据，没有做像素级美术验收。
+- GameLifecycle passing run 的 stderr 仍有既有 Godot RID leak 诊断，不能把通过表述为“无 stderr”。
 
 关键路径：
 
@@ -193,8 +196,9 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 
 ```bash
 cd /home/slime/Code/SlimeAI/Games/BrotatoLike
-Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
 Tools/run-godot-scene.sh run res://Src/Validation/Game/GameLifecycle/BrotatoLikeGameplayLifecycleValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 ```
 
 ### 5.3 Chain Lightning 连线视觉是“部分恢复”，不是完成

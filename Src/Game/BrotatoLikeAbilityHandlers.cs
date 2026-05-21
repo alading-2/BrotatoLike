@@ -20,7 +20,7 @@ public static class BrotatoLikeAbilityHandlers
     /// <summary>
     /// 注册当前已迁入的游戏侧 handler。重复注册会覆盖同 Id handler。
     /// </summary>
-    public static void RegisterAll()
+    public static void RegisterAll(MovementSystem? dashMovementSystem = null)
     {
         FeatureHandlerRegistry.Register(new BrotatoLikeAreaDamageAbilityHandler("技能.主动.猛击", DamageType.Physical));
         FeatureHandlerRegistry.Register(new BrotatoLikeAreaDamageAbilityHandler("技能.主动.位置目标", DamageType.Physical));
@@ -29,7 +29,7 @@ public static class BrotatoLikeAbilityHandlers
         FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.贝塞尔射击"));
         FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.定点抛炸弹"));
         FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.圆弧射击"));
-        FeatureHandlerRegistry.Register(new BrotatoLikeDashAbilityHandler("技能.位移.冲刺"));
+        FeatureHandlerRegistry.Register(new BrotatoLikeDashAbilityHandler("技能.位移.冲刺", dashMovementSystem));
         FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.被动.环绕技能"));
         FeatureHandlerRegistry.Register(new BrotatoLikeAreaDamageAbilityHandler("技能.被动.圆环伤害", DamageType.Magical));
         FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.被动.光环护盾"));
@@ -42,7 +42,7 @@ public static class BrotatoLikeAbilityHandlers
 /// </summary>
 public sealed class BrotatoLikeDashAbilityHandler : IFeatureHandler
 {
-    private readonly MovementSystem movement = new();
+    private readonly MovementSystem movement;
 
     /// <inheritdoc />
     public string FeatureId { get; }
@@ -51,10 +51,12 @@ public sealed class BrotatoLikeDashAbilityHandler : IFeatureHandler
     /// 创建冲刺 handler。
     /// </summary>
     /// <param name="featureId">完整 Feature handler Id。</param>
-    public BrotatoLikeDashAbilityHandler(string featureId)
+    /// <param name="movement">可选共享 MovementSystem；为空时使用 handler 私有 MovementSystem。</param>
+    public BrotatoLikeDashAbilityHandler(string featureId, MovementSystem? movement = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(featureId);
         FeatureId = featureId;
+        this.movement = movement ?? new MovementSystem();
     }
 
     /// <inheritdoc />
