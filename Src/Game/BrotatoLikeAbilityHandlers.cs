@@ -9,6 +9,7 @@ using SlimeAI.GameOS.Capabilities.Movement;
 using SlimeAI.GameOS.Capabilities.Projectile;
 using SlimeAI.GameOS.Runtime.Entity;
 using SlimeAI.GameOS.Runtime.Timer;
+using MovementStopped = SlimeAI.GameOS.Capabilities.Movement.Events.Stopped;
 
 namespace BrotatoLike.Game;
 
@@ -20,19 +21,19 @@ public static class BrotatoLikeAbilityHandlers
     /// <summary>
     /// 注册当前已迁入的游戏侧 handler。重复注册会覆盖同 Id handler。
     /// </summary>
-    public static void RegisterAll(MovementSystem? dashMovementSystem = null)
+    public static void RegisterAll(MovementSystem? movementSystem = null)
     {
         FeatureHandlerRegistry.Register(new BrotatoLikeAreaDamageAbilityHandler("技能.主动.猛击", DamageType.Physical));
         FeatureHandlerRegistry.Register(new BrotatoLikeAreaDamageAbilityHandler("技能.主动.位置目标", DamageType.Physical));
-        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.正弦波射击"));
-        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.回旋镖投掷"));
-        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.贝塞尔射击"));
-        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.定点抛炸弹"));
-        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.圆弧射击"));
-        FeatureHandlerRegistry.Register(new BrotatoLikeDashAbilityHandler("技能.位移.冲刺", dashMovementSystem));
-        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.被动.环绕技能"));
+        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.正弦波射击", movementSystem));
+        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.回旋镖投掷", movementSystem));
+        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.贝塞尔射击", movementSystem));
+        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.定点抛炸弹", movementSystem));
+        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.投射物.圆弧射击", movementSystem));
+        FeatureHandlerRegistry.Register(new BrotatoLikeDashAbilityHandler("技能.位移.冲刺", movementSystem));
+        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.被动.环绕技能", movementSystem));
         FeatureHandlerRegistry.Register(new BrotatoLikeAreaDamageAbilityHandler("技能.被动.圆环伤害", DamageType.Magical));
-        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.被动.光环护盾"));
+        FeatureHandlerRegistry.Register(new BrotatoLikeProjectileAbilityHandler("技能.被动.光环护盾", movementSystem));
         FeatureHandlerRegistry.Register(new BrotatoLikeChainLightningHandler("技能.主动.连锁闪电"));
     }
 }
@@ -335,6 +336,8 @@ public sealed class BrotatoLikeAreaDamageAbilityHandler : IFeatureHandler
 /// </summary>
 public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
 {
+    private readonly MovementSystem movement;
+
     /// <inheritdoc />
     public string FeatureId { get; }
 
@@ -342,10 +345,12 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
     /// 创建投射物 handler。
     /// </summary>
     /// <param name="featureId">完整 Feature handler Id。</param>
-    public BrotatoLikeProjectileAbilityHandler(string featureId)
+    /// <param name="movement">可选共享 MovementSystem；为空时使用 handler 私有 MovementSystem。</param>
+    public BrotatoLikeProjectileAbilityHandler(string featureId, MovementSystem? movement = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(featureId);
         FeatureId = featureId;
+        this.movement = movement ?? new MovementSystem();
     }
 
     /// <inheritdoc />
@@ -358,7 +363,6 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
 
         var startedCount = 0;
         var projectileCount = ResolveProjectileCount(cast.Ability);
-        var movement = new MovementSystem();
         for (var i = 0; i < projectileCount; i++)
         {
             var projectile = SpawnProjectile(cast, i, projectileCount);
@@ -368,10 +372,11 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
             }
 
             ApplyProjectileCollisionDefaults(projectile.Projectile, cast.Caster);
-            var movementParams = BuildMovementParams(cast, i, projectileCount);
+            var movementParams = BuildMovementParams(cast, projectile.Projectile, i, projectileCount);
             ApplyMovementAuthoringData(projectile.Projectile, in movementParams, cast.Ability);
             if (movement.Start(projectile.Projectile, movementParams))
             {
+                SubscribeDestroyOnStop(projectile.Projectile);
                 startedCount++;
             }
         }
@@ -413,7 +418,7 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
         });
     }
 
-    private static MovementParams BuildMovementParams(AbilityCastContext cast, int projectileIndex, int projectileCount)
+    private static MovementParams BuildMovementParams(AbilityCastContext cast, IEntity projectile, int projectileIndex, int projectileCount)
     {
         var ability = cast.Ability;
         var mode = ability.Data.Get<MoveMode>(MovementDataKeys.HandlerMoveMode, MoveMode.Charge);
@@ -467,9 +472,41 @@ public sealed class BrotatoLikeProjectileAbilityHandler : IFeatureHandler
             {
                 FilterPolicy = new CollisionFilterPolicy(IgnoreSameTeam: true),
                 StopAfterCollisionCount = ability.Data.Get<int>(ProjectileDataKeys.MaxHitCount, 1),
-                DestroyOnStop = true
+                DestroyOnStop = true,
+                OnCollision = context => ApplyProjectileHit(projectile, cast.Caster, context)
             }
         };
+    }
+
+    private static void ApplyProjectileHit(IEntity projectile, IEntity caster, MovementCollisionContext context)
+    {
+        var hitCount = projectile.Data.Get<int>(ProjectileDataKeys.HitCount, 0) + 1;
+        projectile.Data.Set(ProjectileDataKeys.HitCount, hitCount);
+        var damage = projectile.Data.Get<float>(ProjectileDataKeys.Damage, 0f);
+        if (damage <= 0f)
+        {
+            return;
+        }
+
+        DamageTool.Apply([context.Target], new DamageApplyOptions(damage)
+        {
+            Attacker = caster,
+            Type = projectile.Data.Get<DamageType>(ProjectileDataKeys.DamageType, DamageType.Physical),
+            Tags = projectile.Data.Get<DamageTags>(ProjectileDataKeys.DamageTags, DamageTags.Projectile | DamageTags.Ability)
+        });
+    }
+
+    private static void SubscribeDestroyOnStop(IEntity projectile)
+    {
+        IDisposable? token = null;
+        token = projectile.Events.Subscribe<MovementStopped>(_ =>
+        {
+            token?.Dispose();
+            if (EntityManager.Get(projectile.EntityId) != null)
+            {
+                EntityManager.Destroy(projectile);
+            }
+        });
     }
 
     private static Vector2Value ResolveDirection(AbilityCastContext cast)

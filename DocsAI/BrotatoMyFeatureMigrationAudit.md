@@ -84,8 +84,8 @@
 | Point 目标技能 | 旧 Point 技能进入 TargetingManager，会生成指示器，确认后才 TryTrigger。 | 已完成基础体验迁移。`target_point_skill` 默认装配，进入 `BrotatoLikeTargetingController`，确认后才触发。 | 鼠标/手柄移动目标和高级视觉仍待真实设备专项。 | Keep。 |
 | Slam | 旧主动范围伤害技能。 | 核心链路和正式 UI 证据已迁。当前玩家默认拥有，artifact 覆盖触发、冷却、命中、Effect 和技能栏冷却。 | 升级/数值成长展示待后续。 | Keep：作为主动技能验收样板。 |
 | Chain Lightning | 旧连锁闪电技能。 | 已完成当前体验迁移。当前玩家默认拥有，artifact 覆盖目标选择、触发、延迟命中、三段 Line2D 端点绑定和清理。 | 像素级美术样式、淡出材质和升级强化待后续增强。 | Keep。 |
-| 其他投射物/位移技能 | 旧数据包含正弦波、回旋镖、贝塞尔、定点抛炸弹、圆弧、冲刺、环绕、护盾。 | 核心 handler/DataOS 已迁；`dash` 已装到玩家四槽技能栏；剩余技能已进入显式 available skill pool 和 deterministic validation loadout。 | 多数技能仍只在 smoke/handler 或 validation-loadout 路径证明可配置；没有逐技能主场景可视轨迹、命中和清理验收。 | P1 Adopt Later：逐技能验收。 |
-| 被动/周期技能 | 旧有永久/周期触发概念。 | 部分迁移。GameOS 有 Periodic/handler 能力，游戏侧 handler 已注册；`orbit_skill / circle_damage / aura_shield` 已标为 passive ids 并进入 validation override。 | 普通主场景缺持续环绕/光环/周期伤害体验和 passive panel。 | P1 Adopt Later。 |
+| 其他投射物/位移技能 | 旧数据包含正弦波、回旋镖、贝塞尔、定点抛炸弹、圆弧、冲刺、环绕、护盾。 | 已完成专项行为验收。`dash` 已装到玩家四槽技能栏；`sine_wave_shot / boomerang_throw / bezier_shot / parabola_shot / arc_shot / orbit_skill / aura_shield` 通过 `BrotatoLikeSkillValidation` 记录 scene path、movement mode、轨迹位移、命中/伤害和 cleanup。 | 普通局内获得、替换、升级来源仍未实现；当前不是“默认四槽可玩”。 | Keep for handler/validation；获得流程交给 level-up/shop changes。 |
+| 被动/周期技能 | 旧有永久/周期触发概念。 | 已完成专项行为验收。`orbit_skill` 记录 3 个 Orbit projectile、碰撞/伤害和 max-duration cleanup；`circle_damage` 记录半径内敌人扣血、范围外/同队不受伤、光环 effect 和 cleanup；`aura_shield` 记录 AttachToHost 跟随、contact damage 和 cleanup。 | 普通主场景 passive panel、获得流程和更完整周期 UI 仍缺。 | Keep for runtime behavior；P1 Adopt Later for acquisition/UI。 |
 | 敌人生成 | 旧 SpawnSystem 按波次、计时器、规则生成敌人并发 Wave 事件。 | 部分迁移。当前第 1 波生成 2 个豺狼人、3 个鱼人，Progression artifact 证明 wave completion state。 | 多波曲线、WaveStarted/WaveCompleted 对外事件、波间奖励/商店、随机策略仍缺。 | P1 Adopt Later：继续扩完整局内循环。 |
 | 敌人 AI/接触伤害 | 旧敌人单位有 AI、攻击、碰撞、伤害盒。 | 核心链路已迁。artifact 覆盖追逐方向、位置变化、玩家 HP 下降。 | 缺多敌种行为差异、动画状态、攻击前后摇的普通主场景体验验收。 | P1 Adopt Later。 |
 | 生命/伤害/死亡清理 | 旧 HealthComponent/DamageService/Lifecycle 处理 HP、伤害和销毁。 | 核心链路和基础表现已迁。artifact 记录伤害日志、敌人死亡、QueueFree、正式血条、飘字和经验拾取。 | 死亡动画、掉落种类、奖励展示仍可扩展。 | Keep。 |

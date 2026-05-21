@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-21（skill loadout expansion validation）
+> 更新日期：2026-05-21（projectile/passive skill validation）
 
 ## 当前状态
 
@@ -9,6 +9,7 @@
 本轮追加：
 
 - **Skill loadout expansion**：OpenSpec change `expand-brotatolike-skill-loadout` 已把默认四槽、可获得技能池和 deterministic validation loadout 从散落生成逻辑收束到游戏侧 `BrotatoLikeSkillLoadoutAuthoring`。默认 visible active slots 仍为 `slam / chain_lightning / target_point_skill / dash`；available skill pool 显式包含 `slam / chain_lightning / target_point_skill / dash / sine_wave_shot / boomerang_throw / bezier_shot / parabola_shot / arc_shot / orbit_skill / circle_damage / aura_shield`；passive ids 为 `orbit_skill / circle_damage / aura_shield`。`GodotActiveSkillInputComponent` 只在 visible active slots 内切换/触发，`ActiveSkillBarUI` 和 Main/PlayableUX artifacts 记录 loadout source、owned ids、visible slot ids、selected id、total/visible/hidden count。验证：`Tools/run-build.sh` PASS（26 个既有 XML comment warnings，0 errors）；PlayableUX `.ai-temp/scene-tests/runs/2026-05-21/16-01-37/index.json` PASS，validation override 记录 12 owned / 4 visible / 8 hidden；Main `.ai-temp/scene-tests/runs/2026-05-21/16-05-14/index.json` PASS，analyzer `gate-report.json` verdict `pass`；scene gate 五字段非空。
+- **Projectile/passive skill validation**：OpenSpec change `validate-brotatolike-projectile-and-passive-skills` 已把非默认 projectile/passive 技能从 handler/DataOS 证据推进到 scene-backed 逐技能验收。`BrotatoLikeProjectileAbilityHandler` 现在接入 runtime 共享 `MovementSystem`，触发后的投射物可由 `GodotMovementDriver` tick、命中时走 `DamageTool`、并在 movement stop 后销毁 runtime/visual entity。新增 `res://Src/Validation/Game/Skills/BrotatoLikeSkillValidation.tscn`，复用 `ValidationAllSkillAbilityIds`，逐 ability id 验证 `sine_wave_shot / boomerang_throw / bezier_shot / parabola_shot / arc_shot / orbit_skill / circle_damage / aura_shield` 的 scene path、movement mode、轨迹/跟随、hit/damage 和 cleanup。专项 evidence 为 `.ai-temp/scene-tests/runs/2026-05-21/17-16-37/index.json`，artifact `brotatolike-skill-validation.json` 为 `status=pass`、`failureReasons=[]`，gate report verdict `pass` 且 README/artifact 五字段非空；Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/17-17-42/index.json` PASS。
 - **Release-batch stability**：OpenSpec change `stabilize-brotatolike-release-batch` 已复跑 BrotatoLike manifest release-batch 并解除历史 PlayableUX / Progression blocker。`Tools/run-build.sh` 通过（DataOS validation PASS，26 个既有 XML comment warnings，0 errors）；完整 release-batch `.ai-temp/scene-tests/runs/2026-05-21/14-57-55/index.json` 为 25/25 passed，analyzer 生成 `.ai-temp/scene-tests/runs/2026-05-21/14-57-55/gate-report.json`，verdict `pass`、requested 25、passed 25、failed 0、missing 0。PlayableUX 和 Progression 的 targeted run 分别为 `.ai-temp/scene-tests/runs/2026-05-21/14-57-13/index.json`、`.ai-temp/scene-tests/runs/2026-05-21/14-55-15/index.json`，完整 batch 中对应 artifact 也为 `status=pass` 且标准答案五字段非空。
 - **Dash main skill validation**：OpenSpec change `validate-brotatolike-dash-main-skill` 已把 Dash 从 handler/smoke 证据推进到玩家技能栏主路径验收。`BrotatoLikeGameRuntime.Initialize()` 现在用共享 `GodotMovementDriver.MovementSystem` 注册 Dash handler，避免 input 触发 Dash 后只改 Runtime movement、不同步 Godot player position；`BrotatoLikeGameplayLifecycleValidation` 新增 `dash_input_skill_bar_path` check，通过 `NextSkill` 选中 `ability-dash-player-deluyi` 后用 `UseSkill` 触发，artifact 记录 selected skill id/index、释放前后位置、Dash 距离、冷却和 scene-backed skill bar。最新 GameLifecycle evidence 为 `.ai-temp/scene-tests/runs/2026-05-21/15-14-41/index.json`，Main 回归 evidence 为 `.ai-temp/scene-tests/runs/2026-05-21/15-17-40/index.json`，两者 `index.json`、`result.json` 和 scene artifact 均通过，标准答案五字段非空。
 - **Chain Lightning line VFX validation**：OpenSpec change `restore-brotatolike-chain-lightning-line-vfx` 已把链电连线从 `LineEffectScenePath` 路径证据推进到 scene-backed 端点绑定验收。`BrotatoLikeGameRuntime` 现在常驻 `GodotProjectileEffectSpawner` 与游戏侧 `BrotatoLikeChainLightningVfxBinder`；binder 只识别 `res://Scenes/VFX/LightningLineEffect.tscn`，从 Runtime effect 的 typed `SourceEntity / TargetEntity` 读取端点，调用 `LightningLineEffect.SetLine(from, to)`，并按有限 `Effect.Duration=0.2` 通过 `EntityManager.Destroy(effect)` 触发通用 spawner 清理。Main evidence 为 `.ai-temp/scene-tests/runs/2026-05-21/15-43-35/index.json`，`scene-acceptance.json` 记录 3 段链电线段、3 段 bound、3 段 cleanup、source/target ids、start/end world positions、Line2D local/world points 和 duration；analyzer `gate-report.json` verdict `pass`，标准答案五字段非空。
@@ -78,12 +79,24 @@
 ## 下一步
 
 1. 跟进 passing scenes 中的诊断 stderr：Game/Input 的 `Parameter "data.tree" is null` 和框架 UnitComposition 的 Godot RID leak；这两项当前不覆盖 artifact oracle，但不能作为“无 error”证明。
-2. 逐技能验收剩余可获得技能：`sine_wave_shot / boomerang_throw / arc_shot / bezier_shot / parabola_shot / orbit_skill / circle_damage / aura_shield` 已进入显式 available skill pool 和 validation override，但还没有逐个完成主场景可视轨迹、命中、持续效果和清理验收。
-3. 继续补更多投射物/特效动画生命周期和样式验收；Chain Lightning 连线已具备端点绑定、三段弹跳和清理 artifact，后续只剩美术样式或像素级截图门禁增强。
-4. 单独设计 shop/item/level-up choices/meta progression；本轮只实现最小经验拾取、经验阈值和 level-up 反馈，不包含商店、道具选择、存档和永久成长。
-5. 继续做手动设备专项：物理手柄 LB/RB/X、摇杆、鼠标/手柄 Point target 细节和窗口焦点问题，作为自动 `Input.ActionPress` 之外的人工 QA 或专门设备测试。
+2. 单独设计 shop/item/level-up choices/meta progression；当前 skill pool 和逐技能验证只证明候选技能行为，不包含普通局内获得、替换、商店、存档和永久成长。
+3. 继续补更多投射物/特效动画样式验收；Chain Lightning 连线与 8 个 projectile/passive 技能已具备行为和 cleanup artifact，后续只剩美术样式或像素级截图门禁增强。
+4. 继续做手动设备专项：物理手柄 LB/RB/X、摇杆、鼠标/手柄 Point target 细节和窗口焦点问题，作为自动 `Input.ActionPress` 之外的人工 QA 或专门设备测试。
 
 ## 最新验证
+
+**validate-brotatolike-projectile-and-passive-skills（2026-05-21）**
+
+```bash
+cd /home/slime/Code/SlimeAI/Games/BrotatoLike
+Tools/run-build.sh
+Tools/run-godot-scene.sh run res://Src/Validation/Game/Skills/BrotatoLikeSkillValidation.tscn --timeout 20 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir .ai-temp/scene-tests/runs/2026-05-21/17-16-37
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir .ai-temp/scene-tests/runs/2026-05-21/17-17-42
+```
+
+结果：`Tools/run-build.sh` PASS（DataOS validation PASS，26 个既有 XML comment warnings，0 errors）。Skills validation `.ai-temp/scene-tests/runs/2026-05-21/17-16-37/index.json` PASS，`result.json` exitCode `0`，artifact `brotatolike-skill-validation.json` 为 `status=pass`、`failureReasons=[]`；`sine_wave_shot / boomerang_throw / bezier_shot / parabola_shot / arc_shot / orbit_skill / circle_damage / aura_shield / ability_id_grouping` 全部 pass。Gate report `.ai-temp/scene-tests/runs/2026-05-21/17-16-37/gate-report.json` verdict `pass`，README 和 artifact 的 `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/17-17-42/index.json` PASS，`scene-acceptance.json` 为 `status=pass`、`failureReasons=[]`，analyzer `gate-report.json` verdict `pass`。
 
 **expand-brotatolike-skill-loadout（2026-05-21）**
 

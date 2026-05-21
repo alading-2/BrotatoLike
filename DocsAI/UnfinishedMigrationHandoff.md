@@ -149,11 +149,11 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 - Build：`cd /home/slime/Code/SlimeAI/Games/BrotatoLike && Tools/run-build.sh` PASS（26 个既有 XML comment warnings，0 errors）。
 - PlayableUX：`.ai-temp/scene-tests/runs/2026-05-21/16-01-37/index.json` PASS；artifact `validation_loadout_override_visible_slots=pass`，记录 12 owned / 4 visible / 8 hidden。
 - Main：`.ai-temp/scene-tests/runs/2026-05-21/16-05-14/index.json` PASS；artifact 记录 `skill_loadout_source=default`、owned ids、visible slot ids、selected id、total count 和 12 项 `skill_available_pool_ids`。
+- Skills：`.ai-temp/scene-tests/runs/2026-05-21/17-16-37/index.json` PASS；artifact `brotatolike-skill-validation.json` 按 ability id 逐项记录 `sine_wave_shot / boomerang_throw / bezier_shot / parabola_shot / arc_shot / orbit_skill / circle_damage / aura_shield` 的 scene path、movement mode、hit/damage 和 cleanup。
 - Scene gate 已检查上述 run 的 `index.json`、per-scene `result.json` 和 scene artifact；`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空，analyzer `gate-report.json` 为 `pass`。
 
 仍缺什么：
 
-- 每个技能的主场景或专项 scene-backed 验收：能释放、能命中、能看到视觉、能清理、UI cooldown 正常。
 - 普通局内获得流程：升级选项、商店购买、替换选择、分页或 passive panel 还未实现。
 - 不要把 available skill pool 写成“已可玩”；它目前是可获得候选和 validation loadout 来源。
 
@@ -169,6 +169,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 - `Scenes/UI/ActiveSkillBarUI.tscn`
 - `Scenes/UI/ActiveSkillSlotUI.tscn`
 - `Src/Validation/Game/PlayableUX/BrotatoLikePlayableUXValidationScene.cs`
+- `Src/Validation/Game/Skills/BrotatoLikeSkillValidationScene.cs`
 
 旧输入参考：
 
@@ -180,7 +181,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 建议拆分：
 
 - OpenSpec `expand-brotatolike-skill-loadout`：已定义默认四槽、available skill pool、passive ids 和 deterministic validation loadout。
-- OpenSpec `validate-brotatolike-projectile-and-passive-skills`：下一步逐个验收 projectile 技能轨迹、命中、生命周期，以及 `orbit_skill / circle_damage / aura_shield` 的持续效果和清理。
+- OpenSpec `validate-brotatolike-projectile-and-passive-skills`：已完成 projectile 技能轨迹、命中、生命周期，以及 `orbit_skill / circle_damage / aura_shield` 的持续效果和清理专项验收。
 
 ### 5.2 Dash 玩家输入位移专项验收已补齐
 
@@ -455,7 +456,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 4. `expand-brotatolike-skill-loadout`
    - 状态：已完成。默认四槽、12 项 available skill pool、passive ids 和 validation override 均有 PlayableUX / Main artifact 证据。
 5. `validate-brotatolike-projectile-and-passive-skills`
-   - 目标：复用 deterministic validation loadout，逐技能验收 projectile 轨迹、命中、持续效果、清理。
+   - 状态：已完成。Skills validation `.ai-temp/scene-tests/runs/2026-05-21/17-16-37/index.json` PASS，Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/17-17-42/index.json` PASS；等待 archive/commit。
 6. `design-brotatolike-levelup-choice-loop`
    - 目标：升级三选一、经验条、选择后应用 feature modifier。
 7. `design-brotatolike-shop-item-loop`
