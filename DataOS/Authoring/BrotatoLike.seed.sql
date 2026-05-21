@@ -58,6 +58,36 @@ CREATE TABLE IF NOT EXISTS wave_enemy_entry (
     FOREIGN KEY (enemy_id) REFERENCES unit_enemy(id)
 );
 
+CREATE TABLE IF NOT EXISTS character_loadout (
+    id TEXT PRIMARY KEY CHECK (trim(id) <> ''),
+    display_name TEXT NOT NULL CHECK (trim(display_name) <> ''),
+    description TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS character_loadout_ability (
+    loadout_id TEXT NOT NULL,
+    slot_index INTEGER NOT NULL CHECK (slot_index >= 0),
+    ability_id TEXT NOT NULL,
+    is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1)),
+    PRIMARY KEY (loadout_id, slot_index),
+    FOREIGN KEY (loadout_id) REFERENCES character_loadout(id) ON DELETE CASCADE,
+    FOREIGN KEY (ability_id) REFERENCES ability(id)
+);
+
+CREATE TABLE IF NOT EXISTS character_definition (
+    id TEXT PRIMARY KEY CHECK (trim(id) <> ''),
+    display_name TEXT NOT NULL CHECK (trim(display_name) <> ''),
+    player_record_id TEXT NOT NULL,
+    visual_scene_path TEXT NOT NULL CHECK (trim(visual_scene_path) <> ''),
+    starting_loadout_id TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+    unlock_state TEXT NOT NULL DEFAULT 'available',
+    description TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (player_record_id) REFERENCES unit_player(id),
+    FOREIGN KEY (starting_loadout_id) REFERENCES character_loadout(id)
+);
+
 INSERT OR REPLACE INTO data_table(table_id, domain, description) VALUES
     ('unit.player', 'unit', 'BrotatoLike player units projected from unit_player.'),
     ('unit.enemy', 'unit', 'BrotatoLike enemy units projected from unit_enemy.'),
@@ -67,6 +97,8 @@ INSERT OR REPLACE INTO data_table(table_id, domain, description) VALUES
     ('shop.offer', 'shop', 'BrotatoLike deterministic shop offers exported to shop_item_authoring.json.'),
     ('wave.definition', 'schedule', 'BrotatoLike wave definitions exported to wave_authoring.json.'),
     ('wave.enemy_entry', 'schedule', 'BrotatoLike wave enemy composition exported to wave_authoring.json.'),
+    ('character.definition', 'unit', 'BrotatoLike selectable character definitions exported to character_authoring.json.'),
+    ('character.loadout', 'ability', 'BrotatoLike character starting loadouts exported to character_authoring.json.'),
     ('feature.definition', 'feature', 'BrotatoLike feature definitions projected from feature_definition.'),
     ('feature.modifier', 'feature', 'BrotatoLike feature modifier entries projected from feature_modifier.'),
     ('system.config', 'schedule', 'BrotatoLike runtime system configs projected from system_config.'),
@@ -74,7 +106,8 @@ INSERT OR REPLACE INTO data_table(table_id, domain, description) VALUES
     ('spawn.config', 'schedule', 'BrotatoLike spawn constants projected from spawn_config.');
 
 INSERT OR REPLACE INTO unit_player(id, name, entity_type, death_type, visual_scene_path, health_bar_height, is_show_health_bar, pickup_range, exp_reward, detection_range, collision_team, collision_layer, collision_mask, collision_radius, max_hp, current_hp, armor, crit_rate, life_steal, contact_damage, contact_damage_interval, move_speed, acceleration, attack_damage, attack_range, attack_interval, attack_wind_up_time, attack_recovery_time, ai_is_enabled, ai_attack_range, description) VALUES
-    ('deluyi', '德鲁伊', 'Unit', 'Hero', 'res://assets/Unit/Player/deluyi/AnimatedSprite2D/deluyi.tscn', 120.0, 1, NULL, NULL, NULL, 1, 1, 2, 26.0, 100.0, 100.0, 5.0, 5.0, 0.0, 0.0, 1.0, 200.0, 12.0, 10.0, 150.0, 1.0, 0.0, 0.0, 0, NULL, 'PlayerData.Deluyi');
+    ('deluyi', '德鲁伊', 'Unit', 'Hero', 'res://assets/Unit/Player/deluyi/AnimatedSprite2D/deluyi.tscn', 120.0, 1, NULL, NULL, NULL, 1, 1, 2, 26.0, 100.0, 100.0, 5.0, 5.0, 0.0, 0.0, 1.0, 200.0, 12.0, 10.0, 150.0, 1.0, 0.0, 0.0, 0, NULL, 'PlayerData.Deluyi'),
+    ('guangfa', '光法', 'Unit', 'Hero', 'res://assets/Unit/Player/guangfa/AnimatedSprite2D/guangfa.tscn', 118.0, 1, NULL, NULL, NULL, 1, 1, 2, 24.0, 85.0, 85.0, 2.0, 12.0, 0.0, 0.0, 1.0, 185.0, 14.0, 14.0, 180.0, 1.0, 0.0, 0.0, 0, NULL, 'CharacterSelection.Guangfa');
 
 INSERT OR REPLACE INTO unit_enemy(id, name, entity_type, death_type, visual_scene_path, health_bar_height, is_show_health_bar, pickup_range, exp_reward, detection_range, collision_team, collision_layer, collision_mask, collision_radius, max_hp, current_hp, armor, crit_rate, life_steal, contact_damage, contact_damage_interval, move_speed, acceleration, attack_damage, attack_range, attack_interval, attack_wind_up_time, attack_recovery_time, ai_is_enabled, ai_attack_range, spawn_is_enabled, spawn_position_strategy, spawn_min_wave, spawn_max_wave, spawn_interval, spawn_max_count_per_wave, spawn_single_count, spawn_single_variance, spawn_start_delay, spawn_weight, description) VALUES
     ('yuren', '鱼人', 'Unit', NULL, 'res://assets/Unit/Enemy/yuren/AnimatedSprite2D/yuren.tscn', 0.0, NULL, NULL, 2, -1.0, 2, 2, 1, 17.0, 150.0, 150.0, 1.0, NULL, NULL, 6.0, 1.0, 150.0, NULL, 6.0, 200.0, 1.0, 0.0, 0.0, 1, 200.0, 1, 'Rectangle', 1, -1, 2.0, -1, 3, 1, 0.0, 1, 'EnemyData.Yuren'),
@@ -115,6 +148,24 @@ INSERT OR REPLACE INTO ability_projectile(ability_id, scene_path, speed, max_hit
 
 INSERT OR REPLACE INTO ability_line_effect(ability_id, scene_path) VALUES
     ('chain_lightning', 'res://Scenes/VFX/LightningLineEffect.tscn');
+
+INSERT OR REPLACE INTO character_loadout(id, display_name, description) VALUES
+    ('druid_default', '德鲁伊默认技能', '德鲁伊使用默认四槽：猛击、闪电链、位置目标、冲刺。'),
+    ('light_mage_default', '光法默认技能', '光法偏远程：闪电链、正弦波射击、位置目标、冲刺。');
+
+INSERT OR REPLACE INTO character_loadout_ability(loadout_id, slot_index, ability_id, is_visible) VALUES
+    ('druid_default', 0, 'slam', 1),
+    ('druid_default', 1, 'chain_lightning', 1),
+    ('druid_default', 2, 'target_point_skill', 1),
+    ('druid_default', 3, 'dash', 1),
+    ('light_mage_default', 0, 'chain_lightning', 1),
+    ('light_mage_default', 1, 'sine_wave_shot', 1),
+    ('light_mage_default', 2, 'target_point_skill', 1),
+    ('light_mage_default', 3, 'dash', 1);
+
+INSERT OR REPLACE INTO character_definition(id, display_name, player_record_id, visual_scene_path, starting_loadout_id, sort_order, is_default, unlock_state, description) VALUES
+    ('deluyi', '德鲁伊', 'deluyi', 'res://assets/Unit/Player/deluyi/AnimatedSprite2D/deluyi.tscn', 'druid_default', 0, 1, 'available', '默认角色，保留既有 Main fallback。'),
+    ('guangfa', '光法', 'guangfa', 'res://assets/Unit/Player/guangfa/AnimatedSprite2D/guangfa.tscn', 'light_mage_default', 1, 0, 'available', '首个可选差异角色，较低生命、更高攻击和不同起始技能。');
 
 INSERT OR REPLACE INTO ability_movement_sine_wave(ability_id, wave_amplitude, wave_frequency, wave_phase, max_distance) VALUES
     ('sine_wave_shot', 60.0, 2.0, 0.0, 1800.0);

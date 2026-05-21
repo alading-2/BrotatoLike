@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.Characters;
 using BrotatoLike.Game.VFX;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
@@ -595,7 +596,12 @@ internal static class BrotatoLikePlayableSliceAcceptance
         values["formal_hud_head_health_bar_count"] = headHealthBarCount.ToString(CultureInfo.InvariantCulture);
         values["formal_hud_progression_summary"] = progressionSummary?.Text ?? string.Empty;
         values["damage_log_count"] = damageLogs.Count.ToString(CultureInfo.InvariantCulture);
-        values["skill_loadout_source"] = ReadStringMeta(skillBar, "LoadoutSource");
+        var loadoutSource = ReadStringMeta(skillBar, "LoadoutSource");
+        var expectedCharacterSource = $"{BrotatoLikeSkillLoadoutAuthoring.SourceCharacterPrefix}{BrotatoLikeCharacterCatalog.DefaultCharacterId}";
+        var defaultFallbackLoadout = loadoutSource == BrotatoLikeSkillLoadoutAuthoring.SourceDefault
+            || loadoutSource == expectedCharacterSource;
+        values["skill_loadout_source"] = loadoutSource;
+        values["skill_loadout_source_is_default_fallback"] = defaultFallbackLoadout.ToString(CultureInfo.InvariantCulture);
         values["skill_owned_ids"] = ReadStringMeta(skillBar, "OwnedAbilityIds");
         values["skill_visible_slot_ids"] = ReadStringMeta(skillBar, "VisibleSlotIds");
         values["skill_selected_id"] = ReadStringMeta(skillBar, "SelectedAbilityId");
@@ -631,7 +637,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
                 && selectedIndex >= 0
                 && !string.IsNullOrWhiteSpace(currentSkillName)
                 && progressionSummary != null
-                && ReadStringMeta(skillBar, "LoadoutSource") == BrotatoLikeSkillLoadoutAuthoring.SourceDefault
+                && defaultFallbackLoadout
                 && ReadIntMeta(skillBar, "TotalOwnedCount") > 0
                 && !string.IsNullOrWhiteSpace(ReadStringMeta(skillBar, "VisibleSlotIds")),
             damageLogs.Count > 0

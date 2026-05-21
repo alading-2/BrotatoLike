@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.Characters;
 using BrotatoLike.Game.Items;
 using BrotatoLike.Game.Progression;
 using BrotatoLike.Game.RunFlow;
@@ -26,6 +27,8 @@ public partial class BrotatoLikeGameRuntime : Node
 {
     private RuntimeSchedule? schedule;
     private BrotatoLikeDataOSBootstrap? bootstrap;
+    private BrotatoLikeCharacterCatalog? characterCatalog;
+    private BrotatoLikeCharacterDefinition? selectedCharacter;
     private BrotatoLikeItemCatalog? itemCatalog;
     private BrotatoLikeWaveCatalog? waveCatalog;
     private BrotatoLikeSpawnCatalog? spawnCatalog;
@@ -69,6 +72,12 @@ public partial class BrotatoLikeGameRuntime : Node
     public int InitialWave { get; set; } = 1;
 
     /// <summary>
+    /// 默认选择角色 id；普通 Main 未显式选择时使用 deluyi fallback。
+    /// </summary>
+    [Export]
+    public string InitialCharacterId { get; set; } = BrotatoLikeCharacterCatalog.DefaultCharacterId;
+
+    /// <summary>
     /// 敌人实例化父节点路径；为空时挂到本节点。
     /// </summary>
     [Export]
@@ -93,6 +102,21 @@ public partial class BrotatoLikeGameRuntime : Node
     /// 当前 wave authoring catalog。
     /// </summary>
     public BrotatoLikeWaveCatalog? WaveCatalog => waveCatalog;
+
+    /// <summary>
+    /// 当前角色选择目录。
+    /// </summary>
+    public BrotatoLikeCharacterCatalog? CharacterCatalog => characterCatalog;
+
+    /// <summary>
+    /// 当前选择的角色 id。
+    /// </summary>
+    public string SelectedCharacterId => selectedCharacter?.Id ?? InitialCharacterId;
+
+    /// <summary>
+    /// 当前选择的角色定义。
+    /// </summary>
+    public BrotatoLikeCharacterDefinition? SelectedCharacter => selectedCharacter;
 
     /// <summary>
     /// 当前波次。
@@ -266,12 +290,12 @@ public partial class BrotatoLikeGameRuntime : Node
     {
         if (playerEntity == null || !GodotObject.IsInstanceValid(playerEntity))
         {
-            SpawnPlayer();
+            SpawnSelectedCharacter();
             return;
         }
 
         var state = CaptureRespawnState(playerEntity);
-        var respawned = SpawnPlayer(spawnPosition: state.Position);
+        var respawned = SpawnSelectedCharacter(state.Position);
         ApplyRespawnState(respawned, state);
     }
 
@@ -305,6 +329,9 @@ public partial class BrotatoLikeGameRuntime : Node
         Shutdown();
         bootstrap = dataBootstrap;
         bootstrap.RegisterResources();
+        characterCatalog = BrotatoLikeCharacterCatalog.LoadFromResource();
+        characterCatalog.Validate(bootstrap);
+        SelectInitialCharacter();
         itemCatalog = BrotatoLikeItemCatalog.LoadFromResource();
         waveCatalog = BrotatoLikeWaveCatalog.LoadFromResource();
         waveCatalog.Validate(bootstrap);
@@ -439,6 +466,29 @@ public partial class BrotatoLikeGameRuntime : Node
     }
 
     /// <summary>
+    /// 选择角色并使用角色 authoring 生成玩家。
+    /// </summary>
+    public GodotEntity2D SpawnCharacter(string characterId, Vector2? spawnPosition = null)
+    {
+        if (!TrySelectCharacter(characterId, out var message))
+        {
+            throw new InvalidOperationException(message);
+        }
+
+        return SpawnSelectedCharacter(spawnPosition);
+    }
+
+    /// <summary>
+    /// 使用当前选择角色生成玩家。
+    /// </summary>
+    public GodotEntity2D SpawnSelectedCharacter(Vector2? spawnPosition = null)
+    {
+        var character = ResolveSelectedCharacter();
+        var loadout = characterCatalog!.BuildLoadout(character);
+        return SpawnPlayerCore(character.PlayerRecordId, spawnPosition, loadout, character);
+    }
+
+    /// <summary>
     /// 使用确定性验证 loadout 生成玩家，供后续逐技能 validation 场景复用。
     /// </summary>
     /// <param name="abilityIds">要授予玩家的 ability record id 列表。</param>
@@ -453,7 +503,37 @@ public partial class BrotatoLikeGameRuntime : Node
         return SpawnPlayerCore(recordId, spawnPosition, BrotatoLikeSkillLoadoutAuthoring.CreateValidationOverride(abilityIds));
     }
 
-    private GodotEntity2D SpawnPlayerCore(string recordId, Vector2? spawnPosition, BrotatoLikeSkillLoadout loadout)
+    public bool TrySelectCharacter(string characterId, out string message)
+    {
+        message = string.Empty;
+        if (characterCatalog == null)
+        {
+            message = "character catalog is not loaded";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(characterId))
+        {
+            message = "character id is empty";
+            return false;
+        }
+
+        if (!characterCatalog.TryGetCharacter(characterId, out var character))
+        {
+            message = $"unknown character id: {characterId}";
+            return false;
+        }
+
+        selectedCharacter = character;
+        InitialCharacterId = character.Id;
+        return true;
+    }
+
+    private GodotEntity2D SpawnPlayerCore(
+        string recordId,
+        Vector2? spawnPosition,
+        BrotatoLikeSkillLoadout loadout,
+        BrotatoLikeCharacterDefinition? character = null)
     {
         if (bootstrap == null)
         {
@@ -511,6 +591,7 @@ public partial class BrotatoLikeGameRuntime : Node
         entity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedAbilityIds);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
         WriteLoadoutMetadata(entity, loadout, ownedAbilityIds, visibleActiveEntityIds);
+        WriteCharacterMetadata(entity, character, recordId);
         entity.SetMeta("Level", 1);
         entity.SetMeta("Experience", 0);
         entity.SetMeta("NextLevelExperience", 5);
@@ -557,6 +638,41 @@ public partial class BrotatoLikeGameRuntime : Node
         });
 
         return entity;
+    }
+
+    private void SelectInitialCharacter()
+    {
+        if (characterCatalog == null)
+        {
+            selectedCharacter = null;
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(InitialCharacterId)
+            && characterCatalog.TryGetCharacter(InitialCharacterId, out var configured))
+        {
+            selectedCharacter = configured;
+            return;
+        }
+
+        selectedCharacter = characterCatalog.GetDefaultCharacter();
+        InitialCharacterId = selectedCharacter.Id;
+    }
+
+    private BrotatoLikeCharacterDefinition ResolveSelectedCharacter()
+    {
+        if (characterCatalog == null)
+        {
+            throw new InvalidOperationException("BrotatoLike character catalog is not loaded.");
+        }
+
+        if (selectedCharacter != null)
+        {
+            return selectedCharacter;
+        }
+
+        SelectInitialCharacter();
+        return selectedCharacter ?? throw new InvalidOperationException("No BrotatoLike character is selected.");
     }
 
     /// <summary>
@@ -771,6 +887,16 @@ public partial class BrotatoLikeGameRuntime : Node
         player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.TotalOwnedCountMeta, ownedAbilityIds.Count);
         player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.VisibleSlotCountMeta, visibleActiveEntityIds.Count);
         player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.HiddenOwnedCountMeta, Math.Max(0, ownedAbilityIds.Count - visibleActiveEntityIds.Count));
+    }
+
+    private static void WriteCharacterMetadata(GodotEntity2D player, BrotatoLikeCharacterDefinition? character, string recordId)
+    {
+        player.SetMeta("CharacterPlayerRecordId", recordId);
+        player.SetMeta("CharacterId", character?.Id ?? recordId);
+        player.SetMeta("CharacterDisplayName", character?.DisplayName ?? recordId);
+        player.SetMeta("CharacterVisualScenePath", player.Data.Get(UnitDataKeys.VisualScenePath, character?.VisualScenePath ?? string.Empty));
+        player.SetMeta("CharacterStartingLoadoutId", character?.StartingLoadoutId ?? BrotatoLikeSkillLoadoutAuthoring.SourceDefault);
+        player.SetMeta("CharacterCatalogSource", character == null ? "record-fallback" : "character_authoring");
     }
 
     private static void RewriteRuntimeLoadoutMetadata(
@@ -1006,6 +1132,8 @@ public partial class BrotatoLikeGameRuntime : Node
         schedule?.Clear();
         schedule = null;
         bootstrap = null;
+        characterCatalog = null;
+        selectedCharacter = null;
         waveCatalog = null;
         spawnCatalog = null;
         spawnScheduleConfig = null;

@@ -7,6 +7,7 @@ db_path="$repo_root/DataOS/.generated/brotatolike.authoring.db"
 snapshot_path="$repo_root/DataOS/Snapshots/runtime_snapshot.json"
 shop_item_snapshot_path="$repo_root/DataOS/Snapshots/shop_item_authoring.json"
 wave_snapshot_path="$repo_root/DataOS/Snapshots/wave_authoring.json"
+character_snapshot_path="$repo_root/DataOS/Snapshots/character_authoring.json"
 
 mkdir -p "$(dirname "$db_path")" "$(dirname "$snapshot_path")"
 rm -f "$db_path"
@@ -106,3 +107,45 @@ SELECT json_object(
 SQL
 
 echo "BrotatoLike wave authoring generated: $wave_snapshot_path"
+
+sqlite3 "$db_path" > "$character_snapshot_path" <<SQL
+WITH
+character_docs AS (
+    SELECT json_object(
+        'id', character.id,
+        'displayName', character.display_name,
+        'playerRecordId', character.player_record_id,
+        'visualScenePath', character.visual_scene_path,
+        'startingLoadoutId', character.starting_loadout_id,
+        'sortOrder', character.sort_order,
+        'isDefault', json(CASE character.is_default WHEN 1 THEN 'true' ELSE 'false' END),
+        'unlockState', character.unlock_state,
+        'description', character.description,
+        'maxHp', player.max_hp,
+        'moveSpeed', player.move_speed,
+        'attackDamage', player.attack_damage
+    ) AS doc
+    FROM character_definition AS character
+    JOIN unit_player AS player ON player.id = character.player_record_id
+    ORDER BY character.sort_order, character.id
+),
+loadout_docs AS (
+    SELECT json_object(
+        'loadoutId', entry.loadout_id,
+        'slotIndex', entry.slot_index,
+        'abilityId', entry.ability_id,
+        'isVisible', json(CASE entry.is_visible WHEN 1 THEN 'true' ELSE 'false' END)
+    ) AS doc
+    FROM character_loadout_ability AS entry
+    ORDER BY entry.loadout_id, entry.slot_index
+)
+SELECT json_object(
+    'schemaVersion', 1,
+    'generatedAtUtc', '${DATAOS_GENERATED_AT_UTC:-1970-01-01T00:00:00Z}',
+    'source', 'DataOS:BrotatoLike.seed.sql:character_definition+character_loadout',
+    'characters', COALESCE((SELECT json_group_array(json(doc)) FROM character_docs), json('[]')),
+    'loadoutEntries', COALESCE((SELECT json_group_array(json(doc)) FROM loadout_docs), json('[]'))
+);
+SQL
+
+echo "BrotatoLike character authoring generated: $character_snapshot_path"

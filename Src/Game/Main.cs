@@ -296,7 +296,7 @@ public partial class Main : Node
         if (!runtime.IsInitialized)
         {
             runtime.InitializeFromDataOS();
-            runtime.SpawnPlayer();
+            runtime.SpawnSelectedCharacter();
             runtime.BeginGameplay();
             WorldEvents.World.Publish(new GameStarted(runtime, this, runtime.InitialWave));
             Log.Info("BrotatoLike main scene initialized");

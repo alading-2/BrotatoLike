@@ -15,6 +15,7 @@ internal static class BrotatoLikeSkillLoadoutAuthoring
     public const string SourceDefault = "default";
     public const string SourceValidationOverride = "validation-override";
     public const string SourceLevelUpChoice = "level-up-choice";
+    public const string SourceCharacterPrefix = "character:";
     public const string LoadoutSourceMeta = "SkillLoadoutSource";
     public const string DefaultActiveAbilityIdsMeta = "SkillDefaultActiveAbilityIds";
     public const string AvailableSkillPoolIdsMeta = "SkillAvailablePoolIds";
@@ -93,6 +94,19 @@ internal static class BrotatoLikeSkillLoadoutAuthoring
         var allIds = DistinctKnownIds(abilityIds);
         var visibleIds = ResolveVisibleActiveIds(allIds);
         return new BrotatoLikeSkillLoadout(SourceValidationOverride, allIds, visibleIds);
+    }
+
+    public static BrotatoLikeSkillLoadout CreateForCharacter(
+        string characterId,
+        IReadOnlyList<string> abilityIds,
+        IReadOnlyList<string> visibleAbilityIds)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(characterId);
+        ArgumentNullException.ThrowIfNull(abilityIds);
+        ArgumentNullException.ThrowIfNull(visibleAbilityIds);
+        var allIds = DistinctKnownIds(abilityIds);
+        var visibleIds = ResolveVisibleActiveIds(DistinctKnownIds(visibleAbilityIds));
+        return new BrotatoLikeSkillLoadout($"{SourceCharacterPrefix}{characterId}", allIds, visibleIds);
     }
 
     public static void ValidateAvailableSkillPool(BrotatoLikeDataOSBootstrap bootstrap)

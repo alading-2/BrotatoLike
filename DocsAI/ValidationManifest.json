@@ -317,6 +317,18 @@
       "releaseBatch": true
     },
     {
+      "scene": "res://Src/Validation/Game/CharacterSelection/BrotatoLikeCharacterSelectionValidation.tscn",
+      "owner": "game",
+      "scope": "feature-slice",
+      "tags": ["game", "character-selection", "ui", "authoring"],
+      "relatedBddScenarios": ["玩家确认角色后按角色生成", "两个角色拥有不同视觉、属性或起始技能"],
+      "checks": ["character_catalog_authoring_valid", "character_select_ui_scene_backed", "selected_character_spawns_runtime_player", "two_characters_distinct_evidence", "selected_player_bindings"],
+      "artifactFilename": "brotatolike-character-selection-validation.json",
+      "catalogOwner": "game",
+      "timeoutSeconds": 10,
+      "releaseBatch": true
+    },
+    {
       "scene": "res://Src/Validation/Game/LegacyResources/BrotatoLikeLegacyResourceClassificationValidation.tscn",
       "owner": "game",
       "scope": "owner",

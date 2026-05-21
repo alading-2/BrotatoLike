@@ -360,21 +360,26 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 
 现状：
 
-- 当前玩家主要是 `unit.player/deluyi`。
-- `assets/Unit/Player/**/*` 中存在更多角色资源的可能性，但未形成正式角色选择和 DataOS authoring 证据。
+- 首版角色选择已完成：DataOS `character_definition / character_loadout` authoring 覆盖 `deluyi` 与 `guangfa`，`DataOS/Snapshots/character_authoring.json` 记录 display/player record/visual/stats/starting loadout。
+- `BrotatoLikeGameRuntime` 已支持 `InitialCharacterId`、`TrySelectCharacter`、`SpawnCharacter` 和 `SpawnSelectedCharacter`；Main 未显式选择时走 `character:deluyi` 默认 fallback，旧 `SpawnPlayer(recordId)` 仅作为兼容和专项验证入口保留。
+- `Scenes/UI/CharacterSelectPanelUI.tscn` / `CharacterSelectCardUI.tscn` 是 scene-backed 首版选择 UI。
+- CharacterSelection 验证 `.ai-temp/scene-tests/runs/2026-05-21/20-00-19/index.json` PASS，artifact 证明 UI 选择 `guangfa` 后生成 `player-guangfa`，并记录 `deluyi/guangfa` 视觉、HP/MoveSpeed/Attack 和 starting loadout 差异；Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/20-03-04/index.json` PASS。
 
 缺什么：
 
-- 角色数据表、角色选择 UI、起始技能/属性差异。
-- 角色资源加载、动画、碰撞尺寸、血条偏移验证。
+- `bubing` 等更多角色资源仍未形成 selectable character authoring。
+- 完整主菜单/局外选择流程、头像/描述美术、unlock/meta progression、存档选择和手柄焦点导航未实现。
+- 角色动画细节、碰撞半径、血条偏移和像素级美术质量还可继续专项验收。
 
 关键路径：
 
 - `assets/Unit/Player/**/*`
 - `DataOS/Authoring/BrotatoLike.seed.sql`
-- `Src/Game/BrotatoLikeUnitProfiles.cs`
+- `DataOS/Snapshots/character_authoring.json`
+- `Src/Game/Characters/BrotatoLikeCharacterCatalog.cs`
 - `Src/Game/BrotatoLikeGameRuntime.cs`
-- `Scenes/Main.tscn`
+- `Scenes/UI/CharacterSelectPanelUI.tscn`
+- `Src/Validation/Game/CharacterSelection/BrotatoLikeCharacterSelectionValidationScene.cs`
 
 ### 8.2 UI 主题仍是最小实现
 
