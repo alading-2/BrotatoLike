@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using BrotatoLike.Game;
+using BrotatoLike.Game.UI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Collision;
 using SlimeAI.GameOS.Capabilities.Damage;
@@ -123,13 +124,19 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
         runtime.BeginGameplay();
         var player = runtime.SpawnPlayer("deluyi", Vector2.Zero);
         await ProcessFrames(30);
+        runtime.AutoTick = false;
 
         var enemy = FindFirstEnemy();
         var tickBeforePause = runtime.TickSpawn(0.1d);
         runtime.OpenPauseMenu();
         var tickDuringPause = runtime.TickSpawn(0.1d);
         await ProcessFrames(2);
+        var pauseMenu = FindDescendant(this, "BrotatoLikePauseMenu") as PauseMenuUI;
+        var pauseMenuVisibleDuringPause = pauseMenu?.IsMenuVisible ?? false;
+        var pauseMenuSceneFilePath = pauseMenu?.SceneFilePath ?? string.Empty;
         runtime.ClosePauseMenu();
+        await ProcessFrames(2);
+        var pauseMenuVisibleAfterClose = pauseMenu?.IsMenuVisible ?? false;
         var tickAfterResume = runtime.TickSpawn(0.1d);
 
         values["player_entity"] = player.EntityId.Value;
@@ -140,7 +147,6 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
         values["enemy_exp_reward"] = enemy?.Data.Get<int>(UnitDataKeys.ExpReward, 0) ?? 0;
 
         var waveState = FindDescendant(this, "WaveRuntimeState");
-        var pauseMenu = FindDescendant(this, "BrotatoLikePauseMenu") as CanvasItem;
         var recoveryService = FindDescendant(this, "RecoveryTickService");
         var pickupLayer = FindDescendant(this, "ExperiencePickupLayer");
         var progressionSummary = FindDescendant(this, "ProgressionSummary");
@@ -148,7 +154,8 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
 
         values["wave_state_found"] = waveState != null;
         values["pause_menu_found"] = pauseMenu != null;
-        values["pause_menu_visible"] = pauseMenu?.Visible ?? false;
+        values["pause_menu_visible"] = pauseMenuVisibleDuringPause;
+        values["pause_menu_visible_after_close"] = pauseMenuVisibleAfterClose;
         values["recovery_service_found"] = recoveryService != null;
         values["pickup_layer_found"] = pickupLayer != null;
         values["progression_summary_found"] = progressionSummary != null;
@@ -174,12 +181,12 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
         {
             enemy.Data.Set(DamageDataKeys.CurrentHp, 0f);
             enemy.Data.Set(DamageDataKeys.IsDead, true);
-            enemy.DestroyEntity();
-            await ProcessFrames(5);
+            await ProcessFrames(2);
         }
 
         var pickup = FindDescendant(this, "ExperiencePickup");
         var oldExperience = ReadIntMeta(player, "Experience");
+        var oldPlayerLevel = ReadIntMeta(player, "Level");
         if (pickup is Node2D pickupNode)
         {
             pickupNode.Position = player.Position;
@@ -204,6 +211,7 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
         values["pickup_found"] = pickup != null;
         values["old_experience"] = oldExperience;
         values["new_experience"] = newExperience;
+        values["old_player_level"] = oldPlayerLevel;
         values["old_level"] = oldLevel;
         values["new_level"] = newLevel;
         values["last_reward"] = lastReward;
@@ -217,6 +225,8 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
             && waveCompleted
             && remainingEnemies == 0;
         values["pause_menu_blocks_and_resumes_tick"] = pauseMenu != null
+            && pauseMenuVisibleDuringPause
+            && !pauseMenuVisibleAfterClose
             && tickBeforePause.Success
             && !tickDuringPause.Success
             && tickAfterResume.Success;
@@ -229,14 +239,14 @@ public partial class BrotatoLikeProgressionLoopValidationScene : Node
             && pickup != null;
         values["pickup_grants_experience_and_cleans"] = pickupLayer != null
             && lastReward > 0
-            && (newExperience > oldExperience || newLevel > oldLevel)
+            && (newExperience > oldExperience || level > oldPlayerLevel || newLevel > oldLevel)
             && pickupCleaned;
         values["level_up_feedback"] = progressionSummary != null
             && levelUpFeedback != null
-            && level > 1;
+            && level > oldPlayerLevel;
 
         values["scene_backed_pause_menu"] = pauseMenu != null && IsSceneBacked(pauseMenu);
-        values["pause_menu_scene_file_path"] = pauseMenu is Node n ? n.SceneFilePath : string.Empty;
+        values["pause_menu_scene_file_path"] = pauseMenuSceneFilePath;
 
         return values;
     }

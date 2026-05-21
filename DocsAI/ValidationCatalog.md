@@ -17,6 +17,15 @@
 
 ## 最新证据
 
+2026-05-21 `stabilize-brotatolike-release-batch`：
+
+- Release-batch gate report：`.ai-temp/scene-tests/runs/2026-05-21/14-57-55/gate-report.json`，verdict `pass`，requested 25、passed 25、failed 0、missing 0。
+- Release-batch index：`.ai-temp/scene-tests/runs/2026-05-21/14-57-55/index.json`，25 executed、25 passed、0 failed、0 timed out；manifest metadata、catalog、per-scene `result.json` 和 scene artifact 门禁已闭环。
+- PlayableUX targeted evidence：`.ai-temp/scene-tests/runs/2026-05-21/14-57-13/index.json`，artifact `brotatolike-playable-ux-validation.json` 为 `status=pass`、`failureReasons=[]`，历史 `scene_backed_formal_ui` blocker 已在完整 release-batch `023_Src_Validation_Game_PlayableUX_BrotatoLikePlayableUXValidation.tscn_attempt1` 中复验通过。
+- Progression targeted evidence：`.ai-temp/scene-tests/runs/2026-05-21/14-55-15/index.json`，artifact `brotatolike-progression-loop-validation.json` 为 `status=pass`、`failureReasons=[]`，历史 `pause_menu_blocks_and_resumes_tick` / `scene_backed_pause_menu` blocker 已在完整 release-batch `024_Src_Validation_Game_Progression_BrotatoLikeProgressionLoopValidation.tscn_attempt1` 中复验通过。
+- Scene gate 手动检查：本次 release-batch 的 `index.json`、25 个 per-scene `result.json` 和所有非日志 scene artifact 均通过，artifact `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。
+- Diagnostic risk：Game/Input 在 passing run 的 `combined.log` 中仍出现 Godot stderr `Parameter "data.tree" is null`，框架 UnitComposition 仍报告 Godot RID leak；当前 gate 依据 `index.json`、`result.json` 和 artifact oracle 接受这些场景，不把“无 error”作为正确性证明。
+
 2026-05-21 `fix-brotatolike-lifecycle-regressions`：
 
 - AI Capability：`.ai-temp/scene-tests/runs/2026-05-21/12-37-18/index.json`，artifact `ai-capability-validation.json` 为 `status=pass`、`failureReasons=[]`，`injected_target_query_nearest_target` 选择 `ai-scene-near` 并忽略 `ai-scene-ability-entity`。
@@ -30,8 +39,8 @@
 - Targeted gate report：`.ai-temp/scene-tests/runs/2026-05-21/10-06-55/gate-report.json`，verdict `pass`，8/8 targeted scenes 通过；Game/Input 和 GameLifecycle 的 `index.json`、`result.json`、artifact 均通过，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 非空。
 - GameLifecycle artifact：`.ai-temp/scene-tests/runs/2026-05-21/10-06-55/008_Src_Validation_Game_GameLifecycle_BrotatoLikeGameplayLifecycleValidation.tscn_attempt1/artifacts/brotatolike-gameplay-lifecycle-validation.json`，`status=pass`、`failureReasons=[]`，8 个 lifecycle checks 全部 pass。
 - Release-batch gate report：`.ai-temp/scene-tests/runs/2026-05-21/10-13-37/gate-report.json`，requested 25、passed 23、failed 2、missing 0，verdict `block`；manifest metadata、README 五字段、catalog 和 artifact 五字段门禁已闭环，无 `actionItems`。
-- 历史 release-batch blocker：`res://Src/Validation/Game/PlayableUX/BrotatoLikePlayableUXValidation.tscn` 在 `.ai-temp/scene-tests/runs/2026-05-21/10-13-37/.../brotatolike-playable-ux-validation.json` 为 `status=fail`；该场景已由 `fix-brotatolike-lifecycle-regressions` targeted run `.ai-temp/scene-tests/runs/2026-05-21/12-39-37/index.json` 复验通过，完整 release-batch 尚未重跑。
-- 仍需后续处理的历史 release-batch blocker：`res://Src/Validation/Game/Progression/BrotatoLikeProgressionLoopValidation.tscn`，artifact `.ai-temp/scene-tests/runs/2026-05-21/10-13-37/024_Src_Validation_Game_Progression_BrotatoLikeProgressionLoopValidation.tscn_attempt1/artifacts/brotatolike-progression-loop-validation.json` 为 `status=fail`，失败 checks `pause_menu_blocks_and_resumes_tick`、`scene_backed_pause_menu`，五字段非空。
+- 历史 release-batch blocker：`res://Src/Validation/Game/PlayableUX/BrotatoLikePlayableUXValidation.tscn` 在 `.ai-temp/scene-tests/runs/2026-05-21/10-13-37/.../brotatolike-playable-ux-validation.json` 为 `status=fail`；该场景已由 `stabilize-brotatolike-release-batch` 完整 release-batch `.ai-temp/scene-tests/runs/2026-05-21/14-57-55/index.json` 复验通过。
+- 历史 release-batch blocker：`res://Src/Validation/Game/Progression/BrotatoLikeProgressionLoopValidation.tscn`，artifact `.ai-temp/scene-tests/runs/2026-05-21/10-13-37/024_Src_Validation_Game_Progression_BrotatoLikeProgressionLoopValidation.tscn_attempt1/artifacts/brotatolike-progression-loop-validation.json` 曾为 `status=fail`，失败 checks `pause_menu_blocks_and_resumes_tick`、`scene_backed_pause_menu`；该场景已由 `stabilize-brotatolike-release-batch` 完整 release-batch `.ai-temp/scene-tests/runs/2026-05-21/14-57-55/index.json` 复验通过。
 - Diagnostic risk：Game/Input 在 passing run 的 `combined.log` 中仍出现 Godot stderr `Parameter "data.tree" is null`；当前 gate 依据 `index.json`、`result.json` 和 artifact oracle 接受该场景，不把“无 error”作为正确性证明。
 
 历史证据：

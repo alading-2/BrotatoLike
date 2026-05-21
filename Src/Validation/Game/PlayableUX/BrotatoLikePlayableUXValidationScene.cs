@@ -131,6 +131,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         runtime.BeginGameplay();
         var player = runtime.SpawnPlayer("deluyi", Vector2.Zero);
         await ProcessFrames(20);
+        runtime.ProgressionService?.SetProcess(false);
 
         var enemy = FindFirstEnemy();
         values["player_entity"] = player.EntityId.Value;

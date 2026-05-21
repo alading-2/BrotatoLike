@@ -70,23 +70,24 @@
 - 旧 resource path 分类不等于旧功能完成。`legacyStatus` 只保证旧路径被分类，不代表可加载或可用。
 - 不要直接改 `Games/BrotatoLike/SlimeAI/` 里的框架代码。框架改动要去 `/home/slime/Code/SlimeAI/SlimeAI`，再按 submodule 流程更新游戏仓指针。
 
-## 4. P0 接手项：先把验证基线重新拉齐
+## 4. P0 接手项：验证基线已重新拉齐
 
-### 4.1 重跑 release-batch 并处理历史 blocker
+### 4.1 release-batch 历史 blocker 已处理
 
 现状：
 
-- 历史 release-batch `.ai-temp/scene-tests/runs/2026-05-21/10-13-37/gate-report.json` 是 `block`。
-- 当时失败点是：
+- 历史 release-batch `.ai-temp/scene-tests/runs/2026-05-21/10-13-37/gate-report.json` 是 `block`，当时失败点是：
   - `BrotatoLikePlayableUXValidation` 的 `scene_backed_formal_ui`
   - `BrotatoLikeProgressionLoopValidation` 的 `pause_menu_blocks_and_resumes_tick / scene_backed_pause_menu`
-- 后续 targeted run 和当前代码显示 PlayableUX、PauseMenuUI、Progression 相关逻辑已经被修复或部分修复，但还没有新的完整 release-batch 证据覆盖全部 25 个场景。
+- OpenSpec change `stabilize-brotatolike-release-batch` 已补齐新的完整 release-batch evidence：`.ai-temp/scene-tests/runs/2026-05-21/14-57-55/gate-report.json` 为 `verdict=pass`，requested 25、passed 25、failed 0、missing 0。
+- PlayableUX targeted run `.ai-temp/scene-tests/runs/2026-05-21/14-57-13/index.json` 通过；Progression targeted run `.ai-temp/scene-tests/runs/2026-05-21/14-55-15/index.json` 通过。
+- 本次 release-batch 已检查 `index.json`、25 个 per-scene `result.json` 和所有非日志 scene artifact，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。
 
-缺什么：
+仍需注意：
 
-- 新的 `run-all --release-batch`。
-- 新的 `gate-report.json`。
-- 若 Progression 仍失败，需要修代码或修 artifact oracle，不要只改文档。
+- Game/Input 在 passing run 的 `combined.log` 中仍出现 Godot stderr `Parameter "data.tree" is null`。
+- 框架 UnitComposition passing run 中仍有 Godot RID leak 诊断。
+- 以上两项当前不覆盖 artifact oracle，不能把当前 `gate-report=pass` 表述为“无 stderr / 无引擎诊断”。
 
 关键路径：
 
@@ -97,7 +98,7 @@
 - `Src/Game/Progression/BrotatoLikeProgressionService.cs`
 - `Scenes/UI/PauseMenuUI.tscn`
 
-建议命令：
+复验命令：
 
 ```bash
 cd /home/slime/Code/SlimeAI/Games/BrotatoLike
@@ -110,7 +111,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 
 - Godot scene gate 要检查 `index.json`、每个场景的 `result.json` 和 artifact。
 - artifact 中 `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 必须非空。
-- 如果只跑 targeted scene，不要把它写成完整 release-batch 已恢复。
+- 如果后续只跑 targeted scene，不要把它写成完整 release-batch 已恢复；当前完整 release-batch evidence 固定引用 `.ai-temp/scene-tests/runs/2026-05-21/14-57-55/gate-report.json`。
 
 ## 5. P1 接手项：玩家技能体验还没完整迁完
 
