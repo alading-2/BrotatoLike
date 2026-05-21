@@ -9,6 +9,7 @@
 - 功能迁移审计：`DocsAI/BrotatoMyFeatureMigrationAudit.md`
 - Scene-first UX 迁移原则：`DocsAI/SceneFirstUXMigration.md`
 - 验证场景索引：`DocsAI/ValidationCatalog.md`
+- 未完成迁移接手文档：`DocsAI/UnfinishedMigrationHandoff.md`
 
 ## 当前阶段
 
