@@ -413,12 +413,14 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 - 不建议照搬旧 `UIManager`。应按 scene-first 和当前 GodotBridge 方式补正式场景。
 - 改 UI 后必须跑 PlayableUX 和 Main，必要时做截图或 canvas 坐标 artifact。
 
-### 8.3 真实设备 QA 没完成
+### 8.3 真实设备 QA checklist 已建立，执行仍未完成
 
 现状：
 
 - 自动验证主要使用 Godot runner 和 `Input.ActionPress`。
 - Input map 覆盖 WASD、方向键、部分手柄 action，但没有实际设备证据。
+- `DocsAI/ManualDeviceQA.md` 已建立真实设备 QA 文档，明确 automated runner、real keyboard/mouse 和 real gamepad 的 evidence boundary。
+- 初始 QA 记录因为当前 agent session 没有物理设备，键鼠、鼠标点选、手柄、窗口焦点和 UI focus workflow 全部保持 `not-tested`。
 
 缺什么：
 
@@ -433,11 +435,13 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 - `Src/Game/GodotActiveSkillInputComponent.cs`
 - `Src/Game/BrotatoLikeTargetingController.cs`
 - `Src/Validation/Game/Input/BrotatoLikeInputEventValidationScene.cs`
+- `DocsAI/ManualDeviceQA.md`
 
 建议：
 
-- 建一个人工 QA checklist 文档或专门 validation artifact，不要把真实设备结论写进自动 runner 结果。
-- OpenSpec 可命名为 `brotatolike-manual-device-qa`。
+- 有物理设备时，复制 `DocsAI/ManualDeviceQA.md` 的 Run Record Template，按键鼠和手柄 checklist 执行，并只把实际执行项标为 `pass` 或 `fail`。
+- 所有未执行项保持 `not-tested`；不要把自动 runner artifact 写成真实设备 pass。
+- `fail` 项必须转为 bugfix OpenSpec change 或 DocsAI follow-up。
 
 ## 9. P2 接手项：旧调试和测试工具没有完整迁移
 
@@ -496,7 +500,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 9. `brotatolike-character-selection`
    - 目标：更多角色数据、角色选择 UI、起始技能差异。
 10. `brotatolike-manual-device-qa`
-    - 目标：真实手柄、鼠标点选、窗口焦点和焦点导航 checklist。
+    - 状态：checklist 文档已建立；真实设备执行仍需人工完成，当前全部真实设备 workflow 为 `not-tested`。
 
 ## 11. 常用验证命令
 

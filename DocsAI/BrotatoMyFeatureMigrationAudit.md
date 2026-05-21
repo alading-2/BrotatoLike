@@ -10,7 +10,7 @@
 
 最新 RunFlow artifact `.ai-temp/scene-tests/runs/2026-05-21/19-17-09/index.json` 显示 `BrotatoLike Run Flow validation PASS`，记录两波 authoring、第一波 5 个敌人、`Completed -> RewardShop`、第 2 波开始、pause gate、死亡复活、cleanup 和 scene-backed wave phase。最新 Main 场景 artifact `.ai-temp/scene-tests/runs/2026-05-21/19-18-22/index.json` 显示 `BrotatoLike playable slice PASS`。专项 Playable UX artifact `.ai-temp/scene-tests/runs/2026-05-21/17-45-17/index.json` 显示正式 HUD/血条/技能栏/loadout override/点选/飘字/可见移动均 pass；Progression artifact `.ai-temp/scene-tests/runs/2026-05-21/19-18-08/index.json` 显示 wave completion、pause gate、HP recovery、经验拾取、level-up、经验条和升级三选一均 pass；LegacyResources artifact 显示 25 个旧 `res://Src/...` / `res://Data/...` path 已分类且没有 missing active legacy path。
 
-这仍不能等价为旧项目所有功能体验迁移完成。剩余缺口主要是：商店波间 UI 自动打开 / 刷新与完整经济曲线 / 替换面板 / passive panel / meta progression、更多波次与随机/权重生成策略、真实物理设备专项 QA、角色扩展，以及旧测试/调试工具是否按 AI-first 方式重建。商店和道具本身已有第一版 scene-backed service/UI/validation，wave flow 已记录 `shop_offer.validation` hook，但还不是完整经济体验。
+这仍不能等价为旧项目所有功能体验迁移完成。剩余缺口主要是：商店波间 UI 自动打开 / 刷新与完整经济曲线 / 替换面板 / passive panel / meta progression、更多波次与随机/权重生成策略、真实物理设备专项 QA 执行、角色扩展，以及旧测试/调试工具是否按 AI-first 方式重建。商店和道具本身已有第一版 scene-backed service/UI/validation，wave flow 已记录 `shop_offer.validation` hook，但还不是完整经济体验。真实设备 QA 已建立 `DocsAI/ManualDeviceQA.md` checklist；当前没有物理设备执行记录，所有真实设备 workflow 仍是 `not-tested`。
 
 用户点名的几个问题需要按下面口径处理：
 
@@ -154,7 +154,7 @@
 - `validate-brotatolike-projectile-and-passive-skills`：复用 deterministic validation loadout，逐个补投射物/被动技能可视、命中、生命周期和清理 artifact。
 - 后续 wave economy tuning change：基于现有 `RewardShop` hook，补 shop UI 自动打开、刷新/锁定、货币来源和经济曲线。
 - 后续 progression/panel change：补 visible slot 替换、被动面板、连续多次升级队列和 meta progression。
-- `brotatolike-manual-device-qa`：补真实手柄、鼠标点选、窗口焦点和人工可玩 checklist。
+- `brotatolike-manual-device-qa`：checklist 已建立；后续需要真实手柄、鼠标点选、窗口焦点和人工可玩执行记录，未执行项保持 `not-tested`。
 
 ## 本次验证记录
 

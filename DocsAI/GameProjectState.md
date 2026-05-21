@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-21（character selection）
+> 更新日期：2026-05-21（manual device QA）
 
 ## 当前状态
 
@@ -8,6 +8,7 @@
 
 本轮追加：
 
+- **Manual device QA**：OpenSpec change `brotatolike-manual-device-qa` 已新增 `DocsAI/ManualDeviceQA.md`，把真实设备 QA 从自动 scene runner evidence 中分离出来。文档记录 evidence boundary：automated runner / `Input.ActionPress` 只能证明 Godot input action 到 runtime、技能栏和 artifact oracle 的自动路径，不能替代真实键鼠、鼠标、手柄、窗口焦点、摇杆漂移、按钮映射或 UI 焦点 pass。Checklist 覆盖键鼠 movement、skill switching/release、point target confirm/cancel、pause/resume、death/respawn、UI focus，以及 gamepad stick/D-pad、previous/next skill、use skill、confirm/cancel、pause 和 UI focus。当前 agent session 没有物理设备，初始记录全部真实设备 workflow 均为 `not-tested`，没有新增真实设备 pass claim。
 - **Character selection**：OpenSpec change `brotatolike-character-selection` 已把 BrotatoLike 从固定默认玩家推进到首版 DataOS-backed 角色选择闭环。游戏侧 DataOS seed 新增 `character_definition / character_loadout / character_loadout_ability`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/character_authoring.json`；首批可选角色为 `deluyi`（默认 fallback，HP 100 / MoveSpeed 200 / Attack 10，loadout `slam,chain_lightning,target_point_skill,dash`）和 `guangfa`（HP 85 / MoveSpeed 185 / Attack 14，loadout `chain_lightning,sine_wave_shot,target_point_skill,dash`）。`BrotatoLikeCharacterCatalog` 校验 player record、visual scene 和 ability refs，`BrotatoLikeGameRuntime` 新增 `InitialCharacterId`、`TrySelectCharacter`、`SpawnCharacter`、`SpawnSelectedCharacter`，Main 启动路径改为默认角色选择 fallback 而不是直接固定 `SpawnPlayer()`；旧 `SpawnPlayer(recordId)` 保留为兼容和专项验证入口。新增 `Scenes/UI/CharacterSelectPanelUI.tscn` / `CharacterSelectCardUI.tscn` scene-backed UI。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，85 个 XML comment warnings，0 errors）；CharacterSelection validation `.ai-temp/scene-tests/runs/2026-05-21/20-00-19/index.json` PASS，artifact 记录 invalid player/visual reject、UI scene path、visible ids `deluyi,guangfa`、按钮选择 `guangfa`、`player-guangfa`、visual path、starting skills、视觉/属性/loadout 差异，以及两名角色 input、active skill input、HUD、PlayerHealthBar、ActiveSkillBar、camera 绑定；analyzer gate report 为 `pass`，README 与 artifact 五字段非空。Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/20-03-04/index.json` PASS，artifact 记录默认角色 fallback 的 `skill_loadout_source=character:deluyi`。
 - **Wave run flow**：OpenSpec change `complete-brotatolike-wave-run-flow` 已把 BrotatoLike 从单波 completion 推进到首版多波运行闭环。游戏侧 DataOS seed 新增 `wave_definition` / `wave_enemy_entry`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/wave_authoring.json`；当前 authoring 包含两波 finite deterministic enemy entries，第 1 波为 2 个 `chailangren` + 3 个 `yuren`，完成后进入 `RewardShop` 并记录 `shop_offer.validation` / `validation` hook，第 2 波调整生成顺序和数量后结束。`BrotatoLikeWaveCatalog` 校验 wave id、completion mode、enemy id 和视觉资源；`BrotatoLikeGameRuntime.TryStartWave/TryStartNextWave` 可切换当前波次 spawn catalog；`BrotatoLikeProgressionService` 记录 `Preparing/Running/Completed/RewardShop/NextWave/Ended` 状态机、完成判定、reward hook、下一波和 cleanup count；`ExperienceBarUI` / `ProgressionSummary` 记录 wave index 与 phase。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，49 个既有 XML comment warnings，0 errors）；RunFlow validation `.ai-temp/scene-tests/runs/2026-05-21/19-17-09/index.json` PASS，artifact 记录 wave authoring source、两波 expected spawn count=5、invalid enemy/resource reject、第一波 `Running` 生成 5 个敌人、pause tick 阻断/恢复、死亡复活、`Completed -> RewardShop`、cleanup `runtime 10 -> 5` / enemy `5 -> 0`、第二波 `Running` 生成 5 个敌人、scene-backed `ExperienceBarUI` wave phase；analyzer gate report 为 `pass`，README 与 artifact 五字段非空。Progression 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-08/index.json` PASS，Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-22/index.json` PASS。
 - **Shop item loop**：OpenSpec change `design-brotatolike-shop-item-loop` 已新增 BrotatoLike 第一版商店、道具、货币和购买闭环。游戏侧 DataOS seed 新增 `item_definition` / `shop_offer`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/shop_item_authoring.json`；首批 deterministic 道具为 `vital_seed`（`Damage.MaxHp +8`，price 12）、`swift_boots`（`Movement.MoveSpeed +18`，price 8）、`sharpening_stone`（`Attack.Damage +5`，price 20）。`BrotatoLikeShopService` 暴露货币、deterministic offer、购买门禁、owned item metadata 和 Runtime Data effect application；`ShopPanelUI.tscn` / `ShopOfferCardUI.tscn` 是 scene-backed UI。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，0 warnings，0 errors）；Shop validation `.ai-temp/scene-tests/runs/2026-05-21/18-39-01/index.json` PASS，artifact 记录 unknown effect target reject、`offer_ids=vital_seed,swift_boots,sharpening_stone`、`offer_prices=12,8,20`、货币 `15 -> 3`、`Damage.MaxHp` 增加、`insufficient_currency` reject、UI purchased/currency/close state；analyzer gate report 为 `pass`，scene artifact 五字段非空。
@@ -85,9 +86,18 @@
 1. 跟进 passing scenes 中的诊断 stderr：Game/Input 的 `Parameter "data.tree" is null` 和框架 UnitComposition 的 Godot RID leak；这两项当前不覆盖 artifact oracle，但不能作为“无 error”证明。
 2. 继续把 wave reward hook 推进到完整商店体验和经济曲线；当前多波流程已能从第 1 波进入 `RewardShop` 并启动第 2 波，但 shop/item 仍只覆盖 deterministic offer、购买门禁和道具效果，不包含刷新/锁定/售卖、货币掉落、存档和永久成长。替换/被动面板和 meta progression 仍需后续 change。
 3. 继续补更多投射物/特效动画样式验收；Chain Lightning 连线与 8 个 projectile/passive 技能已具备行为和 cleanup artifact，后续只剩美术样式或像素级截图门禁增强。
-4. 继续做手动设备专项：物理手柄 LB/RB/X、摇杆、鼠标/手柄 Point target 细节和窗口焦点问题，作为自动 `Input.ActionPress` 之外的人工 QA 或专门设备测试。
+4. 执行 `DocsAI/ManualDeviceQA.md` 的真实设备 checklist：当前文档已建立，但物理键鼠、鼠标点选、手柄和 UI 焦点结果仍是 `not-tested`，不能写成 pass。
 
 ## 最新验证
+
+**brotatolike-manual-device-qa（2026-05-21）**
+
+```bash
+cd /home/slime/Code/SlimeAI
+openspec validate brotatolike-manual-device-qa --strict
+```
+
+结果：`DocsAI/ManualDeviceQA.md` 已建立真实设备 QA checklist 和初始记录。当前环境没有物理设备执行人工 QA，因此键鼠、鼠标点选、手柄、窗口焦点和 UI focus workflow 均明确记录为 `not-tested`；自动 runner evidence 未被写成真实设备 pass。
 
 **brotatolike-character-selection（2026-05-21）**
 
