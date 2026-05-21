@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BrotatoLike.Game.UI;
 using Godot;
+using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Collision;
 using SlimeAI.GameOS.Capabilities.Damage;
 using SlimeAI.GameOS.Capabilities.Damage.Events;
@@ -26,6 +27,7 @@ public partial class BrotatoLikeProgressionService : Node
     private BrotatoLikeGameRuntime? runtime;
     private bool forceWaveComplete;
     private float elapsedSeconds;
+    private IReadOnlyList<BrotatoLikeLevelUpChoiceDefinition> pendingChoices = [];
 
     /// <summary>
     /// 当前波次。
@@ -51,6 +53,16 @@ public partial class BrotatoLikeProgressionService : Node
     /// 升级反馈节点。
     /// </summary>
     public Label LevelUpFeedback { get; private set; } = null!;
+
+    /// <summary>
+    /// 升级选择面板（scene-backed: LevelUpChoicePanelUI.tscn）。
+    /// </summary>
+    public LevelUpChoicePanelUI LevelUpChoicePanel { get; private set; } = null!;
+
+    /// <summary>
+    /// 是否有待选择的升级奖励。
+    /// </summary>
+    public bool IsLevelUpChoicePending { get; private set; }
 
     /// <summary>
     /// 绑定运行时。
@@ -84,15 +96,18 @@ public partial class BrotatoLikeProgressionService : Node
         PauseMenu.Name = "BrotatoLikePauseMenu";
         AddChild(PauseMenu);
 
-        // scene-first exception: 简单 Label，后续迁移到 scene
-        LevelUpFeedback = new Label
-        {
-            Name = "LevelUpFeedback",
-            Text = string.Empty,
-            Visible = false,
-            Position = new Vector2(16f, 120f)
-        };
+        // scene-backed: 升级反馈来自 LevelUpFeedbackUI.tscn
+        var feedbackScene = GD.Load<PackedScene>("res://Scenes/UI/LevelUpFeedbackUI.tscn");
+        LevelUpFeedback = feedbackScene.Instantiate<Label>();
+        LevelUpFeedback.Name = "LevelUpFeedback";
         AddChild(LevelUpFeedback);
+
+        // scene-backed: 升级三选一面板来自 LevelUpChoicePanelUI.tscn
+        var choiceScene = GD.Load<PackedScene>("res://Scenes/UI/LevelUpChoicePanelUI.tscn");
+        LevelUpChoicePanel = choiceScene.Instantiate<LevelUpChoicePanelUI>();
+        LevelUpChoicePanel.Name = "LevelUpChoicePanel";
+        LevelUpChoicePanel.ChoiceSelected += SelectLevelUpChoice;
+        AddChild(LevelUpChoicePanel);
 
         killedSub = WorldEvents.World.Subscribe<Killed>(OnKilled);
         UpdateWaveState();
@@ -119,6 +134,12 @@ public partial class BrotatoLikeProgressionService : Node
             {
                 runtime?.OpenPauseMenu();
             }
+        }
+
+        if (IsLevelUpChoicePending)
+        {
+            UpdateWaveState();
+            return;
         }
 
         TickRecovery((float)delta);
@@ -152,6 +173,44 @@ public partial class BrotatoLikeProgressionService : Node
     {
         forceWaveComplete = true;
         UpdateWaveState();
+    }
+
+    /// <summary>
+    /// 选择并应用升级奖励。
+    /// </summary>
+    /// <param name="choiceId">选择 Id。</param>
+    public void SelectLevelUpChoice(string choiceId)
+    {
+        if (!IsLevelUpChoicePending || runtime?.PlayerEntity == null)
+        {
+            return;
+        }
+
+        var definition = FindPendingChoice(choiceId);
+        if (definition == null)
+        {
+            return;
+        }
+
+        var result = ApplyLevelUpChoice(runtime.PlayerEntity, definition);
+        LevelUpChoicePanel.RecordSelection(result);
+        LevelUpChoicePanel.HidePanel();
+        IsLevelUpChoicePending = false;
+        pendingChoices = [];
+        runtime.CloseLevelUpChoiceGate();
+
+        LevelUpFeedback.Visible = false;
+        SetMeta("LevelUpChoicePending", false);
+        LevelUpFeedback.SetMeta("LastSelectedChoiceId", result.ChoiceId);
+        LevelUpFeedback.SetMeta("LastSelectedEffectType", result.EffectType);
+        LevelUpFeedback.SetMeta("LastBeforeValue", result.BeforeValue);
+        LevelUpFeedback.SetMeta("LastAfterValue", result.AfterValue);
+        LevelUpFeedback.SetMeta("LastApplySuccess", result.Success);
+        SetMeta("LastSelectedChoiceId", result.ChoiceId);
+        SetMeta("LastSelectedEffectType", result.EffectType);
+        SetMeta("LastBeforeValue", result.BeforeValue);
+        SetMeta("LastAfterValue", result.AfterValue);
+        SetMeta("LastApplySuccess", result.Success);
     }
 
     private void OnKilled(Killed killed)
@@ -289,6 +348,7 @@ public partial class BrotatoLikeProgressionService : Node
         var experience = ReadIntMeta(player, "Experience", 0);
         var level = ReadIntMeta(player, "Level", 1);
         var nextLevelExperience = ReadIntMeta(player, "NextLevelExperience", BaseNextLevelExperience);
+        var oldLevel = level;
         var leveled = false;
         while (experience >= nextLevelExperience)
         {
@@ -308,8 +368,139 @@ public partial class BrotatoLikeProgressionService : Node
 
         LevelUpFeedback.Visible = true;
         LevelUpFeedback.Text = $"Level {level}";
+        LevelUpFeedback.SetMeta("OldLevel", oldLevel);
         LevelUpFeedback.SetMeta("Level", level);
         LevelUpFeedback.SetMeta("Feedback", LevelUpFeedback.Text);
+        LevelUpFeedback.SetMeta("SceneBacked", !string.IsNullOrEmpty(LevelUpFeedback.SceneFilePath));
+        LevelUpFeedback.SetMeta("ScenePath", LevelUpFeedback.SceneFilePath);
+        OpenLevelUpChoice(player, oldLevel, level);
+    }
+
+    private void OpenLevelUpChoice(Node player, int oldLevel, int newLevel)
+    {
+        if (player is not IEntity playerEntity || runtime == null)
+        {
+            return;
+        }
+
+        pendingChoices = BrotatoLikeLevelUpChoiceAuthoring.CreateChoices(playerEntity);
+        IsLevelUpChoicePending = true;
+        runtime.OpenLevelUpChoiceGate();
+        LevelUpChoicePanel.ShowChoices(newLevel, pendingChoices);
+        LevelUpChoicePanel.SetMeta("OldLevel", oldLevel);
+        LevelUpChoicePanel.SetMeta("NewLevel", newLevel);
+        LevelUpChoicePanel.SetMeta("GatePolicy", BrotatoLikeLevelUpChoiceAuthoring.GatePolicy);
+        SetMeta("LevelUpChoicePending", true);
+        SetMeta("LevelUpChoiceIds", JoinChoiceValues(pendingChoices, choice => choice.Id));
+        SetMeta("LevelUpChoiceTexts", JoinChoiceValues(pendingChoices, choice => choice.DisplayText));
+        SetMeta("LevelUpChoiceGatePolicy", BrotatoLikeLevelUpChoiceAuthoring.GatePolicy);
+    }
+
+    private BrotatoLikeLevelUpChoiceDefinition? FindPendingChoice(string choiceId)
+    {
+        for (var i = 0; i < pendingChoices.Count; i++)
+        {
+            if (string.Equals(pendingChoices[i].Id, choiceId, StringComparison.Ordinal))
+            {
+                return pendingChoices[i];
+            }
+        }
+
+        return null;
+    }
+
+    private BrotatoLikeLevelUpChoiceApplyResult ApplyLevelUpChoice(
+        GodotEntity2D player,
+        BrotatoLikeLevelUpChoiceDefinition definition)
+    {
+        switch (definition.EffectType)
+        {
+            case BrotatoLikeLevelUpChoiceEffectType.AddMaxHp:
+            {
+                var before = player.Data.Get<float>(DamageDataKeys.MaxHp, 0f);
+                var currentHp = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+                var after = before + definition.EffectValue;
+                player.Data.Set(DamageDataKeys.MaxHp, after);
+                player.Data.Set(DamageDataKeys.CurrentHp, currentHp + definition.EffectValue);
+                return new BrotatoLikeLevelUpChoiceApplyResult(
+                    true,
+                    definition.Id,
+                    definition.EffectType.ToString(),
+                    definition.EffectTarget,
+                    FormatFloat(before),
+                    FormatFloat(after),
+                    "max hp increased");
+            }
+
+            case BrotatoLikeLevelUpChoiceEffectType.AddMoveSpeed:
+            {
+                var before = player.Data.Get<float>(MovementDataKeys.MoveSpeed, 0f);
+                var after = before + definition.EffectValue;
+                player.Data.Set(MovementDataKeys.MoveSpeed, after);
+                return new BrotatoLikeLevelUpChoiceApplyResult(
+                    true,
+                    definition.Id,
+                    definition.EffectType.ToString(),
+                    definition.EffectTarget,
+                    FormatFloat(before),
+                    FormatFloat(after),
+                    "move speed increased");
+            }
+
+            case BrotatoLikeLevelUpChoiceEffectType.GrantAbility:
+            {
+                var ownedBefore = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds).Count;
+                var abilityEntityId = EntityId.Empty;
+                var message = "runtime unavailable";
+                var success = runtime != null
+                    && runtime.TryGrantPlayerAbility(
+                        definition.AbilityRecordId,
+                        visibleActive: false,
+                        out abilityEntityId,
+                        out message);
+                var ownedAfter = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds).Count;
+                return new BrotatoLikeLevelUpChoiceApplyResult(
+                    success,
+                    definition.Id,
+                    definition.EffectType.ToString(),
+                    abilityEntityId.IsEmpty ? definition.EffectTarget : abilityEntityId.Value,
+                    ownedBefore.ToString(),
+                    ownedAfter.ToString(),
+                    message);
+            }
+
+            case BrotatoLikeLevelUpChoiceEffectType.UpgradeAbilityLevel:
+            {
+                var abilityEntityId = EntityId.Empty;
+                var beforeLevel = 0;
+                var afterLevel = 0;
+                var success = runtime != null
+                    && runtime.TryUpgradePlayerAbilityLevel(
+                        definition.AbilityRecordId,
+                        Mathf.RoundToInt(definition.EffectValue),
+                        out abilityEntityId,
+                        out beforeLevel,
+                        out afterLevel);
+                return new BrotatoLikeLevelUpChoiceApplyResult(
+                    success,
+                    definition.Id,
+                    definition.EffectType.ToString(),
+                    abilityEntityId.IsEmpty ? definition.EffectTarget : abilityEntityId.Value,
+                    beforeLevel.ToString(),
+                    afterLevel.ToString(),
+                    success ? "ability level increased" : "ability level unchanged");
+            }
+
+            default:
+                return new BrotatoLikeLevelUpChoiceApplyResult(
+                    false,
+                    definition.Id,
+                    definition.EffectType.ToString(),
+                    definition.EffectTarget,
+                    string.Empty,
+                    string.Empty,
+                    "unsupported level-up choice");
+        }
     }
 
     private void UpdateWaveState()
@@ -388,5 +579,23 @@ public partial class BrotatoLikeProgressionService : Node
             Variant.Type.String => int.TryParse(value.AsString(), out var parsed) ? parsed : fallback,
             _ => fallback
         };
+    }
+
+    private static string JoinChoiceValues(
+        IReadOnlyList<BrotatoLikeLevelUpChoiceDefinition> choices,
+        Func<BrotatoLikeLevelUpChoiceDefinition, string> selector)
+    {
+        var values = new string[choices.Count];
+        for (var i = 0; i < choices.Count; i++)
+        {
+            values[i] = selector(choices[i]);
+        }
+
+        return string.Join(",", values);
+    }
+
+    private static string FormatFloat(float value)
+    {
+        return value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
     }
 }

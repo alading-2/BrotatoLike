@@ -14,6 +14,7 @@ internal static class BrotatoLikeSkillLoadoutAuthoring
     public const int VisibleActiveSlotCapacity = 4;
     public const string SourceDefault = "default";
     public const string SourceValidationOverride = "validation-override";
+    public const string SourceLevelUpChoice = "level-up-choice";
     public const string LoadoutSourceMeta = "SkillLoadoutSource";
     public const string DefaultActiveAbilityIdsMeta = "SkillDefaultActiveAbilityIds";
     public const string AvailableSkillPoolIdsMeta = "SkillAvailablePoolIds";
@@ -192,7 +193,7 @@ internal static class BrotatoLikeSkillLoadoutAuthoring
         return result.ToArray();
     }
 
-    private static bool IsPassiveAbility(string abilityId)
+    public static bool IsPassiveAbility(string abilityId)
     {
         for (var i = 0; i < PassiveAbilityIds.Length; i++)
         {

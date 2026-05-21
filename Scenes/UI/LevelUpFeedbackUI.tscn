@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[node name="LevelUpFeedback" type="Label"]
+visible = false
+offset_left = 16.0
+offset_top = 120.0
+offset_right = 240.0
+offset_bottom = 150.0
+theme_override_font_sizes/font_size = 24
+text = ""

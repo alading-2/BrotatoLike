@@ -50,13 +50,14 @@
 - 点选技能：`target_point_skill` 有指示器、确认、取消和死亡清理。
 - 伤害反馈：敌人头顶血条、伤害数字、治疗数字有 scene-backed UI。
 - 运行时：`BrotatoLikeGameRuntime` 是主运行时节点，`Main.cs` 负责启动路径和 acceptance。
-- 进度最小闭环：wave runtime state、pause menu、pause schedule gate、HP recovery、经验 pickup、level-up feedback 已有最小实现。
+- 进度首版闭环：wave runtime state、pause menu、pause schedule gate、HP recovery、经验 pickup、scene-backed 经验条、level-up feedback、升级三选一、属性奖励、hidden ability 解锁和升级选择门禁已有最小实现。
 
 最近可引用证据：
 
-- Main artifact：`.ai-temp/scene-tests/runs/2026-05-21/15-17-40/001_Scenes_Main.tscn_attempt1/artifacts/scene-acceptance.json`
+- Main artifact：`.ai-temp/scene-tests/runs/2026-05-21/17-45-33/001_Scenes_Main.tscn_attempt1/artifacts/scene-acceptance.json`
 - GameLifecycle artifact：`.ai-temp/scene-tests/runs/2026-05-21/15-14-41/001_Src_Validation_Game_GameLifecycle_BrotatoLikeGameplayLifecycleValidation.tscn_attempt1/artifacts/brotatolike-gameplay-lifecycle-validation.json`
-- PlayableUX artifact：`.ai-temp/scene-tests/runs/2026-05-21/13-47-13-002/001_Src_Validation_Game_PlayableUX_BrotatoLikePlayableUXValidation.tscn_attempt1/artifacts/brotatolike-playable-ux-validation.json`
+- PlayableUX artifact：`.ai-temp/scene-tests/runs/2026-05-21/17-45-17/001_Src_Validation_Game_PlayableUX_BrotatoLikePlayableUXValidation.tscn_attempt1/artifacts/brotatolike-playable-ux-validation.json`
+- Progression artifact：`.ai-temp/scene-tests/runs/2026-05-21/17-45-01/001_Src_Validation_Game_Progression_BrotatoLikeProgressionLoopValidation.tscn_attempt1/artifacts/brotatolike-progression-loop-validation.json`
 
 如果新对话要声明这些功能仍然通过，需要重新跑对应命令并读取新 artifact。历史 artifact 只能说明当时通过。
 
@@ -154,8 +155,8 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 
 仍缺什么：
 
-- 普通局内获得流程：升级选项、商店购买、替换选择、分页或 passive panel 还未实现。
-- 不要把 available skill pool 写成“已可玩”；它目前是可获得候选和 validation loadout 来源。
+- 普通局内获得流程：升级三选一首版可授予 hidden ability，但 visible slot 替换、商店购买、分页或 passive panel 还未实现。
+- 不要把 available skill pool 写成“已可玩”；它目前是可获得候选、validation loadout 来源和后续升级/商店池输入。
 
 关键路径：
 
@@ -256,26 +257,29 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 - OpenSpec `restore-brotatolike-chain-lightning-line-vfx` 已完成实现与验证，后续应归档到 baseline。
 - 如果未来要上提通用端点数据，需要另开框架级 change；不要把 `LightningLineEffect` 类型硬编码进框架。
 
-## 6. P1 接手项：商店、道具、升级选择和 meta progression 还没迁
+## 6. P1 接手项：商店、道具、替换面板和 meta progression 还没迁
 
 现状：
 
-- `Src/Game/Progression/BrotatoLikeProgressionService.cs` 当前只覆盖：
+- `Src/Game/Progression/BrotatoLikeProgressionService.cs` 当前覆盖：
   - wave runtime state metadata
   - scene-backed pause menu
   - HP recovery
   - experience pickup
-  - level-up feedback label
-- `BrotatoLikeHud` 左上角只显示最小 progression summary：等级、经验、波次。
-- 没有正式商店、道具、升级三选一、永久成长、存档、解锁。
+  - scene-backed level-up feedback
+  - scene-backed experience bar
+  - scene-backed level-up choice panel
+  - stat reward / hidden ability reward
+  - `ModalUi + Suspended` level-up gate
+- `BrotatoLikeHud` 左上角已有正式 `ExperienceBarUI.tscn`，`ProgressionSummary` 只保留 metadata 兼容用途。
+- 没有正式商店、道具、visible slot 替换、被动面板、永久成长、存档、解锁。
 
 缺什么：
 
-- Level-up choices：升级时暂停或半暂停，展示 3 个选项，选择后修改玩家/技能/属性。
+- Level-up choices 后续增强：随机/权重池、连续多次升级队列、visible slot 替换、被动面板和更完整 reward authoring。
 - Item system：道具定义、掉落/商店购买、效果应用、图标和叠加规则。
 - Shop system：波间商店、刷新、价格、购买、锁定、货币。
 - Meta progression：局外存档、解锁、角色/道具池扩展。
-- 经验条正式 UI：现在是文字 summary，不是完整经验条。
 
 关键路径：
 
@@ -296,8 +300,8 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 
 建议拆分：
 
-- OpenSpec `design-brotatolike-shop-item-levelup-loop`
-- 先做 level-up choices 和经验条，再做商店和 item。原因是 level-up 已经有经验触发点，最小闭环更短。
+- OpenSpec `design-brotatolike-shop-item-loop`
+- 后续 progression/panel change：补随机/权重 reward pool、连续多次升级队列、visible slot 替换和被动面板。
 - DataOS 表设计要先明确 item/choice/feature modifier 的 authoring shape，避免把临时 UI 数据塞到 runtime meta。
 
 ## 7. P1 接手项：完整多波流程还没完成
@@ -312,7 +316,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 
 - 多波配置、难度曲线、波间奖励、wave start/end UI。
 - 敌种组合变化、生成节奏、随机或权重策略。
-- 波间 shop / level-up / item 奖励接入。
+- 波间 shop / item 奖励接入，以及与升级选择、替换面板的衔接。
 - 长时间运行稳定性：节点、Runtime Entity、Timer、Effect、Projectile 是否泄漏。
 
 关键路径：
@@ -456,9 +460,9 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 4. `expand-brotatolike-skill-loadout`
    - 状态：已完成。默认四槽、12 项 available skill pool、passive ids 和 validation override 均有 PlayableUX / Main artifact 证据。
 5. `validate-brotatolike-projectile-and-passive-skills`
-   - 状态：已完成。Skills validation `.ai-temp/scene-tests/runs/2026-05-21/17-16-37/index.json` PASS，Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/17-17-42/index.json` PASS；等待 archive/commit。
+   - 状态：已完成。Skills validation `.ai-temp/scene-tests/runs/2026-05-21/17-16-37/index.json` PASS，Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/17-17-42/index.json` PASS。
 6. `design-brotatolike-levelup-choice-loop`
-   - 目标：升级三选一、经验条、选择后应用 feature modifier。
+   - 状态：已完成并归档到 baseline spec。Progression `.ai-temp/scene-tests/runs/2026-05-21/17-45-01/index.json` PASS，PlayableUX `.ai-temp/scene-tests/runs/2026-05-21/17-45-17/index.json` PASS，Main `.ai-temp/scene-tests/runs/2026-05-21/17-45-33/index.json` PASS。
 7. `design-brotatolike-shop-item-loop`
    - 目标：商店、道具、货币、波间购买。
 8. `complete-brotatolike-wave-run-flow`

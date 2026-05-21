@@ -113,6 +113,11 @@ public partial class BrotatoLikeGameRuntime : Node
     public BrotatoLikeProgressionService? ProgressionService => progressionService;
 
     /// <summary>
+    /// 当前 ProjectState 快照，供验证升级选择门禁使用。
+    /// </summary>
+    public ProjectStateSnapshot? CurrentProjectState => schedule?.ProjectState.Snapshot;
+
+    /// <summary>
     /// 最近一次 Tick 结果。
     /// </summary>
     public SystemExecuteResult<BrotatoLikeSpawnTickResult> LastSpawnTickResult { get; private set; }
@@ -320,6 +325,45 @@ public partial class BrotatoLikeGameRuntime : Node
     }
 
     /// <summary>
+    /// 打开升级选择门禁：使用 ModalUi 覆盖层并暂停 schedule-gated gameplay。
+    /// </summary>
+    public void OpenLevelUpChoiceGate()
+    {
+        if (schedule == null)
+        {
+            return;
+        }
+
+        var snapshot = schedule.ProjectState.Snapshot;
+        schedule.ProjectState.Apply(snapshot with
+        {
+            Overlays = snapshot.Overlays | OverlayFlags.ModalUi,
+            SimulationState = SimulationState.Suspended
+        });
+    }
+
+    /// <summary>
+    /// 关闭升级选择门禁；若仍存在其它阻塞覆盖层则保持暂停。
+    /// </summary>
+    public void CloseLevelUpChoiceGate()
+    {
+        if (schedule == null)
+        {
+            return;
+        }
+
+        var snapshot = schedule.ProjectState.Snapshot;
+        var overlays = snapshot.Overlays & ~OverlayFlags.ModalUi;
+        schedule.ProjectState.Apply(snapshot with
+        {
+            Overlays = overlays,
+            SimulationState = (overlays & OverlayFlags.Blocking) == OverlayFlags.None
+                ? SimulationState.Running
+                : SimulationState.Suspended
+        });
+    }
+
+    /// <summary>
     /// 通过 RuntimeSchedule 门禁推进 Spawn Tick。
     /// </summary>
     /// <param name="deltaSeconds">本次推进秒数。</param>
@@ -495,6 +539,93 @@ public partial class BrotatoLikeGameRuntime : Node
         return ownedIds.Add(ability.EntityId);
     }
 
+    /// <summary>
+    /// 向当前玩家授予一个 DataOS ability 记录。
+    /// </summary>
+    public bool TryGrantPlayerAbility(
+        string abilityRecordId,
+        bool visibleActive,
+        out EntityId abilityEntityId,
+        out string message)
+    {
+        abilityEntityId = EntityId.Empty;
+        if (bootstrap == null || playerEntity == null || !GodotObject.IsInstanceValid(playerEntity))
+        {
+            message = "runtime player is not ready";
+            return false;
+        }
+
+        if (!bootstrap.HasRecord("ability", abilityRecordId))
+        {
+            message = $"ability record not found: {abilityRecordId}";
+            return false;
+        }
+
+        abilityEntityId = new EntityId(BuildPlayerAbilityEntityId(playerEntity, abilityRecordId));
+        var ownedIds = playerEntity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        if (ownedIds.Contains(abilityEntityId))
+        {
+            message = $"ability already owned: {abilityRecordId}";
+            return false;
+        }
+
+        var ability = bootstrap.SpawnEntityFromRecord("ability", abilityRecordId, abilityEntityId.Value);
+        ownedIds = ownedIds.Add(ability.EntityId);
+        playerEntity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedIds);
+
+        var visibleIds = ReadEntityIdsMeta(playerEntity, BrotatoLikeSkillLoadoutAuthoring.VisibleActiveAbilityEntityIdsMeta);
+        if (visibleActive
+            && visibleIds.Count < BrotatoLikeSkillLoadoutAuthoring.VisibleActiveSlotCapacity
+            && !BrotatoLikeSkillLoadoutAuthoring.IsPassiveAbility(abilityRecordId))
+        {
+            visibleIds = visibleIds.Add(ability.EntityId);
+            AppendStringListMeta(playerEntity, BrotatoLikeSkillLoadoutAuthoring.VisibleActiveAbilityRecordIdsMeta, abilityRecordId);
+        }
+
+        RewriteRuntimeLoadoutMetadata(playerEntity, ownedIds, visibleIds);
+        message = $"granted ability: {abilityRecordId}";
+        return true;
+    }
+
+    /// <summary>
+    /// 提升当前玩家已拥有技能等级。
+    /// </summary>
+    public bool TryUpgradePlayerAbilityLevel(
+        string abilityRecordId,
+        int delta,
+        out EntityId abilityEntityId,
+        out int beforeLevel,
+        out int afterLevel)
+    {
+        abilityEntityId = EntityId.Empty;
+        beforeLevel = 0;
+        afterLevel = 0;
+        if (playerEntity == null || !GodotObject.IsInstanceValid(playerEntity))
+        {
+            return false;
+        }
+
+        var expectedId = new EntityId(BuildPlayerAbilityEntityId(playerEntity, abilityRecordId));
+        var ownedIds = playerEntity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        if (!ownedIds.Contains(expectedId))
+        {
+            return false;
+        }
+
+        var ability = EntityManager.Get(expectedId);
+        if (ability == null)
+        {
+            return false;
+        }
+
+        abilityEntityId = ability.EntityId;
+        beforeLevel = ability.Data.Get<int>(AbilityDataKeys.Level, 1);
+        var maxLevel = ability.Data.Get<int>(AbilityDataKeys.MaxLevel, 10);
+        afterLevel = Math.Clamp(beforeLevel + delta, 1, Math.Max(1, maxLevel));
+        ability.Data.Set(AbilityDataKeys.Level, afterLevel);
+        return afterLevel != beforeLevel;
+    }
+
     private static string BuildPlayerAbilityEntityId(GodotEntity2D player, string abilityRecordId)
     {
         return $"ability-{abilityRecordId}-{player.EntityId.Value}";
@@ -527,6 +658,60 @@ public partial class BrotatoLikeGameRuntime : Node
         player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.TotalOwnedCountMeta, ownedAbilityIds.Count);
         player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.VisibleSlotCountMeta, visibleActiveEntityIds.Count);
         player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.HiddenOwnedCountMeta, Math.Max(0, ownedAbilityIds.Count - visibleActiveEntityIds.Count));
+    }
+
+    private static void RewriteRuntimeLoadoutMetadata(
+        GodotEntity2D player,
+        EntityIdList ownedAbilityIds,
+        EntityIdList visibleActiveEntityIds)
+    {
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.LoadoutSourceMeta, BrotatoLikeSkillLoadoutAuthoring.SourceLevelUpChoice);
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.OwnedAbilityEntityIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(ownedAbilityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.VisibleActiveAbilityEntityIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(visibleActiveEntityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.TotalOwnedCountMeta, ownedAbilityIds.Count);
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.VisibleSlotCountMeta, visibleActiveEntityIds.Count);
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.HiddenOwnedCountMeta, Math.Max(0, ownedAbilityIds.Count - visibleActiveEntityIds.Count));
+    }
+
+    private static EntityIdList ReadEntityIdsMeta(IEntity owner, string key)
+    {
+        if (owner is not Node node || !node.HasMeta(key))
+        {
+            return EntityIdList.Empty;
+        }
+
+        var raw = node.GetMeta(key).AsString();
+        var result = EntityIdList.Empty;
+        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        for (var i = 0; i < parts.Length; i++)
+        {
+            result = result.Add(new EntityId(parts[i]));
+        }
+
+        return result;
+    }
+
+    private static void AppendStringListMeta(Node node, string key, string value)
+    {
+        var existing = node.HasMeta(key) ? node.GetMeta(key).AsString() : string.Empty;
+        if (string.IsNullOrWhiteSpace(existing))
+        {
+            node.SetMeta(key, value);
+            return;
+        }
+
+        var parts = existing.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (string.Equals(parts[i], value, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+
+        node.SetMeta(key, $"{existing},{value}");
     }
 
     private static bool ContainsRecordId(IReadOnlyList<string> recordIds, string abilityRecordId)

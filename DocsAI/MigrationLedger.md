@@ -26,7 +26,7 @@
 | wave completion | 已迁移 | `cd Games/BrotatoLike && Tools/run-godot-scene.sh run res://Src/Validation/Game/Progression/BrotatoLikeProgressionLoopValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs`；`.ai-temp/scene-tests/runs/2026-05-20/11-33-15/index.json`，`wave_completion_state=pass`、`wave_completed_meta=true` | 完整多波、波间商店/奖励和随机生成策略未纳入本 change。 |
 | pause menu / schedule gate | 已迁移 | Progression artifact：`pause_menu_blocks_and_resumes_tick=pass`，记录 pause 时 tick 阻断、resume 后 tick 恢复 | 菜单样式、焦点导航和更多按钮不是本次范围。 |
 | HP recovery / dead skip | 已迁移 | Progression artifact：`hp_recovery_tick_and_dead_skip=pass`；mana recovery 因 active catalog 无 mana 数据记录为 `not-applicable` | 后续如恢复 mana 数据，需要新增 mana UI/验证。 |
-| 掉落 / 拾取 / 经验 / 升级反馈 | 已迁移 | Progression artifact：`enemy_death_spawns_experience_pickup=pass`、`pickup_grants_experience_and_cleans=pass`、`level_up_feedback=pass`，记录 `last_reward=5`、`new_level=2` | 经验条样式、升级选项、商店、道具系统和 meta progression 未实现。 |
+| 掉落 / 拾取 / 经验 / 升级反馈 / 升级选择 | 已迁移 | Progression artifact：`enemy_death_spawns_experience_pickup=pass`、`pickup_grants_experience_and_cleans=pass`、`level_up_feedback=pass`、`level_up_choice_scene_backed=pass`、`experience_ui_scene_backed_updates=pass`，记录 `last_reward=5`、`new_level=2`、scene-backed 经验条和升级三选一 | 商店、道具系统、替换选择、被动面板和 meta progression 未实现。 |
 | legacy ResourceCatalog path 分类 | 已迁移 | `cd Games/BrotatoLike && Tools/run-godot-scene.sh run res://Src/Validation/Game/LegacyResources/BrotatoLikeLegacyResourceClassificationValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs`；`.ai-temp/scene-tests/runs/2026-05-20/11-33-42/index.json`，`legacyCount=25`、`unsupportedStatusCount=0`、`missingActiveLegacyCount=0` | 分类门禁不等于删除旧输入；后续迁移时仍要替换或废弃单个旧路径。 |
 
 ## expand-brotatolike-skill-loadout 功能级证据
@@ -36,7 +36,16 @@
 | 默认 loadout | 已迁移 | `BrotatoLikeSkillLoadoutAuthoring.CreateDefault()` 固定 `slam / chain_lightning / target_point_skill / dash`；Main `.ai-temp/scene-tests/runs/2026-05-21/16-05-14/index.json` 通过，`scene-acceptance.json` 记录 4 个 owned ids、4 个 visible slot ids、`skill_loadout_source=default`、`skill_total_owned_count=4` | 后续角色选择可按角色覆盖默认 loadout，但不得把 BrotatoLike 规则上提为框架默认。 |
 | 可获得技能池 | 已迁移（authoring 明确） | `BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolAbilityIds` 显式列出 `slam / chain_lightning / target_point_skill / dash / sine_wave_shot / boomerang_throw / bezier_shot / parabola_shot / arc_shot / orbit_skill / circle_damage / aura_shield`，初始化时会校验 DataOS ability record 是否存在；Playable UX 与 Main artifact 均记录 `skill_available_pool_ids` | 技能池只声明可获得候选，不等于已经有升级/商店获得 UI。 |
 | deterministic validation loadout | 已迁移 | Playable UX `.ai-temp/scene-tests/runs/2026-05-21/16-01-37/index.json` 通过，artifact check `validation_loadout_override_visible_slots=pass`，记录 12 owned / 4 visible / 8 hidden，passive ids 为 `orbit_skill,circle_damage,aura_shield`；Skills validation `.ai-temp/scene-tests/runs/2026-05-21/17-16-37/index.json` 已复用该 loadout 逐技能验收 8 个非默认 projectile/passive 技能 | 该入口仍是验证/未来获得流程的确定性来源；普通局内获得、替换、升级和 passive panel 不在本项内。 |
-| 非默认技能玩家路径 | 部分迁移 | 非默认技能已进入可获得 skill pool 与 validation override；输入选择只对 visible active slots 生效，隐藏/被动技能不会被误选或误触发 | 普通局内获得、替换、升级三选一、商店购买和 passive panel 仍待后续 change。 |
+| 非默认技能玩家路径 | 部分迁移 | 非默认技能已进入可获得 skill pool 与 validation override；输入选择只对 visible active slots 生效，隐藏/被动技能不会被误选或误触发；升级三选一首版可把 `sine_wave_shot` 加入 hidden owned ability | visible slot 替换、商店购买、分页和 passive panel 仍待后续 change。 |
+
+## design-brotatolike-levelup-choice-loop 功能级证据
+
+| 项目 | 当前状态 | 验证命令 / artifact | 剩余缺口 |
+| --- | --- | --- | --- |
+| 经验条 UI | 已迁移 | `Scenes/UI/ExperienceBarUI.tscn` + `ExperienceBarUI.cs` 由 `BrotatoLikeHud` 绑定玩家等级、经验、下级阈值和波次；Progression `.ai-temp/scene-tests/runs/2026-05-21/17-45-01/index.json` PASS，artifact 记录 `experience_bar_scene_path=res://Scenes/UI/ExperienceBarUI.tscn`、`experience_bar_level=3`、`experience_bar_next=15` | 样式仍是第一版；后续可随整体 HUD 主题和多分辨率体验继续细化。 |
+| 升级三选一 UI | 已迁移 | `Scenes/UI/LevelUpChoicePanelUI.tscn` / `LevelUpChoiceSlotUI.tscn` scene-backed；Progression artifact 记录 `choice_ids=max_hp_plus_10,move_speed_plus_20,unlock_sine_wave_shot`、`choice_effect_types=AddMaxHp,AddMoveSpeed,GrantAbility`、`choice_panel_scene_path=res://Scenes/UI/LevelUpChoicePanelUI.tscn` | 当前为确定性三选一；随机权重、稀有度、道具池和完整数值曲线留给 shop/item 或后续 progression change。 |
+| 升级奖励应用 | 已迁移（首版） | 选择 `max_hp_plus_10` 后 artifact 记录 `max_hp_before_choice=100`、`max_hp_after_stat_choice=110`；选择 `unlock_sine_wave_shot` 后记录 owned ability count `4 -> 5` 且 `sine_wave_ability_owned=true` | 解锁技能先加入 hidden owned ability，不进入 visible active slots；替换、分页和 passive panel 仍待后续。 |
+| 升级门禁 | 已迁移 | 选择面板 pending 时 `BrotatoLikeGameRuntime.OpenLevelUpChoiceGate()` 设置 `ModalUi` + `SimulationState.Suspended`；artifact 记录 pending tick 阻断、选择后 tick 恢复，以及 gate `ModalUi/Suspended -> None/Running` | 多次连续升级队列与更细的半暂停策略未实现。 |
 
 ## 第一版台账
 

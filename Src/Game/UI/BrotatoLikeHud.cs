@@ -31,10 +31,12 @@ public partial class BrotatoLikeHud : CanvasLayer
     private Label? respawnLabel;
     private Label? progressionSummary;
     private HealthBarUI? playerHealthBar;
+    private ExperienceBarUI? experienceBar;
 
     private PackedScene? healthBarScene;
     private PackedScene? damageNumberScene;
     private PackedScene? activeSkillBarScene;
+    private PackedScene? experienceBarScene;
 
     /// <summary>
     /// 绑定游戏运行时。
@@ -53,6 +55,7 @@ public partial class BrotatoLikeHud : CanvasLayer
         healthBarScene = GD.Load<PackedScene>("res://Scenes/UI/HealthBarUI.tscn");
         damageNumberScene = GD.Load<PackedScene>("res://Scenes/UI/DamageNumberUI.tscn");
         activeSkillBarScene = GD.Load<PackedScene>("res://Scenes/UI/ActiveSkillBarUI.tscn");
+        experienceBarScene = GD.Load<PackedScene>("res://Scenes/UI/ExperienceBarUI.tscn");
 
         BuildTree();
     }
@@ -88,7 +91,7 @@ public partial class BrotatoLikeHud : CanvasLayer
         {
             Name = "PlayerStatusPanel",
             Position = new Vector2(12f, 12f),
-            Size = new Vector2(236f, 92f),
+            Size = new Vector2(236f, 128f),
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
         var statusStyle = new StyleBoxFlat
@@ -135,15 +138,22 @@ public partial class BrotatoLikeHud : CanvasLayer
         respawnLabel.AddThemeColorOverride("font_color", new Color(0.75f, 0.95f, 1f, 1f));
         statusPanel.AddChild(respawnLabel);
 
-        // scene-first exception: 简单 Label，后续迁移到 HUD root scene
+        // scene-first exception: 简单 Label，正式经验条由 ExperienceBarUI.tscn 承载。
         progressionSummary = new Label
         {
             Name = "ProgressionSummary",
             Text = "Lv 1  XP 0/5  Wave 1",
-            Position = new Vector2(12f, 70f)
+            Position = new Vector2(12f, 72f),
+            Visible = false
         };
         progressionSummary.AddThemeColorOverride("font_color", new Color(0.92f, 0.94f, 0.96f, 1f));
         statusPanel.AddChild(progressionSummary);
+
+        // scene-backed: 经验条来自 ExperienceBarUI.tscn。
+        experienceBar = experienceBarScene!.Instantiate<ExperienceBarUI>();
+        experienceBar.Name = "ExperienceBarUI";
+        experienceBar.Position = new Vector2(8f, 68f);
+        statusPanel.AddChild(experienceBar);
 
         // scene-backed: 技能栏来自 ActiveSkillBarUI.tscn
         activeSkillBar = activeSkillBarScene!.Instantiate<ActiveSkillBarUI>();
@@ -219,6 +229,9 @@ public partial class BrotatoLikeHud : CanvasLayer
         progressionSummary.SetMeta("Experience", experience);
         progressionSummary.SetMeta("NextLevelExperience", nextLevelExperience);
         progressionSummary.SetMeta("WaveIndex", waveIndex);
+        progressionSummary.SetMeta("ExperienceUiSceneBacked", !string.IsNullOrEmpty(experienceBar?.SceneFilePath));
+        progressionSummary.SetMeta("ExperienceUiScenePath", experienceBar?.SceneFilePath ?? string.Empty);
+        experienceBar?.Bind(level, experience, nextLevelExperience, waveIndex);
     }
 
     private void UpdateSkillBar()
