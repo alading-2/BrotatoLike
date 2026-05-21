@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-21（manual device QA）
+> 更新日期：2026-05-21（runtime pooling / input / wave UI fix）
 
 ## 当前状态
 
@@ -8,6 +8,7 @@
 
 本轮追加：
 
+- **Runtime pooling / input / wave UI fix**：OpenSpec change `fix-brotatolike-runtime-pooling-input-wave-ui-regressions` 已按用户反馈收敛 5 类回归，并新增 `DocsAI/BugReports/2026-05-21-runtime-pooling-input-wave-ui.md` 记录 bug、根因假设、旧项目参考范围和 `copiedCodeOrAssets: none`。框架侧 `GodotProjectileEffectSpawner` 现在对 Projectile / Effect visual 使用 scene-path keyed `GodotNodePool`，Runtime entity destroy 时注销 `GodotNodeRegistry` 并回池；finite Effect 优先按 `Effect.Duration`，否则可按非循环 `AnimatedSprite2D` 动画推导生命周期。游戏侧 HUD 的头顶血条和伤害/治疗飘字改为池化复用，`DamageNumberUI` 修复 animation finished 连接状态并加入 lifetime fallback。技能输入新增 `SkillSlot1..4` 数字键直选可见槽位，仍保留 `PreviousSkill / NextSkill / UseSkill` 旧路径；DataOS authoring 将 `yuren` 头顶血条高度校准为 `100`、`chailangren` 为 `120` 并由 build 重新生成 snapshot。RunFlow/Main artifact 明确当前两波是 finite authoring：每波 expected spawn count `5`，不是 spawn 系统停止。验证见“最新验证 / fix-brotatolike-runtime-pooling-input-wave-ui-regressions”。
 - **Manual device QA**：OpenSpec change `brotatolike-manual-device-qa` 已新增 `DocsAI/ManualDeviceQA.md`，把真实设备 QA 从自动 scene runner evidence 中分离出来。文档记录 evidence boundary：automated runner / `Input.ActionPress` 只能证明 Godot input action 到 runtime、技能栏和 artifact oracle 的自动路径，不能替代真实键鼠、鼠标、手柄、窗口焦点、摇杆漂移、按钮映射或 UI 焦点 pass。Checklist 覆盖键鼠 movement、skill switching/release、point target confirm/cancel、pause/resume、death/respawn、UI focus，以及 gamepad stick/D-pad、previous/next skill、use skill、confirm/cancel、pause 和 UI focus。当前 agent session 没有物理设备，初始记录全部真实设备 workflow 均为 `not-tested`，没有新增真实设备 pass claim。
 - **Character selection**：OpenSpec change `brotatolike-character-selection` 已把 BrotatoLike 从固定默认玩家推进到首版 DataOS-backed 角色选择闭环。游戏侧 DataOS seed 新增 `character_definition / character_loadout / character_loadout_ability`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/character_authoring.json`；首批可选角色为 `deluyi`（默认 fallback，HP 100 / MoveSpeed 200 / Attack 10，loadout `slam,chain_lightning,target_point_skill,dash`）和 `guangfa`（HP 85 / MoveSpeed 185 / Attack 14，loadout `chain_lightning,sine_wave_shot,target_point_skill,dash`）。`BrotatoLikeCharacterCatalog` 校验 player record、visual scene 和 ability refs，`BrotatoLikeGameRuntime` 新增 `InitialCharacterId`、`TrySelectCharacter`、`SpawnCharacter`、`SpawnSelectedCharacter`，Main 启动路径改为默认角色选择 fallback 而不是直接固定 `SpawnPlayer()`；旧 `SpawnPlayer(recordId)` 保留为兼容和专项验证入口。新增 `Scenes/UI/CharacterSelectPanelUI.tscn` / `CharacterSelectCardUI.tscn` scene-backed UI。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，85 个 XML comment warnings，0 errors）；CharacterSelection validation `.ai-temp/scene-tests/runs/2026-05-21/20-00-19/index.json` PASS，artifact 记录 invalid player/visual reject、UI scene path、visible ids `deluyi,guangfa`、按钮选择 `guangfa`、`player-guangfa`、visual path、starting skills、视觉/属性/loadout 差异，以及两名角色 input、active skill input、HUD、PlayerHealthBar、ActiveSkillBar、camera 绑定；analyzer gate report 为 `pass`，README 与 artifact 五字段非空。Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/20-03-04/index.json` PASS，artifact 记录默认角色 fallback 的 `skill_loadout_source=character:deluyi`。
 - **Wave run flow**：OpenSpec change `complete-brotatolike-wave-run-flow` 已把 BrotatoLike 从单波 completion 推进到首版多波运行闭环。游戏侧 DataOS seed 新增 `wave_definition` / `wave_enemy_entry`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/wave_authoring.json`；当前 authoring 包含两波 finite deterministic enemy entries，第 1 波为 2 个 `chailangren` + 3 个 `yuren`，完成后进入 `RewardShop` 并记录 `shop_offer.validation` / `validation` hook，第 2 波调整生成顺序和数量后结束。`BrotatoLikeWaveCatalog` 校验 wave id、completion mode、enemy id 和视觉资源；`BrotatoLikeGameRuntime.TryStartWave/TryStartNextWave` 可切换当前波次 spawn catalog；`BrotatoLikeProgressionService` 记录 `Preparing/Running/Completed/RewardShop/NextWave/Ended` 状态机、完成判定、reward hook、下一波和 cleanup count；`ExperienceBarUI` / `ProgressionSummary` 记录 wave index 与 phase。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，49 个既有 XML comment warnings，0 errors）；RunFlow validation `.ai-temp/scene-tests/runs/2026-05-21/19-17-09/index.json` PASS，artifact 记录 wave authoring source、两波 expected spawn count=5、invalid enemy/resource reject、第一波 `Running` 生成 5 个敌人、pause tick 阻断/恢复、死亡复活、`Completed -> RewardShop`、cleanup `runtime 10 -> 5` / enemy `5 -> 0`、第二波 `Running` 生成 5 个敌人、scene-backed `ExperienceBarUI` wave phase；analyzer gate report 为 `pass`，README 与 artifact 五字段非空。Progression 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-08/index.json` PASS，Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-22/index.json` PASS。
@@ -89,6 +90,31 @@
 4. 执行 `DocsAI/ManualDeviceQA.md` 的真实设备 checklist：当前文档已建立，但物理键鼠、鼠标点选、手柄和 UI 焦点结果仍是 `not-tested`，不能写成 pass。
 
 ## 最新验证
+
+**fix-brotatolike-runtime-pooling-input-wave-ui-regressions（2026-05-21）**
+
+```bash
+cd /home/slime/Code/SlimeAI/SlimeAI
+Tools/run-build.sh
+Tools/run-tests.sh
+
+cd /home/slime/Code/SlimeAI/Games/BrotatoLike
+Tools/run-build.sh
+Tools/run-godot-scene.sh run-many \
+  res://SlimeAI/Src/Validation/GameOS/Capabilities/Effect/EffectCapabilityValidation.tscn \
+  res://SlimeAI/Src/Validation/GameOS/Capabilities/Projectile/ProjectileCapabilityValidation.tscn \
+  res://Src/Validation/Game/Input/BrotatoLikeInputEventValidation.tscn \
+  res://Src/Validation/Game/PlayableUX/BrotatoLikePlayableUXValidation.tscn \
+  res://Src/Validation/Game/Skills/BrotatoLikeSkillValidation.tscn \
+  res://Src/Validation/Game/RunFlow/BrotatoLikeRunFlowValidation.tscn \
+  res://Scenes/Main.tscn \
+  --timeout 25 --continue-on-fail --errors-only --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir .ai-temp/scene-tests/runs/2026-05-21/21-56-47 --manifest DocsAI/ValidationManifest.json --gate-report .ai-temp/scene-tests/runs/2026-05-21/21-56-47/gate-report.json
+```
+
+结果：框架 build PASS（`0 Warning(s), 0 Error(s)`）；框架 tests 全部 PASS；BrotatoLike build PASS（DataOS validation PASS，`0 Warning(s), 0 Error(s)`）。Targeted Godot run `.ai-temp/scene-tests/runs/2026-05-21/21-56-47/index.json` 为 7 executed、7 passed、0 failed、0 stderr lines；`gate-report.json` verdict 为 `pass`，manifest requested 5、passed 5、failed 0、missing 0。
+
+关键 artifact 证据：Effect/Projectile capability artifact 均记录 visual lifecycle pool cleanup 且 `poolReturned=true`；Input artifact 记录 `InputSelectSkillSlot` 位于 `BrotatoLike.Game.Events`、`SkillSlot3` 选择 index `2`、越界槽位被忽略、Next/Previous/Use 仍生效；PlayableUX artifact 通过 `skill_bar_direct_slot_input_updates`、`damage_and_heal_numbers_lifecycle`、`enemy_head_health_bar_canvas_coordinates`，并记录 `yuren=100`、`chailangren=120` 的配置高度；RunFlow artifact 记录两波 finite authoring expected/actual spawn count 均为 `5`；Main artifact 记录 `SkillSlot1/SkillSlot4` 真实 input action path、`wave_current_id=1`、`wave_phase=Running`、`wave_expected_spawn_count=5`、`wave_actual_spawned_count=5`、`wave_authoring_kind=finite`。已检查 `index.json`、7 个 per-scene `result.json`、7 个 scene artifact 和 `gate-report.json`；所有 artifact 的 `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空，`failureReasons=[]`。
 
 **brotatolike-manual-device-qa（2026-05-21）**
 

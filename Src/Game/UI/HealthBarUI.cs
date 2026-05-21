@@ -55,6 +55,31 @@ public partial class HealthBarUI : Control
         Position = canvasPosition;
     }
 
+    /// <summary>
+    /// 回到对象池前重置运行时绑定状态。
+    /// </summary>
+    public void ResetForPool()
+    {
+        CacheNodes();
+        Position = Vector2.Zero;
+        Visible = false;
+        RemoveMeta("EntityId");
+        RemoveMeta("CurrentHp");
+        RemoveMeta("MaxHp");
+        RemoveMeta("WorldPosition");
+        RemoveMeta("HeadWorldPosition");
+        RemoveMeta("CanvasPosition");
+        RemoveMeta("HealthBarHeight");
+        RemoveMeta("HealthBarKind");
+        if (bar != null)
+        {
+            bar.MaxValue = 1d;
+            bar.Value = 0d;
+        }
+
+        appliedKind = null;
+    }
+
     private void ApplyStyle(HealthBarKind kind)
     {
         if (bar == null || appliedKind == kind)
@@ -95,5 +120,10 @@ public partial class HealthBarUI : Control
 
         bar.AddThemeStyleboxOverride("background", background);
         bar.AddThemeStyleboxOverride("fill", fill);
+    }
+
+    private void CacheNodes()
+    {
+        bar ??= GetNodeOrNull<ProgressBar>("HealthBar");
     }
 }

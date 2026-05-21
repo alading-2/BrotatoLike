@@ -52,6 +52,22 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
     [Export]
     public string NextSkillAction { get; set; } = "NextSkill";
 
+    /// <summary>Godot Input Map 中直接选择第 1 个可见技能槽动作名称。</summary>
+    [Export]
+    public string SelectSkillSlot1Action { get; set; } = "SkillSlot1";
+
+    /// <summary>Godot Input Map 中直接选择第 2 个可见技能槽动作名称。</summary>
+    [Export]
+    public string SelectSkillSlot2Action { get; set; } = "SkillSlot2";
+
+    /// <summary>Godot Input Map 中直接选择第 3 个可见技能槽动作名称。</summary>
+    [Export]
+    public string SelectSkillSlot3Action { get; set; } = "SkillSlot3";
+
+    /// <summary>Godot Input Map 中直接选择第 4 个可见技能槽动作名称。</summary>
+    [Export]
+    public string SelectSkillSlot4Action { get; set; } = "SkillSlot4";
+
     /// <summary>最近一次读取到的输入方向。</summary>
     public Vector2Value LastInputDirection { get; private set; } = Vector2Value.Zero;
 
@@ -63,6 +79,9 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
 
     /// <summary>下一个技能按钮是否在本帧刚按下。</summary>
     public bool NextSkillJustPressed { get; private set; }
+
+    /// <summary>本帧直接选择的技能槽位，-1 表示没有直选输入。</summary>
+    public int SelectedSkillSlotJustPressed { get; private set; } = -1;
 
     /// <inheritdoc />
     public void OnComponentRegistered(IEntity entity, Node entityNode)
@@ -118,6 +137,7 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
         UseSkillJustPressed = Input.IsActionJustPressed(UseSkillAction);
         PreviousSkillJustPressed = Input.IsActionJustPressed(PreviousSkillAction);
         NextSkillJustPressed = Input.IsActionJustPressed(NextSkillAction);
+        SelectedSkillSlotJustPressed = ResolveSelectedSkillSlotJustPressed();
 
         if (UseSkillJustPressed)
         {
@@ -133,5 +153,35 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
         {
             entity.Events.Publish(new InputNextSkill(entity));
         }
+
+        if (SelectedSkillSlotJustPressed >= 0)
+        {
+            entity.Events.Publish(new InputSelectSkillSlot(entity, SelectedSkillSlotJustPressed));
+        }
+    }
+
+    private int ResolveSelectedSkillSlotJustPressed()
+    {
+        if (Input.IsActionJustPressed(SelectSkillSlot1Action))
+        {
+            return 0;
+        }
+
+        if (Input.IsActionJustPressed(SelectSkillSlot2Action))
+        {
+            return 1;
+        }
+
+        if (Input.IsActionJustPressed(SelectSkillSlot3Action))
+        {
+            return 2;
+        }
+
+        if (Input.IsActionJustPressed(SelectSkillSlot4Action))
+        {
+            return 3;
+        }
+
+        return -1;
     }
 }

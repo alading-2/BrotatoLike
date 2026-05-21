@@ -59,13 +59,14 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             {
                 "BrotatoLikeGameRuntime initialized from DataOS snapshot",
                 "DataOS player and DataOS-spawned enemy entities",
-                "Godot input actions MoveRight, NextSkill, PreviousSkill and UseSkill"
+                "Godot input actions MoveRight, NextSkill, PreviousSkill, SkillSlot1, SkillSlot4 and UseSkill"
             },
             expectedObservations: new[]
             {
                 "formal HUD host exposes player HP, skill slots, selection, cooldown and progression nodes",
                 "skill bar exposes loadout source, visible active slots, selected ability id, owned ids and total count",
                 "validation override loadout can own more than four abilities while exposing only four visible active slots",
+                "direct numeric skill slot input selects visible active skill slots",
                 "enemy head health bars update, clean up and match camera-aware canvas coordinates from runtime HP/death state",
                 "real input actions drive skill UX, point targeting, camera-aware damage/heal numbers and visible movement",
                 "formal UI nodes (HUD root, skill slots, head health bars, damage numbers, targeting indicator) have non-empty SceneFilePath"
@@ -90,6 +91,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         validation.Check("enemy_head_health_bar_updates_and_cleans", "HealthBar", () => Result(values, "enemy_head_health_bar_updates_and_cleans"));
         validation.Check("enemy_head_health_bar_canvas_coordinates", "HealthBar", () => Result(values, "enemy_head_health_bar_canvas_coordinates"));
         validation.Check("skill_bar_action_input_updates", "SkillBar", () => Result(values, "skill_bar_action_input_updates"));
+        validation.Check("skill_bar_direct_slot_input_updates", "SkillBar", () => Result(values, "skill_bar_direct_slot_input_updates"));
         validation.Check("validation_loadout_override_visible_slots", "SkillBar", () => Result(values, "validation_loadout_override_visible_slots"));
         validation.Check("point_targeting_indicator_session", "Targeting", () => Result(values, "point_targeting_indicator_session"));
         validation.Check("damage_and_heal_numbers_lifecycle", "CombatFeedback", () => Result(values, "damage_and_heal_numbers_lifecycle"));
@@ -200,6 +202,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         var playerHealExpectedCanvasPosition = WorldToCanvasPosition(playerHealWorldPosition);
         var playerHealNumberDistance = Distance(playerHealNumberPosition, playerHealExpectedCanvasPosition);
         var playerHealNumberLabel = FindDescendantOrNull(playerHealNumber, "DamageLabel") as Label;
+        var playerDamageNumberText = playerDamageNumberLabel?.Text ?? string.Empty;
+        var playerHealNumberText = playerHealNumberLabel?.Text ?? string.Empty;
         values["player_hp_before"] = hpBefore;
         values["player_hp_after"] = hpAfterDamage;
         values["player_hp_after_heal"] = hpAfterHeal;
@@ -207,18 +211,21 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["player_hp_label_meta"] = hpLabelMetaAfterDamage;
         values["player_health_bar_kind"] = playerHealthBarKind;
         values["damage_number_found"] = playerDamageNumber != null;
-        values["damage_number_text"] = playerDamageNumberLabel?.Text ?? string.Empty;
+        values["damage_number_text"] = playerDamageNumberText;
         values["scene_backed_damage_number"] = IsSceneBacked(playerDamageNumber);
         values["damage_number_world_position"] = Format(playerDamageWorldPosition);
         values["damage_number_actual_canvas_position"] = Format(playerDamageNumberPosition);
         values["damage_number_expected_canvas_position"] = Format(playerDamageExpectedCanvasPosition);
         values["damage_number_canvas_distance"] = playerDamageNumberDistance;
         values["heal_number_found"] = playerHealNumber != null;
-        values["heal_number_text"] = playerHealNumberLabel?.Text ?? string.Empty;
+        values["heal_number_text"] = playerHealNumberText;
         values["heal_number_world_position"] = Format(playerHealWorldPosition);
         values["heal_number_actual_canvas_position"] = Format(playerHealNumberPosition);
         values["heal_number_expected_canvas_position"] = Format(playerHealExpectedCanvasPosition);
         values["heal_number_canvas_distance"] = playerHealNumberDistance;
+        await ProcessFrames(90);
+        values["damage_number_pool_idle_after_lifetime"] = ReadIntMeta(damageNumberLayer, "PoolIdleCount");
+        values["damage_number_pool_active_after_lifetime"] = ReadIntMeta(damageNumberLayer, "PoolActiveCount");
 
         var enemyBar = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
         var enemyHpBefore = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
@@ -245,6 +252,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             : -1d;
         var enemyBarPositionAfterDamage = ReadControlPosition(enemyBarAfterDamage);
         var enemyBarCanvasDistance = Distance(enemyBarPositionAfterDamage, enemyExpectedBarCanvasPosition);
+        RecordUnitHealthBarEvidence(this, values, "yuren");
+        RecordUnitHealthBarEvidence(this, values, "chailangren");
         if (enemy != null)
         {
             enemy.Data.Set(DamageDataKeys.CurrentHp, 0f);
@@ -264,7 +273,13 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["enemy_bar_actual_canvas_position"] = Format(enemyBarPositionAfterDamage);
         values["enemy_bar_expected_canvas_position"] = Format(enemyExpectedBarCanvasPosition);
         values["enemy_bar_canvas_distance"] = enemyBarCanvasDistance;
-        values["enemy_bar_cleanup_done"] = enemy == null || FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}") == null;
+        var headHealthBarLayer = FindDescendant(this, "HeadHealthBarLayer");
+        var cleanedEnemyBar = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
+        values["enemy_bar_cleanup_done"] = enemy == null
+            || cleanedEnemyBar == null
+            || cleanedEnemyBar is CanvasItem { Visible: false };
+        values["head_health_bar_pool_idle_after_cleanup"] = ReadIntMeta(headHealthBarLayer, "PoolIdleCount");
+        values["head_health_bar_pool_active_after_cleanup"] = ReadIntMeta(headHealthBarLayer, "PoolActiveCount");
 
         var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
         var oldIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
@@ -278,10 +293,22 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         Input.ActionRelease("PreviousSkill");
         await ProcessFrames(2);
         var previousIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        Input.ActionPress("SkillSlot4");
+        await ProcessFrames(2);
+        Input.ActionRelease("SkillSlot4");
+        await ProcessFrames(2);
+        var directSlot4Index = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        Input.ActionPress("SkillSlot1");
+        await ProcessFrames(2);
+        Input.ActionRelease("SkillSlot1");
+        await ProcessFrames(2);
+        var directSlot1Index = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         values["skill_owned_count"] = ownedIds.Count;
         values["skill_old_index"] = oldIndex;
         values["skill_next_index"] = nextIndex;
         values["skill_previous_index"] = previousIndex;
+        values["skill_direct_slot4_index"] = directSlot4Index;
+        values["skill_direct_slot1_index"] = directSlot1Index;
         values["skill_loadout_source"] = ReadStringMeta(skillBar, "LoadoutSource");
         values["skill_owned_ids"] = ReadStringMeta(skillBar, "OwnedAbilityIds");
         values["skill_visible_slot_ids"] = ReadStringMeta(skillBar, "VisibleSlotIds");
@@ -293,7 +320,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             ? player.GetMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta).AsString()
             : string.Empty;
 
-        var selectedAbility = ownedIds.Count > 0 ? EntityManager.Get(ownedIds[Mathf.Clamp(previousIndex, 0, ownedIds.Count - 1)]) : null;
+        var selectedAbility = ownedIds.Count > 0 ? EntityManager.Get(ownedIds[Mathf.Clamp(directSlot1Index, 0, ownedIds.Count - 1)]) : null;
         var cooldownBeforeUse = selectedAbility?.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f) ?? 0f;
         Input.ActionPress("UseSkill");
         await ProcessFrames(2);
@@ -391,7 +418,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && enemyHealthBarKind == "Enemy"
             && enemyHpAfterDamage < enemyHpBefore
             && Math.Abs(enemyBarValueAfterDamage - enemyHpAfterDamage) < 0.01d
-            && FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}") == null;
+            && ReadBoolValue(values, "enemy_bar_cleanup_done");
         values["skill_bar_action_input_updates"] = skillBar != null
             && ownedIds.Count >= 2
             && nextIndex != oldIndex
@@ -402,6 +429,10 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && ReadIntMeta(skillBar, "VisibleSlotCount") <= BrotatoLikeSkillLoadoutAuthoring.VisibleActiveSlotCapacity
             && !string.IsNullOrWhiteSpace(ReadStringMeta(skillBar, "VisibleSlotIds"))
             && !string.IsNullOrWhiteSpace(ReadStringMeta(skillBar, "SelectedAbilityId"));
+        values["skill_bar_direct_slot_input_updates"] = skillBar != null
+            && ownedIds.Count >= 4
+            && directSlot4Index == 3
+            && directSlot1Index == 0;
         values["point_targeting_indicator_session"] = targetIndicator != null
             && pointAbility != null
             && targetingStarted
@@ -413,8 +444,10 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && targetHpAfterConfirm < targetHpBeforeConfirm
             && cancelCleared;
         values["damage_and_heal_numbers_lifecycle"] = damageNumberLayer != null
-            && FindDescendantByNamePrefix(this, "DamageNumber_Enemy") != null
-            && FindDescendantByNamePrefix(this, "HealNumber_Player") != null;
+            && ReadBoolValue(values, "damage_number_found")
+            && ReadBoolValue(values, "heal_number_found")
+            && ReadIntValue(values, "damage_number_pool_idle_after_lifetime") >= 2
+            && ReadIntValue(values, "damage_number_pool_active_after_lifetime") == 0;
         values["damage_and_heal_numbers_canvas_coordinates"] = damageNumberLayer != null
             && playerDamageNumber != null
             && playerHealNumber != null
@@ -422,13 +455,19 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && playerHealNumberDistance <= 2f
             && playerDamageNumberLabel != null
             && playerHealNumberLabel != null
-            && playerDamageNumberLabel.Text.Contains("-7", StringComparison.Ordinal)
-            && playerHealNumberLabel.Text.Contains("+4", StringComparison.Ordinal);
+            && playerDamageNumberText.Contains("-7", StringComparison.Ordinal)
+            && playerHealNumberText.Contains("+4", StringComparison.Ordinal)
+            && ReadIntValue(values, "damage_number_pool_idle_after_lifetime") >= 2
+            && ReadIntValue(values, "damage_number_pool_active_after_lifetime") == 0;
         values["camera_player_visibility"] = camera.Enabled
             && player.Position.DistanceTo(camera.Position) < 4096f
             && player.Position != Vector2.Zero;
         values["enemy_head_health_bar_canvas_coordinates"] = enemyBarAfterDamage != null
-            && enemyBarCanvasDistance <= 4f;
+            && enemyBarCanvasDistance <= 4f
+            && ReadBoolValue(values, "yuren_head_bar_found")
+            && ReadBoolValue(values, "chailangren_head_bar_found")
+            && ReadFloatValue(values, "yuren_health_bar_height") >= 90f
+            && ReadFloatValue(values, "chailangren_health_bar_height") <= 130f;
 
         values["scene_backed_formal_ui"] = ReadSceneBacked(values, "scene_backed_skill_bar")
             && ReadSceneBacked(values, "scene_backed_head_health_bar")
@@ -512,6 +551,36 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         }
 
         return null;
+    }
+
+    private static GodotEntity2D? FindEnemyByRuleId(string ruleId)
+    {
+        var entities = EntityManager.GetAll();
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i] is GodotEntity2D node
+                && node.Data.Get<int>(CollisionDataKeys.Team, 0) == 2
+                && !node.IsQueuedForDeletion()
+                && ReadStringMeta(node, "SpawnRuleId") == ruleId)
+            {
+                return node;
+            }
+        }
+
+        return null;
+    }
+
+    private static void RecordUnitHealthBarEvidence(
+        Node root,
+        Dictionary<string, object?> values,
+        string ruleId)
+    {
+        var enemy = FindEnemyByRuleId(ruleId);
+        var bar = enemy == null ? null : FindDescendant(root, $"HeadHealthBar_{enemy.EntityId.Value}");
+        values[$"{ruleId}_head_bar_found"] = bar != null;
+        values[$"{ruleId}_health_bar_height"] = enemy?.Data.Get<float>(UnitDataKeys.HealthBarHeight, 0f) ?? 0f;
+        values[$"{ruleId}_bar_canvas_position"] = ReadStringMeta(bar, "CanvasPosition");
+        values[$"{ruleId}_bar_health_bar_height_meta"] = ReadFloatMeta(bar, "HealthBarHeight");
     }
 
     private static int FindAbilityIndexByRecordFragment(EntityIdList ownedIds, string fragment)
@@ -685,6 +754,21 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         return values.TryGetValue(key, out var raw) && raw is bool value && value;
     }
 
+    private static bool ReadBoolValue(IReadOnlyDictionary<string, object?> values, string key)
+    {
+        return values.TryGetValue(key, out var raw) && raw is bool value && value;
+    }
+
+    private static float ReadFloatValue(IReadOnlyDictionary<string, object?> values, string key)
+    {
+        return values.TryGetValue(key, out var raw) && raw is float value ? value : float.NaN;
+    }
+
+    private static int ReadIntValue(IReadOnlyDictionary<string, object?> values, string key)
+    {
+        return values.TryGetValue(key, out var raw) && raw is int value ? value : -1;
+    }
+
     private static void ReleaseValidationActions()
     {
         Input.ActionRelease("MoveLeft");
@@ -694,5 +778,9 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         Input.ActionRelease("UseSkill");
         Input.ActionRelease("PreviousSkill");
         Input.ActionRelease("NextSkill");
+        Input.ActionRelease("SkillSlot1");
+        Input.ActionRelease("SkillSlot2");
+        Input.ActionRelease("SkillSlot3");
+        Input.ActionRelease("SkillSlot4");
     }
 }

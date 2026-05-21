@@ -153,6 +153,8 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
         values["wave_count"] = CountWaves(catalog);
         values["wave1_expected_spawn_count"] = wave1Spawn.ExpectedSpawnCount;
         values["wave2_expected_spawn_count"] = wave2Spawn.ExpectedSpawnCount;
+        values["wave1_authoring_kind"] = wave1Spawn.HasFiniteSpawnLimit ? "finite" : "open";
+        values["wave2_authoring_kind"] = wave2Spawn.HasFiniteSpawnLimit ? "finite" : "open";
         values["wave1_completion_mode"] = wave1.CompletionMode;
         values["wave1_next_wave_id"] = wave1.NextWaveId ?? 0;
         values["wave1_reward_hook"] = wave1.RewardHook;
@@ -280,6 +282,7 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
         values["second_wave_spawn_count"] = secondWaveEnemies.Count;
         values["second_wave_spawn_rule_ids"] = secondWaveRuleIds;
         values["second_wave_expected_spawn_count"] = wave2Spawn.ExpectedSpawnCount;
+        values["second_wave_actual_spawned_count"] = secondWaveEnemies.Count;
         values["experience_bar_scene_path"] = experienceBar?.SceneFilePath ?? string.Empty;
         values["experience_bar_wave_index"] = ReadIntMeta(experienceBar, "WaveIndex");
         values["experience_bar_wave_phase"] = ReadStringMeta(experienceBar, "WavePhase");

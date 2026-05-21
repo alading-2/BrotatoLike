@@ -52,13 +52,14 @@ public partial class BrotatoLikeInputEventValidationScene : Node
             expectedInputs: new[]
             {
                 "BrotatoLikePlayerInputComponent with AutoTick disabled and a validation player entity",
-                "InputNextSkill, InputPreviousSkill and InputUseSkill game events",
+                "InputNextSkill, InputPreviousSkill, InputUseSkill and InputSelectSkillSlot game events",
                 "GodotActiveSkillInputComponent with validation ability actions"
             },
             expectedObservations: new[]
             {
                 "movement input writes MovementDataKeys.InputDirection on the player entity",
                 "skill input events belong to BrotatoLike.Game.Events rather than framework Runtime events",
+                "numeric skill slot input selects only visible active slots",
                 "active skill input switches selected ability and triggers the current skill"
             },
             passCriteria: new[]
@@ -111,6 +112,8 @@ public partial class BrotatoLikeInputEventValidationScene : Node
         input.OnComponentRegistered(player, input);
 
         var nextEvents = 0;
+        var slotEvents = 0;
+        var slotIndex = -1;
         using var nextSub = player.Events.Subscribe<InputNextSkill>(data =>
         {
             if (ReferenceEquals(data.Entity, player))
@@ -118,19 +121,32 @@ public partial class BrotatoLikeInputEventValidationScene : Node
                 nextEvents++;
             }
         });
+        using var slotSub = player.Events.Subscribe<InputSelectSkillSlot>(data =>
+        {
+            if (ReferenceEquals(data.Entity, player))
+            {
+                slotEvents++;
+                slotIndex = data.SlotIndex;
+            }
+        });
 
         Godot.Input.ActionPress("MoveRight");
         Godot.Input.ActionPress("NextSkill");
+        Godot.Input.ActionPress("SkillSlot3");
         input.TickInput();
         Godot.Input.ActionRelease("MoveRight");
         Godot.Input.ActionRelease("NextSkill");
+        Godot.Input.ActionRelease("SkillSlot3");
 
         var direction = player.Data.Get(MovementDataKeys.InputDirection);
         var success = direction.X > 0.9f
             && direction.Y == 0f
             && input.LastInputDirection.X > 0.9f
             && input.NextSkillJustPressed
-            && nextEvents == 1;
+            && nextEvents == 1
+            && input.SelectedSkillSlotJustPressed == 2
+            && slotEvents == 1
+            && slotIndex == 2;
 
         input.OnComponentUnregistered(player, input);
         input.Free();
@@ -140,7 +156,11 @@ public partial class BrotatoLikeInputEventValidationScene : Node
             ["directionY"] = direction.Y,
             ["lastInputX"] = input.LastInputDirection.X,
             ["nextSkillJustPressed"] = input.NextSkillJustPressed,
+            ["selectedSkillSlotJustPressed"] = input.SelectedSkillSlotJustPressed,
             ["nextEvents"] = nextEvents,
+            ["slotEvents"] = slotEvents,
+            ["slotIndex"] = slotIndex,
+            ["selectSlotNamespace"] = typeof(InputSelectSkillSlot).Namespace,
             ["eventNamespace"] = typeof(InputNextSkill).Namespace
         });
     }
@@ -151,10 +171,12 @@ public partial class BrotatoLikeInputEventValidationScene : Node
         var player = EntityManager.Spawn(new EntitySpawnConfig { EntityId = new EntityId("skill-input-player") });
         var ability1 = EntityManager.Spawn(new EntitySpawnConfig { EntityId = new EntityId("skill-input-ability-1") });
         var ability2 = EntityManager.Spawn(new EntitySpawnConfig { EntityId = new EntityId("skill-input-ability-2") });
+        var ability3 = EntityManager.Spawn(new EntitySpawnConfig { EntityId = new EntityId("skill-input-ability-3") });
 
         ConfigureTriggerableAbility(ability1, player.EntityId);
         ConfigureTriggerableAbility(ability2, player.EntityId);
-        player.Data.Set(AbilityDataKeys.OwnedAbilityIds, EntityIdList.Empty.Add(ability1.EntityId).Add(ability2.EntityId));
+        ConfigureTriggerableAbility(ability3, player.EntityId);
+        player.Data.Set(AbilityDataKeys.OwnedAbilityIds, EntityIdList.Empty.Add(ability1.EntityId).Add(ability2.EntityId).Add(ability3.EntityId));
         player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         var component = new GodotActiveSkillInputComponent();
@@ -163,10 +185,15 @@ public partial class BrotatoLikeInputEventValidationScene : Node
         var ability1Executed = 0;
         using var executedSub = ability1.Events.Subscribe<Executed>(_ => ability1Executed++);
 
+        player.Events.Publish(new InputSelectSkillSlot(player, 2));
+        var afterDirectSlot = player.Data.Get(AbilityDataKeys.CurrentAbilityIndex);
+        player.Events.Publish(new InputSelectSkillSlot(player, 9));
+        var afterOutOfRangeSlot = player.Data.Get(AbilityDataKeys.CurrentAbilityIndex);
         player.Events.Publish(new InputNextSkill(player));
         var afterNext = player.Data.Get(AbilityDataKeys.CurrentAbilityIndex);
         player.Events.Publish(new InputPreviousSkill(player));
         var afterPrevious = player.Data.Get(AbilityDataKeys.CurrentAbilityIndex);
+        player.Events.Publish(new InputSelectSkillSlot(player, 0));
         player.Events.Publish(new InputUseSkill(player));
 
         component.OnComponentUnregistered(player, component);
@@ -175,19 +202,25 @@ public partial class BrotatoLikeInputEventValidationScene : Node
         var success = typeof(InputUseSkill).Namespace == "BrotatoLike.Game.Events"
             && typeof(InputPreviousSkill).Namespace == "BrotatoLike.Game.Events"
             && typeof(InputNextSkill).Namespace == "BrotatoLike.Game.Events"
-            && afterNext == 1
-            && afterPrevious == 0
+            && typeof(InputSelectSkillSlot).Namespace == "BrotatoLike.Game.Events"
+            && afterDirectSlot == 2
+            && afterOutOfRangeSlot == 2
+            && afterNext == 0
+            && afterPrevious == 2
             && ability1Executed == 1
             && ability1.Data.Get(AbilityDataKeys.CooldownRemaining) == 0f;
 
         return CheckResult.From(success, success ? "active skill input event chain passed" : "active skill input event chain mismatch", new Dictionary<string, object?>
         {
+            ["afterDirectSlot"] = afterDirectSlot,
+            ["afterOutOfRangeSlot"] = afterOutOfRangeSlot,
             ["afterNext"] = afterNext,
             ["afterPrevious"] = afterPrevious,
             ["ability1Executed"] = ability1Executed,
             ["inputUseSkillNamespace"] = typeof(InputUseSkill).Namespace,
             ["inputPreviousSkillNamespace"] = typeof(InputPreviousSkill).Namespace,
-            ["inputNextSkillNamespace"] = typeof(InputNextSkill).Namespace
+            ["inputNextSkillNamespace"] = typeof(InputNextSkill).Namespace,
+            ["inputSelectSkillSlotNamespace"] = typeof(InputSelectSkillSlot).Namespace
         });
     }
 
@@ -214,5 +247,9 @@ public partial class BrotatoLikeInputEventValidationScene : Node
         Godot.Input.ActionRelease("UseSkill");
         Godot.Input.ActionRelease("PreviousSkill");
         Godot.Input.ActionRelease("NextSkill");
+        Godot.Input.ActionRelease("SkillSlot1");
+        Godot.Input.ActionRelease("SkillSlot2");
+        Godot.Input.ActionRelease("SkillSlot3");
+        Godot.Input.ActionRelease("SkillSlot4");
     }
 }

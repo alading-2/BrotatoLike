@@ -106,6 +106,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
             AddCheck(checks, failureReasons, "skill.chain_line_vfx_multi_bounce", skills.ChainLineVfxMultiBounce);
             AddCheck(checks, failureReasons, "skill.point_targeting_started", skills.PointTargetingStarted);
             AddCheck(checks, failureReasons, "skill.point_targeting_confirmed", skills.PointTargetingConfirmed);
+            AddCheck(checks, failureReasons, "skill.direct_slot_selected", skills.DirectSlotSelected);
             AddCheck(checks, failureReasons, "skill.real_input_action_path", skills.RealInputActionPath);
 
             var cleanup = VerifyDeathAndCleanup(enemies, player, values);
@@ -159,6 +160,10 @@ internal static class BrotatoLikePlayableSliceAcceptance
             Input.ActionRelease("UseSkill");
             Input.ActionRelease("PreviousSkill");
             Input.ActionRelease("NextSkill");
+            Input.ActionRelease("SkillSlot1");
+            Input.ActionRelease("SkillSlot2");
+            Input.ActionRelease("SkillSlot3");
+            Input.ActionRelease("SkillSlot4");
             Input.ActionRelease("ConfirmTarget");
             Input.ActionRelease("CancelTarget");
         }
@@ -233,6 +238,14 @@ internal static class BrotatoLikePlayableSliceAcceptance
         values["enemy_spawned_this_tick"] = tick.Value.SpawnedThisTick.ToString(CultureInfo.InvariantCulture);
         values["enemy_total_spawned"] = tick.Value.TotalSpawned.ToString(CultureInfo.InvariantCulture);
         values["enemy_ids"] = string.Join(",", enemies.ConvertAll(enemy => enemy.EntityId.Value));
+        values["wave_current_id"] = runtime.CurrentWave.ToString(CultureInfo.InvariantCulture);
+        values["wave_phase"] = runtime.ProgressionService?.WavePhaseName ?? string.Empty;
+        values["wave_expected_spawn_count"] = (runtime.SpawnCatalog?.ExpectedSpawnCount ?? -1).ToString(CultureInfo.InvariantCulture);
+        values["wave_actual_spawned_count"] = tick.Value.TotalSpawned.ToString(CultureInfo.InvariantCulture);
+        values["wave_authoring_kind"] = runtime.SpawnCatalog?.HasFiniteSpawnLimit == true ? "finite" : "open";
+        values["wave_completion_mode"] = runtime.TryGetWaveDefinition(runtime.CurrentWave, out var waveDefinition)
+            ? waveDefinition.CompletionMode
+            : string.Empty;
 
         if (enemies.Count == 0 || runtime.MovementDriver == null)
         {
@@ -380,6 +393,10 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var pointReport = runtime.TargetingController?.LastTriggerReport;
         var pointHpAfter = pointTarget.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var pointCooldownAfterConfirm = point.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
+        await PressAction(sceneRoot, "SkillSlot4");
+        var directSlot4Index = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        await PressAction(sceneRoot, "SkillSlot1");
+        var directSlot1Index = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
 
         values["skill_slam_id"] = slam.EntityId.Value;
         values["skill_slam_report"] = slamReport?.Result.ToString() ?? string.Empty;
@@ -405,6 +422,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
         values["skill_point_report"] = pointReport?.Result.ToString() ?? string.Empty;
         values["skill_point_hp_before"] = FormatFloat(pointHpBefore);
         values["skill_point_hp_after"] = FormatFloat(pointHpAfter);
+        values["skill_direct_slot4_index"] = directSlot4Index.ToString(CultureInfo.InvariantCulture);
+        values["skill_direct_slot1_index"] = directSlot1Index.ToString(CultureInfo.InvariantCulture);
 
         return new SkillAcceptance(
             SlamTriggered: slamReport?.Result == AbilityTriggerResult.Success && slamCooldown > 0f,
@@ -423,6 +442,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
             PointTargetingConfirmed: pointReport?.Result == AbilityTriggerResult.Success
                 && pointCooldownAfterConfirm > 0f
                 && pointHpAfter < pointHpBefore,
+            DirectSlotSelected: directSlot4Index == 3 && directSlot1Index == 0,
             RealInputActionPath: true,
             CurrentSkillName: point.Data.Get(AbilityDataKeys.Name, point.EntityId.Value));
     }
@@ -949,15 +969,17 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         "GODOT_SCENE_TEST_ARTIFACT_DIR is set by the scene runner",
         "res://Scenes/Main.tscn initializes BrotatoLikeGameRuntime from DataOS snapshot",
-        "deterministic MoveRight, MoveUp, UseSkill, NextSkill and ConfirmTarget input actions are applied during acceptance"
+        "deterministic MoveRight, MoveUp, UseSkill, NextSkill, SkillSlot1, SkillSlot4 and ConfirmTarget input actions are applied during acceptance"
     };
 
     private static readonly string[] ExpectedObservations =
     {
         "player runtime data records input direction, last move direction, and changed position",
         "DataOS-spawned enemies chase, apply contact damage, and expose resource path evidence",
+        "finite wave authoring records current wave id, phase, expected spawn count, actual spawned count and completion mode",
         "formal HUD, head health bar, skill bar, damage number and progression summary nodes expose player-facing evidence",
         "skill bar records loadout source, owned ability ids, visible active slots, selected ability id and total owned count",
+        "numeric skill slot actions select visible active slots without bypassing the player input component",
         "slam, chain and point-target abilities produce input-action damage, cooldown, targeting and visual evidence",
         "chain lightning line VFX records scene path, source/target ids, start/end world positions, Line2D points, duration and cleanup evidence for each bounce",
         "formal composite UI nodes (player health bar, skill bar, head health bar and damage number) have non-empty SceneFilePath",
@@ -1094,10 +1116,11 @@ internal readonly record struct SkillAcceptance(
     bool ChainLineVfxMultiBounce,
     bool PointTargetingStarted,
     bool PointTargetingConfirmed,
+    bool DirectSlotSelected,
     bool RealInputActionPath,
     string CurrentSkillName)
 {
-    public static SkillAcceptance Empty => new(false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, string.Empty);
+    public static SkillAcceptance Empty => new(false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, string.Empty);
 }
 
 internal readonly record struct ChainLineVfxAcceptance(bool Bound, bool Cleanup, bool MultiBounce);

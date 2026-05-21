@@ -22,6 +22,7 @@ public partial class BrotatoLikeHud : CanvasLayer
     private readonly Dictionary<EntityId, HealthBarUI> headHealthBars = new();
     private readonly Dictionary<EntityId, float> lastHpByEntity = new();
     private readonly List<DamageNumberUI> activeDamageNumbers = new();
+    private int damageNumberSequence;
 
     private BrotatoLikeGameRuntime? runtime;
     private ActiveSkillBarUI? activeSkillBar;
@@ -37,6 +38,8 @@ public partial class BrotatoLikeHud : CanvasLayer
     private PackedScene? damageNumberScene;
     private PackedScene? activeSkillBarScene;
     private PackedScene? experienceBarScene;
+    private GodotNodePool<HealthBarUI>? headHealthBarPool;
+    private GodotNodePool<DamageNumberUI>? damageNumberPool;
 
     /// <summary>
     /// 绑定游戏运行时。
@@ -72,6 +75,16 @@ public partial class BrotatoLikeHud : CanvasLayer
         UpdateSkillBar();
         UpdateHeadHealthBars();
         UpdateDamageNumbers((float)delta);
+        UpdatePoolEvidence();
+    }
+
+    /// <inheritdoc />
+    public override void _ExitTree()
+    {
+        headHealthBarPool?.Destroy();
+        damageNumberPool?.Destroy();
+        headHealthBarPool = null;
+        damageNumberPool = null;
     }
 
     private void BuildTree()
@@ -179,6 +192,27 @@ public partial class BrotatoLikeHud : CanvasLayer
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
         root.AddChild(damageNumberLayer);
+
+        headHealthBarPool = new GodotNodePool<HealthBarUI>(
+            () => healthBarScene!.Instantiate<HealthBarUI>(),
+            new GodotNodePoolConfig
+            {
+                Name = $"BrotatoLikeHeadHealthBarPool_{GetInstanceId()}",
+                InitialSize = 0,
+                MaxSize = -1,
+                ActiveParent = headHealthBarLayer
+            },
+            bar => bar.ResetForPool());
+        damageNumberPool = new GodotNodePool<DamageNumberUI>(
+            () => damageNumberScene!.Instantiate<DamageNumberUI>(),
+            new GodotNodePoolConfig
+            {
+                Name = $"BrotatoLikeDamageNumberPool_{GetInstanceId()}",
+                InitialSize = 0,
+                MaxSize = -1,
+                ActiveParent = damageNumberLayer
+            },
+            number => number.ResetForPool());
     }
 
     private void UpdatePlayerHud()
@@ -381,9 +415,14 @@ public partial class BrotatoLikeHud : CanvasLayer
             return existing;
         }
 
-        var bar = healthBarScene!.Instantiate<HealthBarUI>();
+        var bar = headHealthBarPool?.Get(activateNode: false) ?? healthBarScene!.Instantiate<HealthBarUI>();
         bar.Name = $"HeadHealthBar_{enemy.EntityId.Value}";
-        headHealthBarLayer!.AddChild(bar);
+        if (bar.GetParent() == null)
+        {
+            headHealthBarLayer!.AddChild(bar);
+        }
+
+        headHealthBarPool?.Activate(bar);
         headHealthBars[enemy.EntityId] = bar;
         return bar;
     }
@@ -397,7 +436,10 @@ public partial class BrotatoLikeHud : CanvasLayer
 
         if (GodotObject.IsInstanceValid(bar))
         {
-            bar.QueueFree();
+            if (!GodotNodePoolManager.ReturnToPool(bar) && !bar.IsQueuedForDeletion())
+            {
+                bar.QueueFree();
+            }
         }
     }
 
@@ -430,30 +472,59 @@ public partial class BrotatoLikeHud : CanvasLayer
         var position = entity.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
         var worldPosition = new Vector2(position.X, position.Y - DamageNumberWorldYOffset);
         var canvasPosition = WorldToCanvasPosition(worldPosition);
-        var damageNumber = damageNumberScene.Instantiate<DamageNumberUI>();
+        var damageNumber = damageNumberPool?.Get(activateNode: false) ?? damageNumberScene.Instantiate<DamageNumberUI>();
         var isHeal = hpDelta > 0f;
-        damageNumber.Name = isHeal ? $"HealNumber_Player_{activeDamageNumbers.Count}" : $"DamageNumber_Enemy_{activeDamageNumbers.Count}";
-        damageNumber.TreeExiting += () =>
+        damageNumber.Name = isHeal ? $"HealNumber_Player_{damageNumberSequence}" : $"DamageNumber_Enemy_{damageNumberSequence}";
+        damageNumberSequence++;
+        if (damageNumber.GetParent() == null)
         {
-            activeDamageNumbers.Remove(damageNumber);
-        };
-        damageNumberLayer.AddChild(damageNumber);
+            damageNumberLayer.AddChild(damageNumber);
+        }
+
+        damageNumber.Finished -= OnDamageNumberFinished;
+        damageNumber.Finished += OnDamageNumberFinished;
         damageNumber.ShowDamage(hpDelta, canvasPosition);
         damageNumber.SetMeta("WorldPosition", $"{worldPosition.X:0.###},{worldPosition.Y:0.###}");
         damageNumber.SetMeta("CanvasPosition", $"{canvasPosition.X:0.###},{canvasPosition.Y:0.###}");
+        damageNumberPool?.Activate(damageNumber);
         activeDamageNumbers.Add(damageNumber);
     }
 
     private void UpdateDamageNumbers(float deltaSeconds)
     {
-        // DamageNumberUI 自带动画生命周期，由 AnimationPlayer 控制自动释放。
-        // 保留此方法以支持未来的非动画 fallback 清理。
         for (var i = activeDamageNumbers.Count - 1; i >= 0; i--)
         {
             if (!GodotObject.IsInstanceValid(activeDamageNumbers[i]))
             {
                 activeDamageNumbers.RemoveAt(i);
             }
+        }
+    }
+
+    private void OnDamageNumberFinished(DamageNumberUI damageNumber)
+    {
+        damageNumber.Finished -= OnDamageNumberFinished;
+        activeDamageNumbers.Remove(damageNumber);
+        if (!GodotNodePoolManager.ReturnToPool(damageNumber) && GodotObject.IsInstanceValid(damageNumber) && !damageNumber.IsQueuedForDeletion())
+        {
+            damageNumber.QueueFree();
+        }
+    }
+
+    private void UpdatePoolEvidence()
+    {
+        if (headHealthBarLayer != null)
+        {
+            headHealthBarLayer.SetMeta("ActiveHeadHealthBarCount", headHealthBars.Count);
+            headHealthBarLayer.SetMeta("PoolActiveCount", headHealthBarPool?.ActiveCount ?? -1);
+            headHealthBarLayer.SetMeta("PoolIdleCount", headHealthBarPool?.Count ?? -1);
+        }
+
+        if (damageNumberLayer != null)
+        {
+            damageNumberLayer.SetMeta("ActiveDamageNumberCount", activeDamageNumbers.Count);
+            damageNumberLayer.SetMeta("PoolActiveCount", damageNumberPool?.ActiveCount ?? -1);
+            damageNumberLayer.SetMeta("PoolIdleCount", damageNumberPool?.Count ?? -1);
         }
     }
 

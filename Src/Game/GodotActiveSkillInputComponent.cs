@@ -22,6 +22,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
     private IDisposable? useSkillSub;
     private IDisposable? previousSkillSub;
     private IDisposable? nextSkillSub;
+    private IDisposable? selectSkillSlotSub;
 
     /// <summary>
     /// 最近一次主动技能触发报告。
@@ -37,6 +38,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         useSkillSub = entity.Events.Subscribe<InputUseSkill>(OnUseSkill);
         previousSkillSub = entity.Events.Subscribe<InputPreviousSkill>(OnPreviousSkill);
         nextSkillSub = entity.Events.Subscribe<InputNextSkill>(OnNextSkill);
+        selectSkillSlotSub = entity.Events.Subscribe<InputSelectSkillSlot>(OnSelectSkillSlot);
     }
 
     /// <inheritdoc />
@@ -45,11 +47,13 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         useSkillSub?.Dispose();
         previousSkillSub?.Dispose();
         nextSkillSub?.Dispose();
+        selectSkillSlotSub?.Dispose();
 
         this.entity = null;
         useSkillSub = null;
         previousSkillSub = null;
         nextSkillSub = null;
+        selectSkillSlotSub = null;
     }
 
     private void OnUseSkill(InputUseSkill data)
@@ -138,6 +142,22 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, newIndex);
     }
 
+    private void OnSelectSkillSlot(InputSelectSkillSlot data)
+    {
+        if (entity == null || !CanUseSkill())
+        {
+            return;
+        }
+
+        var selectableIds = BrotatoLikeSkillLoadoutAuthoring.ResolveSelectableAbilityEntityIds(entity);
+        if (data.SlotIndex < 0 || data.SlotIndex >= selectableIds.Count)
+        {
+            return;
+        }
+
+        entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, data.SlotIndex);
+    }
+
     private bool CanUseSkill()
     {
         if (entity == null)
@@ -171,6 +191,8 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             current = current.GetParent();
         }
 
-        return GetTree()?.Root.FindChild("BrotatoLikeTargetingController", recursive: true, owned: false) as BrotatoLikeTargetingController;
+        return IsInsideTree()
+            ? GetTree()?.Root.FindChild("BrotatoLikeTargetingController", recursive: true, owned: false) as BrotatoLikeTargetingController
+            : null;
     }
 }

@@ -14,6 +14,7 @@ using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Observation;
 using SlimeAI.GameOS.Runtime.Entity;
 using SlimeAI.GameOS.Runtime.Events.Core;
+using SlimeAI.GameOS.Runtime.Pool;
 using EffectSpawned = SlimeAI.GameOS.Capabilities.Effect.Events.Spawned;
 using MovementCollision = SlimeAI.GameOS.Capabilities.Movement.Events.Collision;
 using ProjectileSpawned = SlimeAI.GameOS.Capabilities.Projectile.Events.Spawned;
@@ -231,6 +232,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
         await ProcessFrames(2);
         var initialPositions = CapturePositions(monitor.Projectiles);
         var visualBeforeCleanup = CountVisualNodes(monitor.Projectiles);
+        var visualPoolNames = VisualPoolNames(monitor.Projectiles);
         var projectileScenePaths = ProjectileScenePaths(monitor.Projectiles);
         var projectileMovementModes = ProjectileMovementModes(monitor.Projectiles);
         TickMovement(runtime, skillCase.SampleSeconds);
@@ -245,6 +247,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
         var movedDistance = MaxMovedDistance(initialPositions, samplePositions);
         var hitOk = monitor.CollisionCount > 0 && hpAfter < hpBefore;
         var cleanupOk = AllRuntimeEntitiesDestroyed(monitor.Projectiles);
+        var poolReturnOk = AllVisualsReturnedToPools(visualPoolNames);
         var success = report.Success
             && projectileCountOk
             && sceneOk
@@ -252,6 +255,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
             && movedDistance > 0.001f
             && hitOk
             && cleanupOk
+            && poolReturnOk
             && visualBeforeCleanup > 0;
 
         var details = CreateBaseDetails(player, ability, skillCase.AbilityId);
@@ -276,6 +280,9 @@ public partial class BrotatoLikeSkillValidationScene : Node
         details["cleanupRuntimeDestroyed"] = cleanupOk;
         details["visualNodeCountBeforeCleanup"] = visualBeforeCleanup;
         details["visualNodeCountAfterCleanup"] = CountVisualNodes(monitor.Projectiles);
+        details["visualPoolNames"] = visualPoolNames;
+        details["visualPoolReleasedCounts"] = VisualPoolReleasedCounts(visualPoolNames);
+        details["visualPoolReturnOk"] = poolReturnOk;
         details["behaviorExpectation"] = skillCase.BehaviorExpectation;
 
         await DestroyTarget(target);
@@ -303,6 +310,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
         await ProcessFrames(2);
         var initialPositions = CapturePositions(monitor.Projectiles);
         var visualBeforeCleanup = CountVisualNodes(monitor.Projectiles);
+        var visualPoolNames = VisualPoolNames(monitor.Projectiles);
         var projectileScenePaths = ProjectileScenePaths(monitor.Projectiles);
         var projectileMovementModes = ProjectileMovementModes(monitor.Projectiles);
         TickMovement(runtime, 0.25f);
@@ -313,6 +321,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
         var hpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var modeOk = AllValuesEqual(projectileMovementModes, MoveMode.Orbit.ToString());
         var cleanupOk = AllRuntimeEntitiesDestroyed(monitor.Projectiles);
+        var poolReturnOk = AllVisualsReturnedToPools(visualPoolNames);
         var movedDistance = MaxMovedDistance(initialPositions, samplePositions);
         var success = report.Success
             && monitor.Projectiles.Count == 3
@@ -322,6 +331,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
             && monitor.CollisionCount > 0
             && hpAfter < hpBefore
             && cleanupOk
+            && poolReturnOk
             && visualBeforeCleanup > 0;
 
         var details = CreateBaseDetails(player, ability, abilityId);
@@ -344,6 +354,9 @@ public partial class BrotatoLikeSkillValidationScene : Node
         details["cleanupRuntimeDestroyed"] = cleanupOk;
         details["visualNodeCountBeforeCleanup"] = visualBeforeCleanup;
         details["visualNodeCountAfterCleanup"] = CountVisualNodes(monitor.Projectiles);
+        details["visualPoolNames"] = visualPoolNames;
+        details["visualPoolReleasedCounts"] = VisualPoolReleasedCounts(visualPoolNames);
+        details["visualPoolReturnOk"] = poolReturnOk;
         details["behaviorExpectation"] = "Orbit projectiles circle the player, collide with enemies, and clean up after max duration.";
 
         await DestroyTarget(target);
@@ -378,9 +391,11 @@ public partial class BrotatoLikeSkillValidationScene : Node
         var effectScenePaths = EffectScenePaths(monitor.Effects);
         var effectSceneOk = AllValuesEqual(effectScenePaths, "res://assets/Effect/003/AnimatedSprite2D/003.tscn");
         var visualBeforeCleanup = CountVisualNodes(monitor.Effects);
+        var visualPoolNames = VisualPoolNames(monitor.Effects);
         DestroyRuntimeEntities(monitor.Effects);
         await ProcessFrames(3);
         var cleanupOk = AllRuntimeEntitiesDestroyed(monitor.Effects);
+        var poolReturnOk = AllVisualsReturnedToPools(visualPoolNames);
         var radius = ability.Data.Get<float>(AbilityDataKeys.EffectRadius, 0f);
         var success = report.Success
             && report.Executed?.TargetsHit == 1
@@ -390,6 +405,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
             && monitor.Effects.Count > 0
             && effectSceneOk
             && cleanupOk
+            && poolReturnOk
             && visualBeforeCleanup > 0;
 
         var details = CreateBaseDetails(player, ability, abilityId);
@@ -409,6 +425,9 @@ public partial class BrotatoLikeSkillValidationScene : Node
         details["cleanupRuntimeDestroyed"] = cleanupOk;
         details["visualNodeCountBeforeCleanup"] = visualBeforeCleanup;
         details["visualNodeCountAfterCleanup"] = CountVisualNodes(monitor.Effects);
+        details["visualPoolNames"] = visualPoolNames;
+        details["visualPoolReleasedCounts"] = VisualPoolReleasedCounts(visualPoolNames);
+        details["visualPoolReturnOk"] = poolReturnOk;
         details["destroyedEntityIds"] = monitor.DestroyedIds;
         details["behaviorExpectation"] = "Circle damage affects enemy targets within radius only and spawns the authored aura effect.";
 
@@ -439,6 +458,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
 
         var initialPositions = CapturePositions(monitor.Projectiles);
         var visualBeforeCleanup = CountVisualNodes(monitor.Projectiles);
+        var visualPoolNames = VisualPoolNames(monitor.Projectiles);
         var projectileScenePaths = ProjectileScenePaths(monitor.Projectiles);
         var projectileMovementModes = ProjectileMovementModes(monitor.Projectiles);
         TickMovement(runtime, 0.1f);
@@ -452,6 +472,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
         var hpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var modeOk = AllValuesEqual(projectileMovementModes, MoveMode.AttachToHost.ToString());
         var cleanupOk = AllRuntimeEntitiesDestroyed(monitor.Projectiles);
+        var poolReturnOk = AllVisualsReturnedToPools(visualPoolNames);
         var followDistance = DistanceToAny(followPositions, new Vector2Value(96f, 0f));
         var success = report.Success
             && monitor.Projectiles.Count == 1
@@ -461,6 +482,7 @@ public partial class BrotatoLikeSkillValidationScene : Node
             && hpAfter < hpBefore
             && followDistance <= 4f
             && cleanupOk
+            && poolReturnOk
             && visualBeforeCleanup > 0;
 
         var details = CreateBaseDetails(player, ability, abilityId);
@@ -484,6 +506,9 @@ public partial class BrotatoLikeSkillValidationScene : Node
         details["cleanupRuntimeDestroyed"] = cleanupOk;
         details["visualNodeCountBeforeCleanup"] = visualBeforeCleanup;
         details["visualNodeCountAfterCleanup"] = CountVisualNodes(monitor.Projectiles);
+        details["visualPoolNames"] = visualPoolNames;
+        details["visualPoolReleasedCounts"] = VisualPoolReleasedCounts(visualPoolNames);
+        details["visualPoolReturnOk"] = poolReturnOk;
         details["behaviorExpectation"] = "Aura shield is an AttachToHost projectile that follows the player, damages contact targets, and cleans up after max duration.";
 
         await DestroyTarget(target);
@@ -799,6 +824,66 @@ public partial class BrotatoLikeSkillValidationScene : Node
         }
 
         return count;
+    }
+
+    private static IReadOnlyList<string> VisualPoolNames(IReadOnlyList<IEntity> entities)
+    {
+        var names = new List<string>();
+        for (var i = 0; i < entities.Count; i++)
+        {
+            var node = GodotNodeRegistry.GetNodeById(entities[i].EntityId.Value);
+            if (node != null && node.HasMeta("GameOSVisualPoolName"))
+            {
+                names.Add(node.GetMeta("GameOSVisualPoolName").AsString());
+            }
+        }
+
+        return names;
+    }
+
+    private static bool AllVisualsReturnedToPools(IReadOnlyList<string> poolNames)
+    {
+        if (poolNames.Count == 0)
+        {
+            return false;
+        }
+
+        var required = CountPoolNames(poolNames);
+        var stats = ObjectPoolManager.GetAllStats();
+        foreach (var pair in required)
+        {
+            if (!stats.TryGetValue(pair.Key, out var poolStats) || poolStats.TotalReleased < pair.Value)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static IReadOnlyDictionary<string, int> VisualPoolReleasedCounts(IReadOnlyList<string> poolNames)
+    {
+        var result = new Dictionary<string, int>(StringComparer.Ordinal);
+        var stats = ObjectPoolManager.GetAllStats();
+        foreach (var pair in CountPoolNames(poolNames))
+        {
+            result[pair.Key] = stats.TryGetValue(pair.Key, out var poolStats)
+                ? poolStats.TotalReleased
+                : 0;
+        }
+
+        return result;
+    }
+
+    private static Dictionary<string, int> CountPoolNames(IReadOnlyList<string> poolNames)
+    {
+        var result = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < poolNames.Count; i++)
+        {
+            result[poolNames[i]] = result.GetValueOrDefault(poolNames[i]) + 1;
+        }
+
+        return result;
     }
 
     private static bool AllRuntimeEntitiesDestroyed(IReadOnlyList<IEntity> entities)
