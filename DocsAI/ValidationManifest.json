@@ -293,6 +293,18 @@
       "releaseBatch": true
     },
     {
+      "scene": "res://Src/Validation/Game/Shop/BrotatoLikeShopItemValidation.tscn",
+      "owner": "game",
+      "scope": "feature-slice",
+      "tags": ["game", "shop", "item", "economy"],
+      "relatedBddScenarios": ["玩家购买可负担道具", "玩家货币不足时拒绝购买"],
+      "checks": ["item_authoring_loaded_and_validates_targets", "shop_offers_deterministic", "affordable_purchase_applies_item", "unaffordable_purchase_rejected", "shop_ui_updates_and_cleanup"],
+      "artifactFilename": "brotatolike-shop-item-validation.json",
+      "catalogOwner": "game",
+      "timeoutSeconds": 10,
+      "releaseBatch": true
+    },
+    {
       "scene": "res://Src/Validation/Game/LegacyResources/BrotatoLikeLegacyResourceClassificationValidation.tscn",
       "owner": "game",
       "scope": "owner",

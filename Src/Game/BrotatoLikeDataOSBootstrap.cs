@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using BrotatoLike.Game.Shop;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Unit;
 using SlimeAI.GameOS.Runtime.Data;
@@ -232,6 +233,7 @@ public sealed class BrotatoLikeDataOSBootstrap
     private static DataCatalog CreateActiveCatalog(RuntimeDataSnapshot snapshot)
     {
         FrameworkDataKeys.RegisterAll();
+        BrotatoLikeShopDataKeys.RegisterAll();
         var catalogId = string.IsNullOrWhiteSpace(snapshot.Manifest.CatalogId)
             ? "brotatolike"
             : snapshot.Manifest.CatalogId;

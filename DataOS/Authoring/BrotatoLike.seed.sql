@@ -4,11 +4,37 @@
 
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS item_definition (
+    id TEXT PRIMARY KEY CHECK (trim(id) <> ''),
+    display_name TEXT NOT NULL CHECK (trim(display_name) <> ''),
+    base_price INTEGER NOT NULL CHECK (base_price >= 0),
+    rarity TEXT NOT NULL CHECK (trim(rarity) <> ''),
+    weight INTEGER NOT NULL DEFAULT 1 CHECK (weight > 0),
+    icon_path TEXT,
+    effect_target TEXT NOT NULL CHECK (trim(effect_target) <> ''),
+    effect_operation TEXT NOT NULL CHECK (effect_operation IN ('Add')),
+    effect_value REAL NOT NULL,
+    effect_description TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS shop_offer (
+    offer_set_id TEXT NOT NULL CHECK (trim(offer_set_id) <> ''),
+    slot_index INTEGER NOT NULL CHECK (slot_index >= 0),
+    item_id TEXT NOT NULL,
+    price_override INTEGER CHECK (price_override >= 0 OR price_override IS NULL),
+    offer_source TEXT NOT NULL CHECK (trim(offer_source) <> ''),
+    close_shop_on_purchase INTEGER NOT NULL DEFAULT 0 CHECK (close_shop_on_purchase IN (0, 1)),
+    PRIMARY KEY (offer_set_id, slot_index),
+    FOREIGN KEY (item_id) REFERENCES item_definition(id) ON DELETE CASCADE
+);
+
 INSERT OR REPLACE INTO data_table(table_id, domain, description) VALUES
     ('unit.player', 'unit', 'BrotatoLike player units projected from unit_player.'),
     ('unit.enemy', 'unit', 'BrotatoLike enemy units projected from unit_enemy.'),
     ('unit.targeting_indicator', 'unit', 'BrotatoLike targeting indicators projected from unit_targeting_indicator.'),
     ('ability', 'ability', 'BrotatoLike abilities projected from ability and ability_* tables.'),
+    ('item.definition', 'item', 'BrotatoLike item definitions exported to shop_item_authoring.json.'),
+    ('shop.offer', 'shop', 'BrotatoLike deterministic shop offers exported to shop_item_authoring.json.'),
     ('feature.definition', 'feature', 'BrotatoLike feature definitions projected from feature_definition.'),
     ('feature.modifier', 'feature', 'BrotatoLike feature modifier entries projected from feature_modifier.'),
     ('system.config', 'schedule', 'BrotatoLike runtime system configs projected from system_config.'),
@@ -79,6 +105,16 @@ INSERT OR REPLACE INTO ability_movement_attach_to_host(ability_id, projectile_co
 
 INSERT OR REPLACE INTO ability_movement_charge(ability_id, move_speed, max_distance, max_travel_duration) VALUES
     ('dash', 1200.0, 300.0, 0.25);
+
+INSERT OR REPLACE INTO item_definition(id, display_name, base_price, rarity, weight, icon_path, effect_target, effect_operation, effect_value, effect_description) VALUES
+    ('vital_seed', '活力种子', 12, 'Common', 10, 'res://icon.svg', 'Damage.MaxHp', 'Add', 8.0, '生命上限 +8'),
+    ('swift_boots', '迅捷短靴', 8, 'Common', 10, 'res://icon.svg', 'Movement.MoveSpeed', 'Add', 18.0, '移动速度 +18'),
+    ('sharpening_stone', '磨刀石', 20, 'Uncommon', 6, 'res://icon.svg', 'Attack.Damage', 'Add', 5.0, '攻击伤害 +5');
+
+INSERT OR REPLACE INTO shop_offer(offer_set_id, slot_index, item_id, price_override, offer_source, close_shop_on_purchase) VALUES
+    ('validation', 0, 'vital_seed', 12, 'DataOS:shop_offer.validation', 0),
+    ('validation', 1, 'swift_boots', 8, 'DataOS:shop_offer.validation', 0),
+    ('validation', 2, 'sharpening_stone', 20, 'DataOS:shop_offer.validation', 0);
 
 INSERT OR REPLACE INTO feature_definition(id, feature_id, name, handler_id, description, category, trigger_mode, cooldown, trigger_event_type, trigger_chance, is_enabled) VALUES
     ('slam', 'slam', '猛击', '技能.主动.猛击', '在角色周围随机位置猛击地面，对范围内敌人造成物理伤害', '技能.主动', 'Manual', 1.0, '', 100.0, 1),

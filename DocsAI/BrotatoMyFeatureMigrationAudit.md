@@ -10,7 +10,7 @@
 
 最新 Main 场景 artifact `.ai-temp/scene-tests/runs/2026-05-21/17-45-33/index.json` 显示 `BrotatoLike playable slice PASS`。专项 Playable UX artifact `.ai-temp/scene-tests/runs/2026-05-21/17-45-17/index.json` 显示正式 HUD/血条/技能栏/loadout override/点选/飘字/可见移动均 pass；Progression artifact `.ai-temp/scene-tests/runs/2026-05-21/17-45-01/index.json` 显示 wave completion、pause gate、HP recovery、经验拾取、level-up、经验条和升级三选一均 pass；LegacyResources artifact 显示 25 个旧 `res://Src/...` / `res://Data/...` path 已分类且没有 missing active legacy path。
 
-这仍不能等价为旧项目所有功能体验迁移完成。剩余缺口主要是：商店 / 道具 / 替换面板 / passive panel / meta progression、完整多波曲线和波间流程、真实物理设备专项 QA、角色扩展，以及旧测试/调试工具是否按 AI-first 方式重建。
+这仍不能等价为旧项目所有功能体验迁移完成。剩余缺口主要是：商店波间调度 / 刷新与完整经济曲线 / 替换面板 / passive panel / meta progression、完整多波曲线和波间流程、真实物理设备专项 QA、角色扩展，以及旧测试/调试工具是否按 AI-first 方式重建。商店和道具本身已有第一版 scene-backed service/UI/validation，但还没有接入完整波间流程。
 
 用户点名的几个问题需要按下面口径处理：
 
@@ -65,6 +65,7 @@
 - `Games/BrotatoLike/project.godot` 已补 `ConfirmTarget`、`CancelTarget`、`PauseGame`，保留 WASD、方向键、手柄摇杆/方向键、空格/手柄 X、Q/E、LB/RB。
 - Playable UX artifact：`.ai-temp/scene-tests/runs/2026-05-21/16-01-37/001_Src_Validation_Game_PlayableUX_BrotatoLikePlayableUXValidation.tscn_attempt1/artifacts/brotatolike-playable-ux-validation.json`，`status=pass`，正式 HUD/血条/技能栏/loadout override/点选/伤害飘字/可见移动均通过；check details 记录 12 owned / 4 visible / 8 hidden。
 - Progression artifact：`.ai-temp/scene-tests/runs/2026-05-21/17-45-01/001_Src_Validation_Game_Progression_BrotatoLikeProgressionLoopValidation.tscn_attempt1/artifacts/brotatolike-progression-loop-validation.json`，`status=pass`，wave completion、pause gate、HP recovery、经验拾取、level-up 反馈、scene-backed 经验条、scene-backed 升级三选一、属性奖励、技能奖励和升级门禁均通过。
+- Shop artifact：`.ai-temp/scene-tests/runs/2026-05-21/18-39-01/025_Src_Validation_Game_Shop_BrotatoLikeShopItemValidation.tscn_attempt1/artifacts/brotatolike-shop-item-validation.json`，`status=pass`，DataOS `item_definition / shop_offer` authoring、未知 effect target 拒绝、确定性 offer、可负担购买、买不起拒绝、Runtime Data 效果和 scene-backed UI cleanup 均通过。
 - LegacyResources artifact：`.ai-temp/scene-tests/runs/2026-05-20/11-33-42/001_Src_Validation_Game_LegacyResources_BrotatoLikeLegacyResourceClassificationValidation.tscn_attempt1/artifacts/brotatolike-legacy-resource-classification-validation.json`，`legacyCount=25`、`unsupportedStatusCount=0`、`missingActiveLegacyCount=0`。
 - Main artifact：`.ai-temp/scene-tests/runs/2026-05-21/16-05-14/001_Scenes_Main.tscn_attempt1/artifacts/scene-acceptance.json`，`status=pass`，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空，`failureReasons=[]`，记录 `skill_loadout_source=default`、owned ids、visible slot ids、selected id、total count 和 available skill pool。
 
@@ -72,7 +73,7 @@
 
 | 功能域 | 旧功能意图 | 当前状态 | 缺口判断 | 决策 |
 | --- | --- | --- | --- | --- |
-| 主场景启动 | 旧 `Main` 发游戏开始事件，系统按事件进入运行态。 | 核心链路和基础体验已迁。普通 Main 初始化 runtime、生成玩家、进入 Gameplay、挂正式 HUD/targeting/progression；smoke/acceptance 分离。 | 商店、道具、完整多波和 meta progression 仍缺。 | Keep：继续以当前 `BrotatoLikeGameRuntime` 为正式入口，不复刻旧场景树。 |
+| 主场景启动 | 旧 `Main` 发游戏开始事件，系统按事件进入运行态。 | 核心链路和基础体验已迁。普通 Main 初始化 runtime、生成玩家、进入 Gameplay、挂正式 HUD/targeting/progression；smoke/acceptance 分离；商店/道具有独立 service/UI/validation entry。 | 完整多波、波间商店调度和 meta progression 仍缺。 | Keep：继续以当前 `BrotatoLikeGameRuntime` 为正式入口，不复刻旧场景树。 |
 | 玩家生成与视觉 | 旧 PlayerEntity/Preset 组合单位数据、移动、生命、动画、输入。 | 核心链路已迁。当前 DataOS `unit.player/deluyi` + `GodotUnitComposer` + deluyi visual。 | 只生成 Deluyi；`bubing/guangfa` 资源是资产-only，没有角色选择或数据接线。 | Adopt Later：先完成 Deluyi 可玩体验，再扩展角色。 |
 | 玩家移动控制 | 旧项目依赖玩家输入组件/移动组件。 | 已完成体验迁移。artifact 证明 input action、InputDirection、LastMoveDirection、Node2D 位置变化和可见性。 | 真实手动窗口焦点和物理设备 QA 仍需人工/设备专项。 | Keep：核心链路已过，后续做真实设备 QA。 |
 | 摄像机/视口 | 旧 Main 有 Camera；未看到复杂 camera follow 逻辑。 | 部分迁移。当前 Main 有 `Camera2D`，Playable UX 验证记录玩家移动可见性。 | camera follow、缩放、边界等高级体验未设计。 | Adopt Later：需要地图/关卡边界时再设计。 |
@@ -90,7 +91,8 @@
 | 敌人 AI/接触伤害 | 旧敌人单位有 AI、攻击、碰撞、伤害盒。 | 核心链路已迁。artifact 覆盖追逐方向、位置变化、玩家 HP 下降。 | 缺多敌种行为差异、动画状态、攻击前后摇的普通主场景体验验收。 | P1 Adopt Later。 |
 | 生命/伤害/死亡清理 | 旧 HealthComponent/DamageService/Lifecycle 处理 HP、伤害和销毁。 | 核心链路和基础表现已迁。artifact 记录伤害日志、敌人死亡、QueueFree、正式血条、飘字和经验拾取。 | 死亡动画、掉落种类、奖励展示仍可扩展。 | Keep。 |
 | 恢复系统 | 旧 RecoverySystem 每秒处理 HP/Mana regen。 | 已完成 HP 基础迁移。Progression artifact 证明 HP recovery 和 dead skip；mana 因当前 active catalog 无数据记录为 `not-applicable`。 | 未来若接 mana，需要补 mana recovery/UI 验证。 | Keep。 |
-| 拾取/掉落/经验/升级 | 旧 EnemyData 有 `ExpReward`；旧 PickupComponent 本身也是占位。 | 已完成首版局内成长闭环。敌人死亡生成经验拾取，玩家收集后经验/等级更新，有 scene-backed 经验条、level-up feedback 和升级三选一；属性奖励和技能奖励已验证。 | 商店、道具系统、替换选择、被动面板、连续多次升级队列和 meta progression 未实现。 | P1 Adopt Later：继续拆 shop/item、波间和 meta progression。 |
+| 拾取/掉落/经验/升级 | 旧 EnemyData 有 `ExpReward`；旧 PickupComponent 本身也是占位。 | 已完成首版局内成长闭环。敌人死亡生成经验拾取，玩家收集后经验/等级更新，有 scene-backed 经验条、level-up feedback 和升级三选一；属性奖励和技能奖励已验证。 | 替换选择、被动面板、连续多次升级队列和 meta progression 未实现；商店/道具第一版已单独验证。 | P1 Adopt Later：继续拆替换面板、被动面板、波间调度和 meta progression。 |
+| 商店 / 道具 / 经济 | 旧体验需要 item pool、货币、购买、道具效果和波间商店。 | 已完成第一版闭环。DataOS seed authoring 导出 `shop_item_authoring.json`；`BrotatoLikeShopService` 管理货币、deterministic offer、购买门禁和 effect application；`ShopPanelUI` / `ShopOfferCardUI` scene-backed。 | 未接完整波间自动打开、刷新/锁定、售卖、随机权重、掉落货币和经济曲线。 | Keep：保留当前 service/UI/validation，后续接 wave flow 和经济调参。 |
 | 暂停菜单 | 旧 PauseMenuSystem 是 CanvasLayer，Esc/Start 切换 overlay，有恢复按钮。 | 已完成基础体验迁移。正式 pause menu 和 schedule gate 已验证，pause 阻断 tick，resume 恢复。 | 菜单焦点导航、按钮行为、样式和真实设备输入仍待扩展。 | Keep。 |
 | MouseSelection/调试选择 | 旧有鼠标选择系统/测试工具。 | DataOS-only 或废弃候选。 | AI-first 里应改成 Observation/Validation/debug overlay，不必复刻旧调试 UI。 | P2 Decide：需要则重写为调试工具。 |
 | 旧 TestSystem/VisualPreview | 旧项目有大量可视测试场景。 | 部分替换。当前统一 runner、scene artifact、GameOS tests 已覆盖大量运行时。 | 旧可视测试没有逐一迁移；需要按新 Observation contract 重建有价值测试。 | P2 Replace：不复制旧测试面板。 |
@@ -121,12 +123,12 @@
 
 ## P1 剩余功能
 
-1. 完整波次循环：当前已有 wave runtime completion；仍缺多波曲线、WaveStarted/WaveCompleted 对外事件、波间状态、商店/奖励。
+1. 完整波次循环：当前已有 wave runtime completion；仍缺多波曲线、WaveStarted/WaveCompleted 对外事件、波间状态，以及把已完成的 shop service 接入波间奖励。
 2. 更多技能逐项验收：`dash` 已进入玩家四槽；`sine_wave_shot / boomerang_throw / arc_shot / bezier_shot / parabola_shot / orbit_skill / circle_damage / aura_shield` 已进入显式 skill pool / validation override，但仍需要逐技能主场景可玩验收。
 3. 连锁闪电视觉增强：端点绑定、线段生命周期和延迟弹跳可视已过；像素级样式、淡出和升级强化可后续补。
 4. Pause menu 体验增强：基础菜单和 schedule gate 已迁；仍缺焦点导航、按钮行为、样式和真实设备输入 QA。
 5. Recovery 扩展：HP recovery 已迁；mana recovery 因当前 active catalog 无 mana 数据为 `not-applicable`，后续如恢复 mana 需新增 UI/验证。
-6. 掉落/经验/升级扩展：经验拾取、level-up feedback、正式经验条和升级三选一首版已迁；仍缺商店、道具、替换选择、被动面板、连续多次升级队列和 meta progression。
+6. 掉落/经验/升级扩展：经验拾取、level-up feedback、正式经验条、升级三选一和商店/道具首版已迁；仍缺替换选择、被动面板、连续多次升级队列和 meta progression。
 
 ## P2 待决策功能
 
@@ -148,7 +150,7 @@
 `restore-brotatolike-playable-ux` 已覆盖 P0 和部分 P1。后续建议拆成更窄的 OpenSpec change：
 
 - `validate-brotatolike-projectile-and-passive-skills`：复用 deterministic validation loadout，逐个补投射物/被动技能可视、命中、生命周期和清理 artifact。
-- `design-brotatolike-shop-item-loop`：单独设计商店、道具选择、经济和波间购买闭环。
+- 后续 wave/shop integration change：把已验证的 shop service 接入 wave break，补刷新/锁定、货币来源和经济曲线。
 - 后续 progression/panel change：补 visible slot 替换、被动面板、连续多次升级队列和 meta progression。
 - `brotatolike-manual-device-qa`：补真实手柄、鼠标点选、窗口焦点和人工可玩 checklist。
 

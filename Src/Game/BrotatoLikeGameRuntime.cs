@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.Items;
 using BrotatoLike.Game.Progression;
+using BrotatoLike.Game.Shop;
 using BrotatoLike.Game.UI;
 using BrotatoLike.Game.VFX;
 using Godot;
@@ -23,6 +25,7 @@ public partial class BrotatoLikeGameRuntime : Node
 {
     private RuntimeSchedule? schedule;
     private BrotatoLikeDataOSBootstrap? bootstrap;
+    private BrotatoLikeItemCatalog? itemCatalog;
     private BrotatoLikeSpawnCatalog? spawnCatalog;
     private SystemConfig? spawnScheduleConfig;
     private GodotMovementDriver? movementDriver;
@@ -33,6 +36,7 @@ public partial class BrotatoLikeGameRuntime : Node
     private BrotatoLikeHud? hud;
     private BrotatoLikeTargetingController? targetingController;
     private BrotatoLikeProgressionService? progressionService;
+    private BrotatoLikeShopService? shopService;
     private Camera2D? playerCamera;
     private float deathElapsedSeconds;
     private const float RespawnDelaySeconds = 2f;
@@ -111,6 +115,11 @@ public partial class BrotatoLikeGameRuntime : Node
     /// 游戏侧进度服务。
     /// </summary>
     public BrotatoLikeProgressionService? ProgressionService => progressionService;
+
+    /// <summary>
+    /// 游戏侧商店服务。
+    /// </summary>
+    public BrotatoLikeShopService? ShopService => shopService;
 
     /// <summary>
     /// 当前 ProjectState 快照，供验证升级选择门禁使用。
@@ -283,6 +292,7 @@ public partial class BrotatoLikeGameRuntime : Node
         Shutdown();
         bootstrap = dataBootstrap;
         bootstrap.RegisterResources();
+        itemCatalog = BrotatoLikeItemCatalog.LoadFromResource();
         BrotatoLikeSkillLoadoutAuthoring.ValidateAvailableSkillPool(bootstrap);
         spawnCatalog = bootstrap.BuildEnemySpawnCatalog(wave);
         spawnScheduleConfig = bootstrap.BuildSpawnSystemScheduleConfig();
@@ -489,6 +499,8 @@ public partial class BrotatoLikeGameRuntime : Node
         entity.SetMeta("Level", 1);
         entity.SetMeta("Experience", 0);
         entity.SetMeta("NextLevelExperience", 5);
+        entity.Data.Set(BrotatoLikeShopDataKeys.Currency, BrotatoLikeShopService.DefaultStartingCurrency);
+        entity.SetMeta("Currency", BrotatoLikeShopService.DefaultStartingCurrency);
 
         // 游戏侧输入和技能 Adapter 不属于框架 composer。
         entity.AddChild(new BrotatoLikePlayerInputComponent { Name = "PlayerInput" });
@@ -530,6 +542,15 @@ public partial class BrotatoLikeGameRuntime : Node
         });
 
         return entity;
+    }
+
+    /// <summary>
+    /// 打开 scene-backed 商店面板。
+    /// </summary>
+    public IReadOnlyList<BrotatoLikeShopOfferView> OpenShop(string offerSetId = BrotatoLikeShopService.DefaultOfferSetId)
+    {
+        EnsureBrotatoLikeGameServices();
+        return shopService?.OpenShop(offerSetId) ?? Array.Empty<BrotatoLikeShopOfferView>();
     }
 
     private EntityIdList SpawnPlayerAbility(GodotEntity2D player, string abilityRecordId, EntityIdList ownedIds)
@@ -749,6 +770,13 @@ public partial class BrotatoLikeGameRuntime : Node
             progressionService.Bind(this);
             AddChild(progressionService);
         }
+
+        if (shopService == null || !GodotObject.IsInstanceValid(shopService))
+        {
+            shopService = new BrotatoLikeShopService { Name = "BrotatoLikeShopService" };
+            shopService.Bind(this, itemCatalog ?? BrotatoLikeItemCatalog.LoadFromResource());
+            AddChild(shopService);
+        }
     }
 
     private void TickPlayerAbilityCooldowns(float deltaSeconds)
@@ -831,6 +859,12 @@ public partial class BrotatoLikeGameRuntime : Node
         {
             playerEntity.DestroyEntity();
             playerEntity = null;
+        }
+
+        if (shopService != null)
+        {
+            shopService.QueueFree();
+            shopService = null;
         }
 
         if (movementDriver != null)

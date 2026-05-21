@@ -257,7 +257,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 - OpenSpec `restore-brotatolike-chain-lightning-line-vfx` 已完成实现与验证，后续应归档到 baseline。
 - 如果未来要上提通用端点数据，需要另开框架级 change；不要把 `LightningLineEffect` 类型硬编码进框架。
 
-## 6. P1 接手项：商店、道具、替换面板和 meta progression 还没迁
+## 6. P1 接手项：商店/道具已有第一版，替换面板和 meta progression 还没迁
 
 现状：
 
@@ -272,21 +272,36 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
   - stat reward / hidden ability reward
   - `ModalUi + Suspended` level-up gate
 - `BrotatoLikeHud` 左上角已有正式 `ExperienceBarUI.tscn`，`ProgressionSummary` 只保留 metadata 兼容用途。
-- 没有正式商店、道具、visible slot 替换、被动面板、永久成长、存档、解锁。
+- `design-brotatolike-shop-item-loop` 已新增第一版商店/道具闭环：
+  - `DataOS/Authoring/BrotatoLike.seed.sql` 中的 `item_definition` / `shop_offer`
+  - `DataOS/Snapshots/shop_item_authoring.json`
+  - `BrotatoLikeItemCatalog`
+  - `BrotatoLikeShopService`
+  - `Scenes/UI/ShopPanelUI.tscn`
+  - `Scenes/UI/ShopOfferCardUI.tscn`
+  - `res://Src/Validation/Game/Shop/BrotatoLikeShopItemValidation.tscn`
+- 最新 Shop evidence：`.ai-temp/scene-tests/runs/2026-05-21/18-39-01/index.json` PASS，artifact `brotatolike-shop-item-validation.json` 覆盖 DataOS authoring、unknown effect target reject、deterministic offer、可负担购买、买不起拒绝、Runtime Data 效果和 UI cleanup。
+- 仍没有正式 visible slot 替换、被动面板、永久成长、存档、解锁。
 
 缺什么：
 
 - Level-up choices 后续增强：随机/权重池、连续多次升级队列、visible slot 替换、被动面板和更完整 reward authoring。
-- Item system：道具定义、掉落/商店购买、效果应用、图标和叠加规则。
-- Shop system：波间商店、刷新、价格、购买、锁定、货币。
+- Item system 后续增强：更多道具、掉落、随机/权重、图标资产、叠加规则和更完整 effect authoring。
+- Shop system 后续增强：接入波间商店、刷新、锁定、售卖、货币来源和经济曲线。
 - Meta progression：局外存档、解锁、角色/道具池扩展。
 
 关键路径：
 
 - `Src/Game/Progression/BrotatoLikeProgressionService.cs`
 - `Src/Game/UI/BrotatoLikeHud.cs`
+- `Src/Game/Items/BrotatoLikeItemCatalog.cs`
+- `Src/Game/Shop/BrotatoLikeShopService.cs`
+- `Src/Game/UI/ShopPanelUI.cs`
+- `Scenes/UI/ShopPanelUI.tscn`
+- `Src/Validation/Game/Shop/BrotatoLikeShopItemValidationScene.cs`
 - `Scenes/UI/PauseMenuUI.tscn`
 - `DataOS/Authoring/BrotatoLike.seed.sql`
+- `DataOS/Snapshots/shop_item_authoring.json`
 - `DocsAI/BrotatoMyFeatureMigrationAudit.md`
 - `DocsAI/MigrationLedger.md`
 
@@ -300,9 +315,9 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 
 建议拆分：
 
-- OpenSpec `design-brotatolike-shop-item-loop`
+- OpenSpec `design-brotatolike-shop-item-loop` 已完成当前首版实现，后续归档到 baseline。
 - 后续 progression/panel change：补随机/权重 reward pool、连续多次升级队列、visible slot 替换和被动面板。
-- DataOS 表设计要先明确 item/choice/feature modifier 的 authoring shape，避免把临时 UI 数据塞到 runtime meta。
+- 后续 wave/shop integration change：把已验证的 shop service 接入 wave break，补货币来源、刷新/锁定、经济曲线和更完整 shop policy。
 
 ## 7. P1 接手项：完整多波流程还没完成
 
@@ -316,7 +331,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 
 - 多波配置、难度曲线、波间奖励、wave start/end UI。
 - 敌种组合变化、生成节奏、随机或权重策略。
-- 波间 shop / item 奖励接入，以及与升级选择、替换面板的衔接。
+- 把已验证的 shop service 接入波间奖励，以及与升级选择、替换面板的衔接。
 - 长时间运行稳定性：节点、Runtime Entity、Timer、Effect、Projectile 是否泄漏。
 
 关键路径：
@@ -464,7 +479,7 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 6. `design-brotatolike-levelup-choice-loop`
    - 状态：已完成并归档到 baseline spec。Progression `.ai-temp/scene-tests/runs/2026-05-21/17-45-01/index.json` PASS，PlayableUX `.ai-temp/scene-tests/runs/2026-05-21/17-45-17/index.json` PASS，Main `.ai-temp/scene-tests/runs/2026-05-21/17-45-33/index.json` PASS。
 7. `design-brotatolike-shop-item-loop`
-   - 目标：商店、道具、货币、波间购买。
+   - 状态：进行中，本轮已完成首版商店/道具/货币/service/UI/validation；波间自动购买流程留给后续 wave/shop integration。
 8. `complete-brotatolike-wave-run-flow`
    - 目标：多波、波间奖励、难度曲线、长时间稳定性。
 9. `brotatolike-character-selection`
