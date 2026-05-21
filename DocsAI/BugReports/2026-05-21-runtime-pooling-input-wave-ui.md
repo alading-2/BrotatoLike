@@ -27,7 +27,7 @@ externalResources:
 - 当前技能槽 UI 显示 `1..4`，但输入链路只有 `UseSkill`、`PreviousSkill`、`NextSkill`；没有直接按槽位选择事件。
 - 旧输入逻辑为 `LB/RB` 循环切换、`X` 释放当前主动技能；当前 gamepad LB/RB/X 映射存在，但 UI 数字提示不可操作。
 - 旧单位默认 `HealthBarHeight` 是 `100f`；当前 DataOS descriptor 和 `BrotatoLikeHud` fallback 为 `0/36f`，鱼人没有显式高度所以落到 36f。豺狼人沿用旧值 155f，但当前视觉是 centered `AnimatedSprite2D`，该值偏高。
-- 当前 `wave_enemy_entry` 明确配置第 1 波 2 个豺狼人 + 3 个鱼人，第 2 波 2 个鱼人 + 3 个豺狼人；因此“只刷几个”是当前验证波次 authoring，而不是 SpawnSystem 停摆。
+- 旧结论“只刷几个是正常验证波次”已被本次 change 取代：普通 Main / RunFlow 现在采用开放式 wave authoring，`max_count=-1` 且 `ExpectedSpawnCount=-1`，验证 artifact 记录 spawned count 会超过首批 5 个敌人。有限 5 只只保留为历史 finite validation 证据，不再作为普通玩法口径。
 
 ## 初步根因
 

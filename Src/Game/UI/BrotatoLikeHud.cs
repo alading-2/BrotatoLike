@@ -483,10 +483,10 @@ public partial class BrotatoLikeHud : CanvasLayer
 
         damageNumber.Finished -= OnDamageNumberFinished;
         damageNumber.Finished += OnDamageNumberFinished;
+        damageNumberPool?.Activate(damageNumber);
         damageNumber.ShowDamage(hpDelta, canvasPosition);
         damageNumber.SetMeta("WorldPosition", $"{worldPosition.X:0.###},{worldPosition.Y:0.###}");
         damageNumber.SetMeta("CanvasPosition", $"{canvasPosition.X:0.###},{canvasPosition.Y:0.###}");
-        damageNumberPool?.Activate(damageNumber);
         activeDamageNumbers.Add(damageNumber);
     }
 

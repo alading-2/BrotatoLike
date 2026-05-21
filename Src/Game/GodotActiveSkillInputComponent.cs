@@ -58,7 +58,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 
     private void OnUseSkill(InputUseSkill data)
     {
-        if (entity == null || !CanUseSkill())
+        if (entity == null || !CanUseSkillExecution())
         {
             return;
         }
@@ -108,7 +108,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 
     private void OnPreviousSkill(InputPreviousSkill data)
     {
-        if (entity == null || !CanUseSkill())
+        if (entity == null || !CanSelectSkill())
         {
             return;
         }
@@ -126,7 +126,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 
     private void OnNextSkill(InputNextSkill data)
     {
-        if (entity == null || !CanUseSkill())
+        if (entity == null || !CanSelectSkill())
         {
             return;
         }
@@ -144,7 +144,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 
     private void OnSelectSkillSlot(InputSelectSkillSlot data)
     {
-        if (entity == null || !CanUseSkill())
+        if (entity == null || !CanSelectSkill())
         {
             return;
         }
@@ -158,24 +158,21 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, data.SlotIndex);
     }
 
-    private bool CanUseSkill()
+    private bool CanSelectSkill()
     {
         if (entity == null)
         {
             return false;
         }
 
-        if (entity.Data.Get<bool>(DamageDataKeys.IsDead, false))
-        {
-            return false;
-        }
+        return !entity.Data.Get<bool>(DamageDataKeys.IsDead, false);
+    }
 
-        if (!entity.Data.Get<bool>(MovementDataKeys.CanMoveInput, true))
-        {
-            return false;
-        }
-
-        return true;
+    private bool CanUseSkillExecution()
+    {
+        return CanSelectSkill()
+            && entity != null
+            && entity.Data.Get<bool>(MovementDataKeys.CanMoveInput, true);
     }
 
     private BrotatoLikeTargetingController? TryFindTargetingController()

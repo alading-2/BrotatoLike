@@ -251,7 +251,7 @@ public sealed class BrotatoLikeWaveCatalog
                 throw new InvalidOperationException($"Wave entry enemy id is empty: wave {entry.WaveId}");
             }
 
-            if (entry.MaxCount < 0 || entry.SingleCount <= 0 || entry.Interval <= 0f)
+            if (entry.MaxCount < -1 || entry.SingleCount <= 0 || entry.Interval <= 0f)
             {
                 throw new InvalidOperationException($"Invalid wave enemy spawn numbers: wave {entry.WaveId}/{entry.EnemyId}");
             }

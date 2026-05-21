@@ -59,13 +59,10 @@ public partial class DamageNumberUI : Control
         finished = false;
         lifetimeRemainingSeconds = DefaultLifetimeSeconds;
         SetProcess(true);
+        ResetVisualState(clearText: true);
         Visible = true;
-        Modulate = new Color(1f, 1f, 1f, 1f);
-        SelfModulate = new Color(1f, 1f, 1f, 1f);
         var isHeal = amount > 0f;
         damageLabel.Text = isHeal ? $"+{amount:0}" : $"{amount:0}";
-        damageLabel.Position = Vector2.Zero;
-        damageLabel.Scale = Vector2.One;
         damageLabel.SetMeta("Value", amount);
         damageLabel.SetMeta("DamageType", isHeal ? "Heal" : "Damage");
         SetMeta("Value", amount);
@@ -77,6 +74,7 @@ public partial class DamageNumberUI : Control
         if (animPlayer != null)
         {
             animPlayer.Stop();
+            animPlayer.Seek(0d, update: true);
             if (animPlayer.HasAnimation(animName))
             {
                 lifetimeRemainingSeconds = ResolveAnimationLength(animName);
@@ -98,24 +96,14 @@ public partial class DamageNumberUI : Control
         SetProcess(false);
         DisconnectAnimationFinished();
         animPlayer?.Stop();
-
-        if (damageLabel != null)
-        {
-            damageLabel.Text = string.Empty;
-            damageLabel.Position = Vector2.Zero;
-            damageLabel.Scale = Vector2.One;
-            damageLabel.RemoveMeta("Value");
-            damageLabel.RemoveMeta("DamageType");
-        }
+        animPlayer?.Seek(0d, update: true);
+        ResetVisualState(clearText: true);
 
         RemoveMeta("Value");
         RemoveMeta("DamageType");
         RemoveMeta("WorldPosition");
         RemoveMeta("CanvasPosition");
-        Position = Vector2.Zero;
         Visible = false;
-        Modulate = new Color(1f, 1f, 1f, 1f);
-        SelfModulate = new Color(1f, 1f, 1f, 1f);
     }
 
     private void OnAnimationFinished(StringName name)
@@ -175,5 +163,36 @@ public partial class DamageNumberUI : Control
     {
         damageLabel ??= GetNodeOrNull<Label>("DamageLabel");
         animPlayer ??= GetNodeOrNull<AnimationPlayer>("AnimationPlayer");
+    }
+
+    private void ResetVisualState(bool clearText)
+    {
+        Position = Vector2.Zero;
+        Rotation = 0f;
+        Scale = Vector2.One;
+        PivotOffset = Vector2.Zero;
+        CustomMinimumSize = Vector2.Zero;
+        Size = new Vector2(120f, 50f);
+        Modulate = new Color(1f, 1f, 1f, 1f);
+        SelfModulate = new Color(1f, 1f, 1f, 1f);
+
+        if (damageLabel == null)
+        {
+            return;
+        }
+
+        if (clearText)
+        {
+            damageLabel.Text = string.Empty;
+        }
+
+        damageLabel.Position = Vector2.Zero;
+        damageLabel.Rotation = 0f;
+        damageLabel.Scale = Vector2.One;
+        damageLabel.PivotOffset = Vector2.Zero;
+        damageLabel.Modulate = new Color(1f, 1f, 1f, 1f);
+        damageLabel.SelfModulate = new Color(1f, 1f, 1f, 1f);
+        damageLabel.RemoveMeta("Value");
+        damageLabel.RemoveMeta("DamageType");
     }
 }

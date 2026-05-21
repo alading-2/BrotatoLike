@@ -51,20 +51,20 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
             notes: new[]
             {
                 "Validation uses DataOS generated wave_authoring.json.",
-                "The two authored waves are deterministic and finite for accelerated headless evidence.",
+                "The two authored waves are open survivor-style waves; validation uses force-complete for accelerated reward evidence.",
                 "Reward/shop integration is validated as hook metadata, not full economy balancing."
             },
             expectedInputs: new[]
             {
                 "BrotatoLikeGameRuntime initialized from the BrotatoLike DataOS snapshot",
                 "DataOS generated wave_definition and wave_enemy_entry authoring",
-                "Wave 1 and Wave 2 with finite deterministic enemy entries and next-wave behavior",
+                "Wave 1 and Wave 2 with open continuous enemy entries and next-wave behavior",
                 "Production progression, spawn, pause, respawn, shop hook and HUD systems"
             },
             expectedObservations: new[]
             {
                 "Wave authoring includes wave ids, entries, spawn timing, completion mode and reference validation",
-                "Wave 1 starts in Running, spawns authored enemies, completes, and enters RewardShop",
+                "Wave 1 starts in Running, spawns beyond the first batch, force-completes, and enters RewardShop",
                 "Reward hook metadata records shop_offer.validation and validation offer set",
                 "Wave 2 starts through runtime state machine and spawns authored enemy entries",
                 "Pause blocks schedule-gated spawn ticks and resume restores them",
@@ -175,16 +175,23 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
         var player = runtime.SpawnPlayer("deluyi", Vector2.Zero);
         await ProcessFrames(12);
         runtime.AutoTick = false;
+        for (var i = 0; i < 6; i++)
+        {
+            runtime.TickSpawn(1.6d);
+            await ProcessFrames(1);
+        }
 
         var waveState = FindDescendant(this, "WaveRuntimeState");
         var firstWaveEnemies = FindWaveEnemies(1);
         var firstWaveRuleIds = JoinEnemyMeta(firstWaveEnemies, "SpawnRuleId");
         var firstWaveDisplayNames = JoinEnemyMeta(firstWaveEnemies, "SpawnRuleDisplayName");
+        var firstWaveSpawnedBeforeCompletion = firstWaveEnemies.Count;
         values["player_entity"] = player.EntityId.Value;
         values["first_wave_phase"] = runtime.ProgressionService?.WavePhaseName ?? string.Empty;
         values["first_wave_runtime_wave"] = runtime.CurrentWave;
         values["first_wave_state_wave_index"] = ReadIntMeta(waveState, "WaveIndex");
         values["first_wave_spawn_count"] = firstWaveEnemies.Count;
+        values["first_wave_spawned_beyond_initial_batch"] = firstWaveSpawnedBeforeCompletion > 5;
         values["first_wave_spawn_rule_ids"] = firstWaveRuleIds;
         values["first_wave_spawn_rule_display_names"] = firstWaveDisplayNames;
 
@@ -250,9 +257,11 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
         var levelUpHookAvailable = ReadBoolMeta(waveState, "LevelUpHookAvailable");
 
         var nextStarted = runtime.ProgressionService?.StartNextWaveForValidation() == true;
-        runtime.AutoTick = true;
-        await ProcessFrames(24);
-        runtime.AutoTick = false;
+        for (var i = 0; i < 6; i++)
+        {
+            runtime.TickSpawn(1.4d);
+            await ProcessFrames(1);
+        }
         var secondWaveEnemies = FindWaveEnemies(2);
         var secondWaveRuleIds = JoinEnemyMeta(secondWaveEnemies, "SpawnRuleId");
         var secondWavePhase = runtime.ProgressionService?.WavePhaseName ?? string.Empty;
@@ -292,8 +301,10 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
         values["wave_authoring_loaded_and_validates_refs"] = CountWaves(catalog) >= 2
             && wave1Spawn.EnemyRules.Count == 2
             && wave2Spawn.EnemyRules.Count == 2
-            && wave1Spawn.ExpectedSpawnCount == 5
-            && wave2Spawn.ExpectedSpawnCount == 5
+            && wave1Spawn.ExpectedSpawnCount == -1
+            && wave2Spawn.ExpectedSpawnCount == -1
+            && !wave1Spawn.HasFiniteSpawnLimit
+            && !wave2Spawn.HasFiniteSpawnLimit
             && wave1.NextWaveId == 2
             && wave1.RewardHook == "shop_offer.validation"
             && wave1.ShopOfferSetId == "validation"
@@ -302,7 +313,7 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
             && missingResourceRejected;
         values["first_wave_starts_and_spawns"] = runtime.CurrentWave >= 1
             && values["first_wave_phase"] as string == "Running"
-            && firstWaveEnemies.Count >= wave1Spawn.ExpectedSpawnCount
+            && firstWaveEnemies.Count > 5
             && ContainsText(firstWaveRuleIds, "chailangren")
             && ContainsText(firstWaveRuleIds, "yuren");
         values["pause_gate_and_respawn_preserved"] = tickBeforePause.Success
@@ -324,12 +335,12 @@ public partial class BrotatoLikeRunFlowValidationScene : Node
         values["second_wave_starts"] = nextStarted
             && runtime.CurrentWave == 2
             && secondWavePhase == BrotatoLikeWavePhase.Running.ToString()
-            && secondWaveEnemies.Count >= wave2Spawn.ExpectedSpawnCount
+            && secondWaveEnemies.Count > 5
             && ContainsText(secondWaveRuleIds, "chailangren")
             && ContainsText(secondWaveRuleIds, "yuren");
         values["wave_cleanup_counts"] = cleanupRuntimeBefore > 0
             && cleanupRuntimeAfter <= cleanupRuntimeBefore
-            && cleanupEnemyBefore >= wave1Spawn.ExpectedSpawnCount
+            && cleanupEnemyBefore >= firstWaveSpawnedBeforeCompletion
             && cleanupEnemyAfter == 0
             && cleanupPickupAfter <= cleanupPickupBefore
             && cleanupProjectileEffectAfter <= cleanupProjectileEffectBefore;

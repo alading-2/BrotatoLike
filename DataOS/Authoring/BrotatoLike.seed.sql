@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS wave_enemy_entry (
     enemy_id TEXT NOT NULL,
     position_strategy TEXT NOT NULL CHECK (trim(position_strategy) <> ''),
     spawn_interval REAL NOT NULL CHECK (spawn_interval > 0),
-    max_count INTEGER NOT NULL CHECK (max_count >= 0),
+    max_count INTEGER NOT NULL CHECK (max_count >= -1),
     single_count INTEGER NOT NULL CHECK (single_count > 0),
     single_variance INTEGER NOT NULL DEFAULT 0 CHECK (single_variance >= 0),
     start_delay REAL NOT NULL DEFAULT 0 CHECK (start_delay >= 0),
@@ -200,14 +200,14 @@ INSERT OR REPLACE INTO shop_offer(offer_set_id, slot_index, item_id, price_overr
     ('validation', 2, 'sharpening_stone', 20, 'DataOS:shop_offer.validation', 0);
 
 INSERT OR REPLACE INTO wave_definition(wave_id, display_name, wave_duration, reward_phase_seconds, completion_mode, next_wave_id, next_phase, reward_hook, shop_offer_set_id, description) VALUES
-    (1, '第 1 波', 18.0, 0.25, 'AllEnemiesDefeated', 2, 'RewardShop', 'shop_offer.validation', 'validation', '首个验证波次：保留既有 Main 证据中的 2 个豺狼人和 3 个鱼人。'),
-    (2, '第 2 波', 22.0, 0.25, 'AllEnemiesDefeated', NULL, 'Ended', 'shop_offer.validation', 'validation', '第二个验证波次：调整生成顺序和数量，证明 run flow 可以切换 wave catalog。');
+    (1, '第 1 波', 60.0, 0.25, 'DurationOrClear', 2, 'RewardShop', 'shop_offer.validation', 'validation', '普通玩法波次：开放式持续生成，验证通过 force-complete 进入奖励阶段。'),
+    (2, '第 2 波', 75.0, 0.25, 'DurationOrClear', NULL, 'Ended', 'shop_offer.validation', 'validation', '第二个普通玩法波次：继续开放式持续生成，证明 run flow 可以切换 wave catalog。');
 
 INSERT OR REPLACE INTO wave_enemy_entry(wave_id, slot_index, enemy_id, position_strategy, spawn_interval, max_count, single_count, single_variance, start_delay, weight) VALUES
-    (1, 0, 'chailangren', 'Circle', 0.4, 2, 2, 0, 0.0, 10),
-    (1, 1, 'yuren', 'Rectangle', 0.4, 3, 3, 0, 0.0, 8),
-    (2, 0, 'yuren', 'Rectangle', 0.3, 2, 2, 0, 0.0, 10),
-    (2, 1, 'chailangren', 'Circle', 0.3, 3, 3, 0, 0.1, 8);
+    (1, 0, 'chailangren', 'Circle', 1.2, -1, 1, 0, 0.0, 10),
+    (1, 1, 'yuren', 'Rectangle', 1.6, -1, 1, 0, 0.4, 8),
+    (2, 0, 'yuren', 'Rectangle', 1.0, -1, 1, 0, 0.0, 10),
+    (2, 1, 'chailangren', 'Circle', 1.4, -1, 1, 0, 0.3, 8);
 
 INSERT OR REPLACE INTO feature_definition(id, feature_id, name, handler_id, description, category, trigger_mode, cooldown, trigger_event_type, trigger_chance, is_enabled) VALUES
     ('slam', 'slam', '猛击', '技能.主动.猛击', '在角色周围随机位置猛击地面，对范围内敌人造成物理伤害', '技能.主动', 'Manual', 1.0, '', 100.0, 1),

@@ -141,6 +141,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         var enemy = FindFirstEnemy();
         values["player_entity"] = player.EntityId.Value;
         values["enemy_entity"] = enemy?.EntityId.Value ?? string.Empty;
+        MoveEnemiesAwayFromPlayer(player);
 
         Input.ActionPress("MoveRight");
         await ProcessFrames(10);
@@ -223,9 +224,10 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["heal_number_actual_canvas_position"] = Format(playerHealNumberPosition);
         values["heal_number_expected_canvas_position"] = Format(playerHealExpectedCanvasPosition);
         values["heal_number_canvas_distance"] = playerHealNumberDistance;
-        await ProcessFrames(90);
+        await ProcessFrames(150);
         values["damage_number_pool_idle_after_lifetime"] = ReadIntMeta(damageNumberLayer, "PoolIdleCount");
         values["damage_number_pool_active_after_lifetime"] = ReadIntMeta(damageNumberLayer, "PoolActiveCount");
+        values["damage_number_idle_clean_after_lifetime"] = DamageNumberIdlePoolIsClean(damageNumberLayer, values);
 
         var enemyBar = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
         var enemyHpBefore = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
@@ -303,12 +305,18 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         Input.ActionRelease("SkillSlot1");
         await ProcessFrames(2);
         var directSlot1Index = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        var skillPhysicalKeyMappings = HasPhysicalKey("SkillSlot1", (Key)49)
+            && HasPhysicalKey("SkillSlot4", (Key)52)
+            && HasPhysicalKey("PreviousSkill", (Key)81)
+            && HasPhysicalKey("NextSkill", (Key)69)
+            && HasPhysicalKey("UseSkill", (Key)32);
         values["skill_owned_count"] = ownedIds.Count;
         values["skill_old_index"] = oldIndex;
         values["skill_next_index"] = nextIndex;
         values["skill_previous_index"] = previousIndex;
         values["skill_direct_slot4_index"] = directSlot4Index;
         values["skill_direct_slot1_index"] = directSlot1Index;
+        values["skill_physical_key_mappings"] = skillPhysicalKeyMappings;
         values["skill_loadout_source"] = ReadStringMeta(skillBar, "LoadoutSource");
         values["skill_owned_ids"] = ReadStringMeta(skillBar, "OwnedAbilityIds");
         values["skill_visible_slot_ids"] = ReadStringMeta(skillBar, "VisibleSlotIds");
@@ -432,7 +440,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["skill_bar_direct_slot_input_updates"] = skillBar != null
             && ownedIds.Count >= 4
             && directSlot4Index == 3
-            && directSlot1Index == 0;
+            && directSlot1Index == 0
+            && skillPhysicalKeyMappings;
         values["point_targeting_indicator_session"] = targetIndicator != null
             && pointAbility != null
             && targetingStarted
@@ -447,7 +456,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && ReadBoolValue(values, "damage_number_found")
             && ReadBoolValue(values, "heal_number_found")
             && ReadIntValue(values, "damage_number_pool_idle_after_lifetime") >= 2
-            && ReadIntValue(values, "damage_number_pool_active_after_lifetime") == 0;
+            && ReadIntValue(values, "damage_number_pool_active_after_lifetime") == 0
+            && ReadBoolValue(values, "damage_number_idle_clean_after_lifetime");
         values["damage_and_heal_numbers_canvas_coordinates"] = damageNumberLayer != null
             && playerDamageNumber != null
             && playerHealNumber != null
@@ -458,7 +468,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && playerDamageNumberText.Contains("-7", StringComparison.Ordinal)
             && playerHealNumberText.Contains("+4", StringComparison.Ordinal)
             && ReadIntValue(values, "damage_number_pool_idle_after_lifetime") >= 2
-            && ReadIntValue(values, "damage_number_pool_active_after_lifetime") == 0;
+            && ReadIntValue(values, "damage_number_pool_active_after_lifetime") == 0
+            && ReadBoolValue(values, "damage_number_idle_clean_after_lifetime");
         values["camera_player_visibility"] = camera.Enabled
             && player.Position.DistanceTo(camera.Position) < 4096f
             && player.Position != Vector2.Zero;
@@ -709,6 +720,81 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         return null;
     }
 
+    private static void MoveEnemiesAwayFromPlayer(GodotEntity2D player)
+    {
+        var entities = EntityManager.GetAll();
+        var basePosition = player.GlobalPosition + new Vector2(900f, -320f);
+        var enemyIndex = 0;
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i] is not GodotEntity2D enemy || enemy.Data.Get<int>(CollisionDataKeys.Team, 0) != 2)
+            {
+                continue;
+            }
+
+            var position = basePosition + new Vector2(enemyIndex * 80f, enemyIndex * 30f);
+            enemy.GlobalPosition = position;
+            enemy.Data.Set(MovementDataKeys.Position, new Vector2Value(position.X, position.Y));
+            enemyIndex++;
+        }
+    }
+
+    private static bool DamageNumberIdlePoolIsClean(Node? damageNumberLayer, Dictionary<string, object?> values)
+    {
+        if (damageNumberLayer == null)
+        {
+            values["damage_number_idle_sample_count"] = 0;
+            return false;
+        }
+
+        var sampleCount = 0;
+        var cleanCount = 0;
+        var sampleNames = new List<string>();
+        foreach (var child in damageNumberLayer.GetChildren())
+        {
+            if (child is not DamageNumberUI number)
+            {
+                continue;
+            }
+
+            var inPool = number.HasMeta("GameOSInPool") && number.GetMeta("GameOSInPool").AsBool();
+            if (!inPool)
+            {
+                continue;
+            }
+
+            sampleCount++;
+            sampleNames.Add(number.Name.ToString());
+            var label = FindDescendantOrNull(number, "DamageLabel") as Label;
+            var clean = !number.Visible
+                && string.IsNullOrEmpty(label?.Text ?? string.Empty)
+                && label != null
+                && label.Position == Vector2.Zero
+                && label.Rotation == 0f
+                && label.Scale == Vector2.One
+                && label.Modulate.A >= 0.999f
+                && label.SelfModulate.A >= 0.999f
+                && number.Position == Vector2.Zero
+                && number.Rotation == 0f
+                && number.Scale == Vector2.One
+                && number.Modulate.A >= 0.999f
+                && number.SelfModulate.A >= 0.999f
+                && !number.HasMeta("Value")
+                && !number.HasMeta("DamageType")
+                && !number.HasMeta("WorldPosition")
+                && !number.HasMeta("CanvasPosition");
+            if (clean)
+            {
+                cleanCount++;
+            }
+        }
+
+        values["damage_number_idle_sample_count"] = sampleCount;
+        values["damage_number_idle_clean_count"] = cleanCount;
+        values["damage_number_idle_sample_names"] = string.Join(",", sampleNames);
+        return sampleCount >= 2 && cleanCount == sampleCount;
+    }
+
     private static string Format(Vector2 value)
     {
         return $"{value.X:0.###},{value.Y:0.###}";
@@ -757,6 +843,25 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
     private static bool ReadBoolValue(IReadOnlyDictionary<string, object?> values, string key)
     {
         return values.TryGetValue(key, out var raw) && raw is bool value && value;
+    }
+
+    private static bool HasPhysicalKey(string action, Key physicalKey)
+    {
+        if (!InputMap.HasAction(action))
+        {
+            return false;
+        }
+
+        var events = InputMap.ActionGetEvents(action);
+        for (var i = 0; i < events.Count; i++)
+        {
+            if (events[i] is InputEventKey keyEvent && keyEvent.PhysicalKeycode == physicalKey)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static float ReadFloatValue(IReadOnlyDictionary<string, object?> values, string key)

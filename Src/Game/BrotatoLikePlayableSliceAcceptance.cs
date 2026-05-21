@@ -87,6 +87,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
             var enemies = await VerifyEnemySpawnAndChase(sceneRoot, runtime, player, values);
             AddCheck(checks, failureReasons, "enemy.spawned_from_dataos", enemies.SpawnedFromDataOS);
+            AddCheck(checks, failureReasons, "enemy.continuous_spawn_observed", enemies.ContinuousSpawnObserved);
             AddCheck(checks, failureReasons, "enemy.resource_paths_recorded", enemies.ResourcePathsRecorded);
             AddCheck(checks, failureReasons, "enemy.chase_or_move_observed", enemies.ChaseOrMoveObserved);
             AddCheck(checks, failureReasons, "enemy.contact_damage_applied", enemies.ContactDamageApplied);
@@ -222,6 +223,13 @@ internal static class BrotatoLikePlayableSliceAcceptance
         Dictionary<string, string> values)
     {
         await ProcessFrames(sceneRoot, 20);
+        var totalAfterInitialWindow = runtime.LastSpawnTickResult.Value.TotalSpawned;
+        for (var i = 0; i < 6; i++)
+        {
+            runtime.TickSpawn(1.6d);
+            await ProcessFrames(sceneRoot, 1);
+        }
+
         var tick = runtime.LastSpawnTickResult;
         var entities = EntityManager.GetAll();
         var enemies = new List<GodotEntity2D>();
@@ -236,6 +244,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         }
 
         values["enemy_spawned_this_tick"] = tick.Value.SpawnedThisTick.ToString(CultureInfo.InvariantCulture);
+        values["enemy_total_after_initial_window"] = totalAfterInitialWindow.ToString(CultureInfo.InvariantCulture);
         values["enemy_total_spawned"] = tick.Value.TotalSpawned.ToString(CultureInfo.InvariantCulture);
         values["enemy_ids"] = string.Join(",", enemies.ConvertAll(enemy => enemy.EntityId.Value));
         values["wave_current_id"] = runtime.CurrentWave.ToString(CultureInfo.InvariantCulture);
@@ -249,7 +258,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
         if (enemies.Count == 0 || runtime.MovementDriver == null)
         {
-            return new EnemyAcceptance(enemies, false, false, false, false);
+            return new EnemyAcceptance(enemies, false, false, false, false, false);
         }
 
         var first = enemies[0];
@@ -279,6 +288,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         return new EnemyAcceptance(
             enemies,
             tick.Success && tick.Value.TotalSpawned > 0,
+            runtime.SpawnCatalog?.HasFiniteSpawnLimit == false && tick.Value.TotalSpawned > 5 && tick.Value.TotalSpawned > totalAfterInitialWindow,
             enemies.TrueForAll(enemy => !string.IsNullOrWhiteSpace(enemy.Data.Get(UnitDataKeys.VisualScenePath, string.Empty))),
             chaseDirection != Vector2Value.Zero && Vector2Value.Distance(start, end) > 0.001f,
             contactEmitted && playerHpAfter < playerHpBefore);
@@ -397,6 +407,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
         var directSlot4Index = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         await PressAction(sceneRoot, "SkillSlot1");
         var directSlot1Index = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+        var skillPhysicalKeyMappings = HasPhysicalKey("SkillSlot1", (Key)49)
+            && HasPhysicalKey("SkillSlot4", (Key)52)
+            && HasPhysicalKey("PreviousSkill", (Key)81)
+            && HasPhysicalKey("NextSkill", (Key)69)
+            && HasPhysicalKey("UseSkill", (Key)32);
 
         values["skill_slam_id"] = slam.EntityId.Value;
         values["skill_slam_report"] = slamReport?.Result.ToString() ?? string.Empty;
@@ -424,6 +439,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         values["skill_point_hp_after"] = FormatFloat(pointHpAfter);
         values["skill_direct_slot4_index"] = directSlot4Index.ToString(CultureInfo.InvariantCulture);
         values["skill_direct_slot1_index"] = directSlot1Index.ToString(CultureInfo.InvariantCulture);
+        values["skill_physical_key_mappings"] = skillPhysicalKeyMappings.ToString(CultureInfo.InvariantCulture);
 
         return new SkillAcceptance(
             SlamTriggered: slamReport?.Result == AbilityTriggerResult.Success && slamCooldown > 0f,
@@ -443,7 +459,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
                 && pointCooldownAfterConfirm > 0f
                 && pointHpAfter < pointHpBefore,
             DirectSlotSelected: directSlot4Index == 3 && directSlot1Index == 0,
-            RealInputActionPath: true,
+            RealInputActionPath: skillPhysicalKeyMappings,
             CurrentSkillName: point.Data.Get(AbilityDataKeys.Name, point.EntityId.Value));
     }
 
@@ -1097,6 +1113,7 @@ internal readonly record struct PlayerMovementAcceptance(
 internal sealed record EnemyAcceptance(
     List<GodotEntity2D> Enemies,
     bool SpawnedFromDataOS,
+    bool ContinuousSpawnObserved,
     bool ResourcePathsRecorded,
     bool ChaseOrMoveObserved,
     bool ContactDamageApplied);

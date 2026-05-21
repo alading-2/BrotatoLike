@@ -111,6 +111,11 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
     /// </summary>
     public void TickInput()
     {
+        UseSkillJustPressed = false;
+        PreviousSkillJustPressed = false;
+        NextSkillJustPressed = false;
+        SelectedSkillSlotJustPressed = -1;
+
         if (entity == null)
         {
             return;
@@ -139,11 +144,6 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
         NextSkillJustPressed = Input.IsActionJustPressed(NextSkillAction);
         SelectedSkillSlotJustPressed = ResolveSelectedSkillSlotJustPressed();
 
-        if (UseSkillJustPressed)
-        {
-            entity.Events.Publish(new InputUseSkill(entity));
-        }
-
         if (PreviousSkillJustPressed)
         {
             entity.Events.Publish(new InputPreviousSkill(entity));
@@ -157,6 +157,11 @@ public partial class BrotatoLikePlayerInputComponent : Node, IGodotComponent
         if (SelectedSkillSlotJustPressed >= 0)
         {
             entity.Events.Publish(new InputSelectSkillSlot(entity, SelectedSkillSlotJustPressed));
+        }
+
+        if (UseSkillJustPressed)
+        {
+            entity.Events.Publish(new InputUseSkill(entity));
         }
     }
 
