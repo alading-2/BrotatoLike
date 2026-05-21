@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Items;
 using BrotatoLike.Game.Progression;
+using BrotatoLike.Game.RunFlow;
 using BrotatoLike.Game.Shop;
 using BrotatoLike.Game.UI;
 using BrotatoLike.Game.VFX;
@@ -26,8 +27,10 @@ public partial class BrotatoLikeGameRuntime : Node
     private RuntimeSchedule? schedule;
     private BrotatoLikeDataOSBootstrap? bootstrap;
     private BrotatoLikeItemCatalog? itemCatalog;
+    private BrotatoLikeWaveCatalog? waveCatalog;
     private BrotatoLikeSpawnCatalog? spawnCatalog;
     private SystemConfig? spawnScheduleConfig;
+    private Node? spawnParent;
     private GodotMovementDriver? movementDriver;
     private GameOSTimerDriver? timerDriver;
     private GodotProjectileEffectSpawner? projectileEffectSpawner;
@@ -85,6 +88,16 @@ public partial class BrotatoLikeGameRuntime : Node
     /// 当前波次 Spawn catalog。
     /// </summary>
     public BrotatoLikeSpawnCatalog? SpawnCatalog => spawnCatalog;
+
+    /// <summary>
+    /// 当前 wave authoring catalog。
+    /// </summary>
+    public BrotatoLikeWaveCatalog? WaveCatalog => waveCatalog;
+
+    /// <summary>
+    /// 当前波次。
+    /// </summary>
+    public int CurrentWave => spawnCatalog?.Wave ?? InitialWave;
 
     /// <summary>
     /// 当前玩家 Godot Entity。
@@ -293,17 +306,19 @@ public partial class BrotatoLikeGameRuntime : Node
         bootstrap = dataBootstrap;
         bootstrap.RegisterResources();
         itemCatalog = BrotatoLikeItemCatalog.LoadFromResource();
+        waveCatalog = BrotatoLikeWaveCatalog.LoadFromResource();
+        waveCatalog.Validate(bootstrap);
         BrotatoLikeSkillLoadoutAuthoring.ValidateAvailableSkillPool(bootstrap);
-        spawnCatalog = bootstrap.BuildEnemySpawnCatalog(wave);
+        spawnCatalog = BuildSpawnCatalogForWave(wave);
         spawnScheduleConfig = bootstrap.BuildSpawnSystemScheduleConfig();
         EnsureRuntimeDrivers();
         BrotatoLikeAbilityHandlers.RegisterAll(movementDriver!.MovementSystem);
         schedule = new RuntimeSchedule();
-        var parent = enemyParent ?? this;
+        spawnParent = enemyParent ?? this;
         schedule.Register(
             new SystemDescriptor(
                 spawnScheduleConfig.SystemId,
-                () => new BrotatoLikeScheduledEnemySpawnSystem(bootstrap, spawnCatalog, parent, movementDriver!)),
+                () => new BrotatoLikeScheduledEnemySpawnSystem(bootstrap, spawnCatalog, spawnParent!, movementDriver!)),
             spawnScheduleConfig);
         schedule.Bootstrap();
     }
@@ -551,6 +566,83 @@ public partial class BrotatoLikeGameRuntime : Node
     {
         EnsureBrotatoLikeGameServices();
         return shopService?.OpenShop(offerSetId) ?? Array.Empty<BrotatoLikeShopOfferView>();
+    }
+
+    /// <summary>
+    /// 切换到指定波次的生成目录。
+    /// </summary>
+    public bool TryStartWave(int wave, out string message)
+    {
+        message = string.Empty;
+        if (bootstrap == null || schedule == null || spawnScheduleConfig == null)
+        {
+            message = "runtime schedule is not ready";
+            return false;
+        }
+
+        if (wave <= 0)
+        {
+            message = $"invalid wave: {wave}";
+            return false;
+        }
+
+        BrotatoLikeSpawnCatalog nextCatalog;
+        try
+        {
+            nextCatalog = BuildSpawnCatalogForWave(wave);
+        }
+        catch (InvalidOperationException ex)
+        {
+            message = ex.Message;
+            return false;
+        }
+
+        EnsureRuntimeDrivers();
+        var spawnSystem = schedule.Resolve<BrotatoLikeScheduledEnemySpawnSystem>();
+        if (spawnSystem == null)
+        {
+            message = "spawn system is not loaded";
+            return false;
+        }
+
+        spawnCatalog = nextCatalog;
+        spawnSystem.Reconfigure(bootstrap, spawnCatalog, spawnParent ?? this, movementDriver);
+        LastSpawnTickResult = default;
+        message = $"wave {wave} started";
+        return true;
+    }
+
+    /// <summary>
+    /// 根据 wave authoring 切换到下一波。
+    /// </summary>
+    public bool TryStartNextWave(out int nextWave, out string message)
+    {
+        nextWave = 0;
+        var current = CurrentWave;
+        if (waveCatalog != null && waveCatalog.TryGetNextWaveId(current, out nextWave))
+        {
+            return TryStartWave(nextWave, out message);
+        }
+
+        var maxWaves = spawnCatalog?.MaxWaves ?? -1;
+        var fallbackNext = current + 1;
+        if (maxWaves > 0 && fallbackNext <= maxWaves)
+        {
+            nextWave = fallbackNext;
+            return TryStartWave(nextWave, out message);
+        }
+
+        message = $"no next wave after {current}";
+        return false;
+    }
+
+    /// <summary>
+    /// 查找当前或指定波次定义。
+    /// </summary>
+    public bool TryGetWaveDefinition(int wave, out BrotatoLikeWaveDefinition definition)
+    {
+        definition = null!;
+        return waveCatalog?.TryGetWave(wave, out definition) == true;
     }
 
     private EntityIdList SpawnPlayerAbility(GodotEntity2D player, string abilityRecordId, EntityIdList ownedIds)
@@ -914,9 +1006,26 @@ public partial class BrotatoLikeGameRuntime : Node
         schedule?.Clear();
         schedule = null;
         bootstrap = null;
+        waveCatalog = null;
         spawnCatalog = null;
         spawnScheduleConfig = null;
+        spawnParent = null;
         LastSpawnTickResult = default;
+    }
+
+    private BrotatoLikeSpawnCatalog BuildSpawnCatalogForWave(int wave)
+    {
+        if (waveCatalog != null)
+        {
+            return waveCatalog.BuildSpawnCatalog(wave);
+        }
+
+        if (bootstrap == null)
+        {
+            throw new InvalidOperationException("BrotatoLikeGameRuntime bootstrap is not ready.");
+        }
+
+        return bootstrap.BuildEnemySpawnCatalog(wave);
     }
 
     private Node ResolveEnemyParent()

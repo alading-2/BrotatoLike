@@ -320,7 +320,35 @@ public sealed record BrotatoLikeSpawnCatalog(
     float WaveDuration,
     int MaxWaves,
     float WaveBreakTime,
-    IReadOnlyList<BrotatoLikeSpawnRule> EnemyRules);
+    IReadOnlyList<BrotatoLikeSpawnRule> EnemyRules)
+{
+    /// <summary>
+    /// 当前波次有限生成条目的期望生成总数；存在无限条目时返回 -1。
+    /// </summary>
+    public int ExpectedSpawnCount
+    {
+        get
+        {
+            var result = 0;
+            for (var i = 0; i < EnemyRules.Count; i++)
+            {
+                if (EnemyRules[i].MaxCountPerWave < 0)
+                {
+                    return -1;
+                }
+
+                result += EnemyRules[i].MaxCountPerWave;
+            }
+
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// 当前波次是否具备有限生成数量，可用于 all-clear 完成判定。
+    /// </summary>
+    public bool HasFiniteSpawnLimit => ExpectedSpawnCount >= 0;
+}
 
 /// <summary>
 /// 单个敌人生成规则，来自 DataOS unit.enemy 记录。

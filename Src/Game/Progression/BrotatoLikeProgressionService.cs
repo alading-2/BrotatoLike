@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
+using BrotatoLike.Game.RunFlow;
 using BrotatoLike.Game.UI;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Collision;
 using SlimeAI.GameOS.Capabilities.Damage;
 using SlimeAI.GameOS.Capabilities.Damage.Events;
+using SlimeAI.GameOS.Capabilities.Effect;
 using SlimeAI.GameOS.Capabilities.Movement;
+using SlimeAI.GameOS.Capabilities.Projectile;
 using SlimeAI.GameOS.Capabilities.Unit;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
@@ -27,12 +30,26 @@ public partial class BrotatoLikeProgressionService : Node
     private BrotatoLikeGameRuntime? runtime;
     private bool forceWaveComplete;
     private float elapsedSeconds;
+    private float phaseElapsedSeconds;
+    private int completedWaveIndex;
+    private int defeatedCount;
+    private BrotatoLikeWavePhase wavePhase = BrotatoLikeWavePhase.Preparing;
     private IReadOnlyList<BrotatoLikeLevelUpChoiceDefinition> pendingChoices = [];
 
     /// <summary>
     /// 当前波次。
     /// </summary>
     public int WaveIndex => runtime?.SpawnCatalog?.Wave ?? 1;
+
+    /// <summary>
+    /// 当前波次状态机阶段。
+    /// </summary>
+    public BrotatoLikeWavePhase WavePhase => wavePhase;
+
+    /// <summary>
+    /// 当前波次状态机阶段名称，供 UI 和验证 artifact 记录。
+    /// </summary>
+    public string WavePhaseName => wavePhase.ToString();
 
     /// <summary>
     /// 波次状态节点。
@@ -123,7 +140,9 @@ public partial class BrotatoLikeProgressionService : Node
     /// <inheritdoc />
     public override void _Process(double delta)
     {
-        elapsedSeconds += (float)delta;
+        var deltaSeconds = (float)delta;
+        elapsedSeconds += deltaSeconds;
+        phaseElapsedSeconds += deltaSeconds;
         if (Input.IsActionJustPressed("PauseGame"))
         {
             if (PauseMenu.IsMenuVisible)
@@ -173,6 +192,25 @@ public partial class BrotatoLikeProgressionService : Node
     {
         forceWaveComplete = true;
         UpdateWaveState();
+    }
+
+    /// <summary>
+    /// 为验证或后续奖励系统进入波间奖励/商店阶段。
+    /// </summary>
+    public void EnterRewardPhaseForValidation()
+    {
+        EnterRewardPhase("validation");
+        UpdateWaveState();
+    }
+
+    /// <summary>
+    /// 为验证或后续波间流程启动下一波。
+    /// </summary>
+    public bool StartNextWaveForValidation()
+    {
+        var result = StartNextWave("validation");
+        UpdateWaveState();
+        return result;
     }
 
     /// <summary>
@@ -505,17 +543,153 @@ public partial class BrotatoLikeProgressionService : Node
 
     private void UpdateWaveState()
     {
+        if (wavePhase == BrotatoLikeWavePhase.Preparing)
+        {
+            SetWavePhase(BrotatoLikeWavePhase.Running, "initial_start");
+        }
+
         var totalSpawned = runtime?.LastSpawnTickResult.Value.TotalSpawned ?? 0;
         var remainingEnemies = CountAliveEnemies();
-        var waveDuration = runtime?.SpawnCatalog?.WaveDuration ?? 60f;
+        var spawnCatalog = runtime?.SpawnCatalog;
+        var expectedSpawnCount = spawnCatalog?.ExpectedSpawnCount ?? -1;
+        var hasFiniteSpawnLimit = spawnCatalog?.HasFiniteSpawnLimit == true;
+        var waveDuration = spawnCatalog?.WaveDuration ?? 60f;
+        defeatedCount = Math.Max(defeatedCount, Math.Max(0, totalSpawned - remainingEnemies));
         var completed = forceWaveComplete
-            || (totalSpawned > 0 && remainingEnemies == 0)
+            || (hasFiniteSpawnLimit && totalSpawned >= expectedSpawnCount && remainingEnemies == 0)
             || elapsedSeconds >= waveDuration;
+        if (wavePhase == BrotatoLikeWavePhase.Running && completed)
+        {
+            completedWaveIndex = WaveIndex;
+            CleanupExpiredWaveEntities();
+            SetWavePhase(BrotatoLikeWavePhase.Completed, "completion");
+        }
+
         WaveRuntimeState.SetMeta("WaveIndex", WaveIndex);
+        WaveRuntimeState.SetMeta("WavePhase", wavePhase.ToString());
+        WaveRuntimeState.SetMeta("PreviousWaveIndex", completedWaveIndex);
         WaveRuntimeState.SetMeta("ElapsedTime", elapsedSeconds);
+        WaveRuntimeState.SetMeta("PhaseElapsedTime", phaseElapsedSeconds);
         WaveRuntimeState.SetMeta("SpawnedCount", totalSpawned);
+        WaveRuntimeState.SetMeta("ExpectedSpawnCount", expectedSpawnCount);
+        WaveRuntimeState.SetMeta("HasFiniteSpawnLimit", hasFiniteSpawnLimit);
+        WaveRuntimeState.SetMeta("DefeatedCount", defeatedCount);
         WaveRuntimeState.SetMeta("RemainingEnemies", remainingEnemies);
         WaveRuntimeState.SetMeta("Completed", completed);
+        WaveRuntimeState.SetMeta("CompletionMode", ResolveWaveDefinition()?.CompletionMode ?? string.Empty);
+        WaveRuntimeState.SetMeta("NextWaveId", ResolveWaveDefinition()?.NextWaveId ?? 0);
+        WaveRuntimeState.SetMeta("RewardHook", ResolveWaveDefinition()?.RewardHook ?? string.Empty);
+        WaveRuntimeState.SetMeta("ShopOfferSetId", ResolveWaveDefinition()?.ShopOfferSetId ?? string.Empty);
+    }
+
+    private void SetWavePhase(BrotatoLikeWavePhase next, string source)
+    {
+        if (wavePhase == next)
+        {
+            return;
+        }
+
+        var previous = wavePhase;
+        wavePhase = next;
+        phaseElapsedSeconds = 0f;
+        WaveRuntimeState?.SetMeta("PreviousWavePhase", previous.ToString());
+        WaveRuntimeState?.SetMeta("WavePhase", wavePhase.ToString());
+        WaveRuntimeState?.SetMeta("LastTransitionSource", source);
+        WaveRuntimeState?.SetMeta("LastTransition", $"{previous}->{next}");
+    }
+
+    private void EnterRewardPhase(string source)
+    {
+        if (wavePhase != BrotatoLikeWavePhase.Completed && wavePhase != BrotatoLikeWavePhase.RewardShop)
+        {
+            return;
+        }
+
+        SetWavePhase(BrotatoLikeWavePhase.RewardShop, source);
+        var wave = ResolveWaveDefinition();
+        WaveRuntimeState.SetMeta("RewardHook", wave?.RewardHook ?? string.Empty);
+        WaveRuntimeState.SetMeta("ShopOfferSetId", wave?.ShopOfferSetId ?? string.Empty);
+        WaveRuntimeState.SetMeta("ShopHookAvailable", runtime?.ShopService != null);
+        WaveRuntimeState.SetMeta("LevelUpHookAvailable", true);
+    }
+
+    private bool StartNextWave(string source)
+    {
+        if (runtime == null || wavePhase != BrotatoLikeWavePhase.RewardShop)
+        {
+            return false;
+        }
+
+        SetWavePhase(BrotatoLikeWavePhase.NextWave, source);
+        if (!runtime.TryStartNextWave(out var nextWave, out var message))
+        {
+            WaveRuntimeState.SetMeta("NextWaveStarted", false);
+            WaveRuntimeState.SetMeta("NextWaveMessage", message);
+            SetWavePhase(BrotatoLikeWavePhase.Ended, source);
+            return false;
+        }
+
+        elapsedSeconds = 0f;
+        forceWaveComplete = false;
+        defeatedCount = 0;
+        processedDrops.Clear();
+        WaveRuntimeState.SetMeta("NextWaveStarted", true);
+        WaveRuntimeState.SetMeta("NextWaveMessage", message);
+        WaveRuntimeState.SetMeta("NextWaveIndex", nextWave);
+        SetWavePhase(BrotatoLikeWavePhase.Running, source);
+        return true;
+    }
+
+    private BrotatoLikeWaveDefinition? ResolveWaveDefinition()
+    {
+        return runtime != null && runtime.TryGetWaveDefinition(WaveIndex, out var wave)
+            ? wave
+            : null;
+    }
+
+    private void CleanupExpiredWaveEntities()
+    {
+        var runtimeBefore = EntityManager.GetAll().Count;
+        var enemyBefore = CountWaveEnemies();
+        var projectileEffectBefore = CountProjectileAndEffectEntities();
+        var pickupBefore = CountExperiencePickups();
+
+        var entities = EntityManager.GetAll();
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i] is not GodotEntity2D enemy
+                || enemy.Data.Get<int>(CollisionDataKeys.Team, 0) != 2
+                || enemy.IsQueuedForDeletion())
+            {
+                continue;
+            }
+
+            if (enemy.Data.Get<bool>(DamageDataKeys.IsDead, false)
+                || enemy.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) <= 0f)
+            {
+                enemy.DestroyEntity();
+            }
+        }
+
+        if (ExperiencePickupLayer != null)
+        {
+            foreach (var child in ExperiencePickupLayer.GetChildren())
+            {
+                if (child is Node pickup && !pickup.IsQueuedForDeletion())
+                {
+                    pickup.QueueFree();
+                }
+            }
+        }
+
+        WaveRuntimeState.SetMeta("CleanupRuntimeEntityCountBefore", runtimeBefore);
+        WaveRuntimeState.SetMeta("CleanupRuntimeEntityCountAfter", EntityManager.GetAll().Count);
+        WaveRuntimeState.SetMeta("CleanupEnemyCountBefore", enemyBefore);
+        WaveRuntimeState.SetMeta("CleanupEnemyCountAfter", CountWaveEnemies());
+        WaveRuntimeState.SetMeta("CleanupPickupCountBefore", pickupBefore);
+        WaveRuntimeState.SetMeta("CleanupPickupCountAfter", CountExperiencePickups());
+        WaveRuntimeState.SetMeta("CleanupProjectileEffectCountBefore", projectileEffectBefore);
+        WaveRuntimeState.SetMeta("CleanupProjectileEffectCountAfter", CountProjectileAndEffectEntities());
     }
 
     private static int CountAliveEnemies()
@@ -532,6 +706,56 @@ public partial class BrotatoLikeProgressionService : Node
 
             if (!entity.Data.Get<bool>(DamageDataKeys.IsDead, false)
                 && entity.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) > 0f)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountWaveEnemies()
+    {
+        var count = 0;
+        var entities = EntityManager.GetAll();
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i].Data.Get<int>(CollisionDataKeys.Team, 0) == 2)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountProjectileAndEffectEntities()
+    {
+        var count = 0;
+        var entities = EntityManager.GetAll();
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i].Data.Has(ProjectileDataKeys.ScenePath)
+                || entities[i].Data.Has(EffectDataKeys.ScenePath))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private int CountExperiencePickups()
+    {
+        if (ExperiencePickupLayer == null)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        foreach (var child in ExperiencePickupLayer.GetChildren())
+        {
+            if (child is Node node && !node.IsQueuedForDeletion())
             {
                 count++;
             }

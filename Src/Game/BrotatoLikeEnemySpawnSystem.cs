@@ -22,6 +22,7 @@ public sealed class BrotatoLikeEnemySpawnSystem
     private GodotMovementDriver? movementDriver;
     private double elapsedSeconds;
     private int totalSpawned;
+    private int activeWave = 1;
 
     /// <summary>
     /// 已生成敌人总数。
@@ -34,6 +35,7 @@ public sealed class BrotatoLikeEnemySpawnSystem
     /// <param name="bootstrap">DataOS bootstrap 入口。</param>
     /// <param name="spawnCatalog">当前波次敌人生成规则目录。</param>
     /// <param name="parent">实例化敌人的 Godot 父节点。</param>
+    /// <param name="sharedMovementDriver">运行时共享位移驱动。</param>
     public void Configure(
         BrotatoLikeDataOSBootstrap bootstrap,
         BrotatoLikeSpawnCatalog spawnCatalog,
@@ -48,6 +50,7 @@ public sealed class BrotatoLikeEnemySpawnSystem
         catalog = spawnCatalog;
         activeParent = parent;
         movementDriver = sharedMovementDriver;
+        activeWave = spawnCatalog.Wave;
         elapsedSeconds = 0d;
         totalSpawned = 0;
         ruleStates.Clear();
@@ -112,6 +115,9 @@ public sealed class BrotatoLikeEnemySpawnSystem
             EntityIdOverride = entityId,
             Position = position
         };
+        entity.SetMeta("WaveIndex", activeWave);
+        entity.SetMeta("SpawnRuleId", rule.RecordId);
+        entity.SetMeta("SpawnRuleDisplayName", rule.DisplayName);
         bootstrap.ApplyRecordToData(rule.TableId, rule.RecordId, entity.Data);
         entity.Data.Set(MovementDataKeys.Position, new Vector2Value(position.X, position.Y));
 
@@ -227,6 +233,7 @@ public sealed class BrotatoLikeScheduledEnemySpawnSystem :
     /// <param name="bootstrap">DataOS bootstrap 入口。</param>
     /// <param name="spawnCatalog">当前波次敌人生成规则目录。</param>
     /// <param name="parent">实例化敌人的 Godot 父节点。</param>
+    /// <param name="sharedMovementDriver">运行时共享位移驱动。</param>
     public BrotatoLikeScheduledEnemySpawnSystem(
         BrotatoLikeDataOSBootstrap bootstrap,
         BrotatoLikeSpawnCatalog spawnCatalog,
@@ -241,6 +248,18 @@ public sealed class BrotatoLikeScheduledEnemySpawnSystem :
     /// 当前内部生成系统已生成敌人总数。
     /// </summary>
     public int TotalSpawned => innerSystem.TotalSpawned;
+
+    /// <summary>
+    /// 切换到新的波次生成目录。
+    /// </summary>
+    public void Reconfigure(
+        BrotatoLikeDataOSBootstrap bootstrap,
+        BrotatoLikeSpawnCatalog spawnCatalog,
+        Node parent,
+        GodotMovementDriver? sharedMovementDriver = null)
+    {
+        innerSystem.Configure(bootstrap, spawnCatalog, parent, sharedMovementDriver);
+    }
 
     /// <inheritdoc />
     public BrotatoLikeSpawnTickResult Execute(BrotatoLikeSpawnTickRequest request)

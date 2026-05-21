@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-21（level-up choice loop）
+> 更新日期：2026-05-21（wave run flow）
 
 ## 当前状态
 
@@ -8,6 +8,7 @@
 
 本轮追加：
 
+- **Wave run flow**：OpenSpec change `complete-brotatolike-wave-run-flow` 已把 BrotatoLike 从单波 completion 推进到首版多波运行闭环。游戏侧 DataOS seed 新增 `wave_definition` / `wave_enemy_entry`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/wave_authoring.json`；当前 authoring 包含两波 finite deterministic enemy entries，第 1 波为 2 个 `chailangren` + 3 个 `yuren`，完成后进入 `RewardShop` 并记录 `shop_offer.validation` / `validation` hook，第 2 波调整生成顺序和数量后结束。`BrotatoLikeWaveCatalog` 校验 wave id、completion mode、enemy id 和视觉资源；`BrotatoLikeGameRuntime.TryStartWave/TryStartNextWave` 可切换当前波次 spawn catalog；`BrotatoLikeProgressionService` 记录 `Preparing/Running/Completed/RewardShop/NextWave/Ended` 状态机、完成判定、reward hook、下一波和 cleanup count；`ExperienceBarUI` / `ProgressionSummary` 记录 wave index 与 phase。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，49 个既有 XML comment warnings，0 errors）；RunFlow validation `.ai-temp/scene-tests/runs/2026-05-21/19-17-09/index.json` PASS，artifact 记录 wave authoring source、两波 expected spawn count=5、invalid enemy/resource reject、第一波 `Running` 生成 5 个敌人、pause tick 阻断/恢复、死亡复活、`Completed -> RewardShop`、cleanup `runtime 10 -> 5` / enemy `5 -> 0`、第二波 `Running` 生成 5 个敌人、scene-backed `ExperienceBarUI` wave phase；analyzer gate report 为 `pass`，README 与 artifact 五字段非空。Progression 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-08/index.json` PASS，Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-22/index.json` PASS。
 - **Shop item loop**：OpenSpec change `design-brotatolike-shop-item-loop` 已新增 BrotatoLike 第一版商店、道具、货币和购买闭环。游戏侧 DataOS seed 新增 `item_definition` / `shop_offer`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/shop_item_authoring.json`；首批 deterministic 道具为 `vital_seed`（`Damage.MaxHp +8`，price 12）、`swift_boots`（`Movement.MoveSpeed +18`，price 8）、`sharpening_stone`（`Attack.Damage +5`，price 20）。`BrotatoLikeShopService` 暴露货币、deterministic offer、购买门禁、owned item metadata 和 Runtime Data effect application；`ShopPanelUI.tscn` / `ShopOfferCardUI.tscn` 是 scene-backed UI。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，0 warnings，0 errors）；Shop validation `.ai-temp/scene-tests/runs/2026-05-21/18-39-01/index.json` PASS，artifact 记录 unknown effect target reject、`offer_ids=vital_seed,swift_boots,sharpening_stone`、`offer_prices=12,8,20`、货币 `15 -> 3`、`Damage.MaxHp` 增加、`insufficient_currency` reject、UI purchased/currency/close state；analyzer gate report 为 `pass`，scene artifact 五字段非空。
 - **Level-up choice loop**：OpenSpec change `design-brotatolike-levelup-choice-loop` 已把经验条、升级反馈和升级三选一从 debug/metadata 证据推进到 scene-backed 首版局内成长闭环。`BrotatoLikeProgressionService` 在经验 pickup 跨过阈值后打开 `LevelUpChoicePanelUI.tscn`，并通过 `BrotatoLikeGameRuntime.OpenLevelUpChoiceGate()` 进入 `ModalUi + Suspended` 门禁；三项确定性选择为 `max_hp_plus_10`、`move_speed_plus_20`、`unlock_sine_wave_shot`，其中 HP 奖励写入 `Damage.MaxHp` 并治疗等量 HP，技能奖励把 `sine_wave_shot` 加入 hidden owned ability 供后续替换/面板流程使用。正式经验条由 `ExperienceBarUI.tscn` 承载，`ProgressionSummary` 继续作为 metadata 兼容节点但不再是玩家可见完成证据。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，26 个既有 XML comment warnings，0 errors）；Progression `.ai-temp/scene-tests/runs/2026-05-21/17-45-01/index.json` PASS，artifact 记录 choice ids/effect types、`choice_panel_scene_path=res://Scenes/UI/LevelUpChoicePanelUI.tscn`、`experience_bar_scene_path=res://Scenes/UI/ExperienceBarUI.tscn`、`max_hp_before_choice=100 -> max_hp_after_stat_choice=110`、owned ability count `4 -> 5`、`sine_wave_ability_owned=true`、gate `ModalUi/Suspended -> None/Running`；PlayableUX `.ai-temp/scene-tests/runs/2026-05-21/17-45-17/index.json` PASS；Main `.ai-temp/scene-tests/runs/2026-05-21/17-45-33/index.json` PASS；三个 analyzer gate report 均为 `pass`，scene artifact 五字段非空。
 - **Skill loadout expansion**：OpenSpec change `expand-brotatolike-skill-loadout` 已把默认四槽、可获得技能池和 deterministic validation loadout 从散落生成逻辑收束到游戏侧 `BrotatoLikeSkillLoadoutAuthoring`。默认 visible active slots 仍为 `slam / chain_lightning / target_point_skill / dash`；available skill pool 显式包含 `slam / chain_lightning / target_point_skill / dash / sine_wave_shot / boomerang_throw / bezier_shot / parabola_shot / arc_shot / orbit_skill / circle_damage / aura_shield`；passive ids 为 `orbit_skill / circle_damage / aura_shield`。`GodotActiveSkillInputComponent` 只在 visible active slots 内切换/触发，`ActiveSkillBarUI` 和 Main/PlayableUX artifacts 记录 loadout source、owned ids、visible slot ids、selected id、total/visible/hidden count。验证：`Tools/run-build.sh` PASS（26 个既有 XML comment warnings，0 errors）；PlayableUX `.ai-temp/scene-tests/runs/2026-05-21/16-01-37/index.json` PASS，validation override 记录 12 owned / 4 visible / 8 hidden；Main `.ai-temp/scene-tests/runs/2026-05-21/16-05-14/index.json` PASS，analyzer `gate-report.json` verdict `pass`；scene gate 五字段非空。
@@ -81,11 +82,26 @@
 ## 下一步
 
 1. 跟进 passing scenes 中的诊断 stderr：Game/Input 的 `Parameter "data.tree" is null` 和框架 UnitComposition 的 Godot RID leak；这两项当前不覆盖 artifact oracle，但不能作为“无 error”证明。
-2. 将已验证的 shop service 接入完整波间流程；继续设计替换/被动面板、完整多波曲线和 meta progression。当前 shop/item 首版只覆盖 deterministic offer、购买门禁和道具效果，不包含刷新/锁定/售卖、货币掉落、存档和永久成长。
+2. 继续把 wave reward hook 推进到完整商店体验和经济曲线；当前多波流程已能从第 1 波进入 `RewardShop` 并启动第 2 波，但 shop/item 仍只覆盖 deterministic offer、购买门禁和道具效果，不包含刷新/锁定/售卖、货币掉落、存档和永久成长。替换/被动面板和 meta progression 仍需后续 change。
 3. 继续补更多投射物/特效动画样式验收；Chain Lightning 连线与 8 个 projectile/passive 技能已具备行为和 cleanup artifact，后续只剩美术样式或像素级截图门禁增强。
 4. 继续做手动设备专项：物理手柄 LB/RB/X、摇杆、鼠标/手柄 Point target 细节和窗口焦点问题，作为自动 `Input.ActionPress` 之外的人工 QA 或专门设备测试。
 
 ## 最新验证
+
+**complete-brotatolike-wave-run-flow（2026-05-21）**
+
+```bash
+cd /home/slime/Code/SlimeAI/Games/BrotatoLike
+Tools/run-build.sh
+Tools/run-godot-scene.sh run res://Src/Validation/Game/RunFlow/BrotatoLikeRunFlowValidation.tscn --timeout 15 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir .ai-temp/scene-tests/runs/2026-05-21/19-17-09 --manifest DocsAI/ValidationManifest.json --gate-report .ai-temp/scene-tests/runs/2026-05-21/19-17-09/gate-report.json
+Tools/run-godot-scene.sh run res://Src/Validation/Game/Progression/BrotatoLikeProgressionLoopValidation.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir .ai-temp/scene-tests/runs/2026-05-21/19-18-08 --manifest DocsAI/ValidationManifest.json --gate-report .ai-temp/scene-tests/runs/2026-05-21/19-18-08/gate-report.json
+Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
+Tools/analyze-godot-scene-logs.sh --run-dir .ai-temp/scene-tests/runs/2026-05-21/19-18-22 --manifest DocsAI/ValidationManifest.json --gate-report .ai-temp/scene-tests/runs/2026-05-21/19-18-22/gate-report.json
+```
+
+结果：`Tools/run-build.sh` PASS（DataOS validation PASS，生成 `runtime_snapshot.json`、`shop_item_authoring.json`、`wave_authoring.json`，49 个既有 XML comment warnings，0 errors）。RunFlow validation `.ai-temp/scene-tests/runs/2026-05-21/19-17-09/index.json` PASS；per-scene `result.json` exitCode `0`、`firstError=null`；artifact `brotatolike-run-flow-validation.json` 为 `status=pass`、`failureReasons=[]`。关键 checks `wave_authoring_loaded_and_validates_refs / first_wave_starts_and_spawns / pause_gate_and_respawn_preserved / first_wave_completion_reward_phase / second_wave_starts / wave_cleanup_counts / wave_ui_phase_scene_backed` 全部 pass，记录两波 expected spawn count 均为 5、非法 enemy/resource 拒绝、第一波 `Running`、pause gate 阻断/恢复、死亡复活、`Completed -> RewardShop`、`shop_offer.validation` hook、cleanup `runtime 10 -> 5` / enemy `5 -> 0`、第二波 `Running` 与 scene-backed `ExperienceBarUI` wave phase。RunFlow、Progression 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-08/index.json`、Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/19-18-22/index.json` 的 analyzer `gate-report.json` 均为 `verdict=pass`；已检查三组 `index.json`、per-scene `result.json` 和 scene artifact，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。
 
 **design-brotatolike-shop-item-loop（2026-05-21）**
 

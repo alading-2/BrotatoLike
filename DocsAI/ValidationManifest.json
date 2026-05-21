@@ -305,6 +305,18 @@
       "releaseBatch": true
     },
     {
+      "scene": "res://Src/Validation/Game/RunFlow/BrotatoLikeRunFlowValidation.tscn",
+      "owner": "game",
+      "scope": "feature-slice",
+      "tags": ["game", "run-flow", "wave", "progression"],
+      "relatedBddScenarios": ["暂停/恢复不影响游戏状态完整性", "玩家死亡后自动重生", "多个系统并发不冲突"],
+      "checks": ["wave_authoring_loaded_and_validates_refs", "first_wave_starts_and_spawns", "pause_gate_and_respawn_preserved", "first_wave_completion_reward_phase", "second_wave_starts", "wave_cleanup_counts", "wave_ui_phase_scene_backed"],
+      "artifactFilename": "brotatolike-run-flow-validation.json",
+      "catalogOwner": "game",
+      "timeoutSeconds": 15,
+      "releaseBatch": true
+    },
+    {
       "scene": "res://Src/Validation/Game/LegacyResources/BrotatoLikeLegacyResourceClassificationValidation.tscn",
       "owner": "game",
       "scope": "owner",

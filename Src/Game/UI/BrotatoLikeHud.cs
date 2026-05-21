@@ -224,14 +224,16 @@ public partial class BrotatoLikeHud : CanvasLayer
         var experience = ReadIntMeta(player, "Experience", 0);
         var nextLevelExperience = ReadIntMeta(player, "NextLevelExperience", 5);
         var waveIndex = runtime?.ProgressionService?.WaveIndex ?? 1;
-        progressionSummary.Text = FormattableString.Invariant($"Lv {level}  XP {experience}/{nextLevelExperience}  Wave {waveIndex}");
+        var wavePhase = runtime?.ProgressionService?.WavePhaseName ?? "Running";
+        progressionSummary.Text = FormattableString.Invariant($"Lv {level}  XP {experience}/{nextLevelExperience}  Wave {waveIndex} {wavePhase}");
         progressionSummary.SetMeta("Level", level);
         progressionSummary.SetMeta("Experience", experience);
         progressionSummary.SetMeta("NextLevelExperience", nextLevelExperience);
         progressionSummary.SetMeta("WaveIndex", waveIndex);
+        progressionSummary.SetMeta("WavePhase", wavePhase);
         progressionSummary.SetMeta("ExperienceUiSceneBacked", !string.IsNullOrEmpty(experienceBar?.SceneFilePath));
         progressionSummary.SetMeta("ExperienceUiScenePath", experienceBar?.SceneFilePath ?? string.Empty);
-        experienceBar?.Bind(level, experience, nextLevelExperience, waveIndex);
+        experienceBar?.Bind(level, experience, nextLevelExperience, waveIndex, wavePhase);
     }
 
     private void UpdateSkillBar()

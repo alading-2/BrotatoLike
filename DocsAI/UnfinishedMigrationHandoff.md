@@ -51,13 +51,15 @@
 - 伤害反馈：敌人头顶血条、伤害数字、治疗数字有 scene-backed UI。
 - 运行时：`BrotatoLikeGameRuntime` 是主运行时节点，`Main.cs` 负责启动路径和 acceptance。
 - 进度首版闭环：wave runtime state、pause menu、pause schedule gate、HP recovery、经验 pickup、scene-backed 经验条、level-up feedback、升级三选一、属性奖励、hidden ability 解锁和升级选择门禁已有最小实现。
+- 多波首版闭环：DataOS `wave_definition` / `wave_enemy_entry` authoring 已定义两波 finite deterministic entries；第 1 波完成后进入 `RewardShop` 并记录 `shop_offer.validation` hook，第 2 波可启动并生成 authored enemies；RunFlow validation 已覆盖 pause、death/respawn、cleanup 和 scene-backed wave phase。
 
 最近可引用证据：
 
-- Main artifact：`.ai-temp/scene-tests/runs/2026-05-21/17-45-33/001_Scenes_Main.tscn_attempt1/artifacts/scene-acceptance.json`
+- RunFlow artifact：`.ai-temp/scene-tests/runs/2026-05-21/19-17-09/001_Src_Validation_Game_RunFlow_BrotatoLikeRunFlowValidation.tscn_attempt1/artifacts/brotatolike-run-flow-validation.json`
+- Main artifact：`.ai-temp/scene-tests/runs/2026-05-21/19-18-22/001_Scenes_Main.tscn_attempt1/artifacts/scene-acceptance.json`
 - GameLifecycle artifact：`.ai-temp/scene-tests/runs/2026-05-21/15-14-41/001_Src_Validation_Game_GameLifecycle_BrotatoLikeGameplayLifecycleValidation.tscn_attempt1/artifacts/brotatolike-gameplay-lifecycle-validation.json`
 - PlayableUX artifact：`.ai-temp/scene-tests/runs/2026-05-21/17-45-17/001_Src_Validation_Game_PlayableUX_BrotatoLikePlayableUXValidation.tscn_attempt1/artifacts/brotatolike-playable-ux-validation.json`
-- Progression artifact：`.ai-temp/scene-tests/runs/2026-05-21/17-45-01/001_Src_Validation_Game_Progression_BrotatoLikeProgressionLoopValidation.tscn_attempt1/artifacts/brotatolike-progression-loop-validation.json`
+- Progression artifact：`.ai-temp/scene-tests/runs/2026-05-21/19-18-08/001_Src_Validation_Game_Progression_BrotatoLikeProgressionLoopValidation.tscn_attempt1/artifacts/brotatolike-progression-loop-validation.json`
 
 如果新对话要声明这些功能仍然通过，需要重新跑对应命令并读取新 artifact。历史 artifact 只能说明当时通过。
 
@@ -317,36 +319,40 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 
 - OpenSpec `design-brotatolike-shop-item-loop` 已完成当前首版实现，后续归档到 baseline。
 - 后续 progression/panel change：补随机/权重 reward pool、连续多次升级队列、visible slot 替换和被动面板。
-- 后续 wave/shop integration change：把已验证的 shop service 接入 wave break，补货币来源、刷新/锁定、经济曲线和更完整 shop policy。
+- 后续 wave economy tuning change：基于现有 wave `RewardShop` hook，补 shop UI 自动打开、货币来源、刷新/锁定、经济曲线和更完整 shop policy。
 
-## 7. P1 接手项：完整多波流程还没完成
+## 7. P1 接手项：多波流程首版已完成，后续扩展曲线和经济
 
 现状：
 
-- 第一波敌人生成和 wave completion 已有证据。
-- `BrotatoLikeEnemySpawnSystem` 能从 DataOS spawn catalog 实例化敌人。
-- `BrotatoLikeProgressionService` 能记录 wave runtime state。
+- `complete-brotatolike-wave-run-flow` 已完成首版 deterministic 多波流程。
+- `BrotatoLikeEnemySpawnSystem` 能按当前 wave reconfigure spawn catalog，并把 spawned enemy 标记为当前 wave/rule。
+- `BrotatoLikeProgressionService` 记录 `Preparing/Running/Completed/RewardShop/NextWave/Ended` 状态机、完成判定、reward hook、下一波和 cleanup count。
+- RunFlow validation `.ai-temp/scene-tests/runs/2026-05-21/19-17-09/index.json` PASS，artifact 记录两波 authoring、第一波 5 个敌人、`Completed -> RewardShop`、第 2 波 5 个敌人、pause gate、死亡复活、cleanup 和 scene-backed `ExperienceBarUI` wave phase。
 
 缺什么：
 
-- 多波配置、难度曲线、波间奖励、wave start/end UI。
-- 敌种组合变化、生成节奏、随机或权重策略。
-- 把已验证的 shop service 接入波间奖励，以及与升级选择、替换面板的衔接。
-- 长时间运行稳定性：节点、Runtime Entity、Timer、Effect、Projectile 是否泄漏。
+- 更多波次、boss/特殊事件、随机或权重策略和难度曲线。
+- 波间 shop UI 自动打开、刷新/锁定/售卖、货币来源和完整经济曲线。
+- 与升级选择、visible slot 替换、被动面板和 meta progression 的衔接。
+- 更长时间运行稳定性：节点、Runtime Entity、Timer、Effect、Projectile 在多波长局中的压力证据。
 
 关键路径：
 
 - `Src/Game/BrotatoLikeEnemySpawnSystem.cs`
 - `Src/Game/BrotatoLikeGameRuntime.cs`
+- `Src/Game/RunFlow/BrotatoLikeWaveCatalog.cs`
+- `Src/Game/RunFlow/BrotatoLikeWavePhase.cs`
 - `Src/Game/Progression/BrotatoLikeProgressionService.cs`
 - `DataOS/Authoring/BrotatoLike.seed.sql`
-- `Src/Validation/Game/Progression/BrotatoLikeProgressionLoopValidationScene.cs`
+- `DataOS/Snapshots/wave_authoring.json`
+- `Src/Validation/Game/RunFlow/BrotatoLikeRunFlowValidationScene.cs`
 - `DocsAI/ValidationManifest.json`
 
 建议拆分：
 
-- OpenSpec `complete-brotatolike-wave-run-flow`
-- 验证至少覆盖：第 1 波开始、敌人生成、敌人死亡、wave complete、奖励阶段、第 2 波开始、pause gate、失败/死亡复活规则。
+- 后续 OpenSpec `brotatolike-wave-economy-tuning`：shop UI 自动打开、货币来源、刷新/锁定、经济曲线。
+- 后续 OpenSpec `brotatolike-wave-content-expansion`：更多波次、敌种组合、boss/特殊事件和长局稳定性。
 
 ## 8. P2 接手项：角色、敌种、UI 主题和真实设备 QA
 
@@ -479,9 +485,9 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 6. `design-brotatolike-levelup-choice-loop`
    - 状态：已完成并归档到 baseline spec。Progression `.ai-temp/scene-tests/runs/2026-05-21/17-45-01/index.json` PASS，PlayableUX `.ai-temp/scene-tests/runs/2026-05-21/17-45-17/index.json` PASS，Main `.ai-temp/scene-tests/runs/2026-05-21/17-45-33/index.json` PASS。
 7. `design-brotatolike-shop-item-loop`
-   - 状态：进行中，本轮已完成首版商店/道具/货币/service/UI/validation；波间自动购买流程留给后续 wave/shop integration。
+   - 状态：已完成首版商店/道具/货币/service/UI/validation；波间自动打开和完整经济流程留给后续 wave economy tuning。
 8. `complete-brotatolike-wave-run-flow`
-   - 目标：多波、波间奖励、难度曲线、长时间稳定性。
+   - 状态：已完成首版 deterministic 两波、`RewardShop` hook、pause/respawn/cleanup 和 scene-backed wave phase；更多波次、随机/权重、boss/特殊事件和完整经济曲线留给后续。
 9. `brotatolike-character-selection`
    - 目标：更多角色数据、角色选择 UI、起始技能差异。
 10. `brotatolike-manual-device-qa`
