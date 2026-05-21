@@ -133,9 +133,11 @@ public partial class BrotatoLikeHud : CanvasLayer
 
         var currentHp = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var maxHp = player.Data.Get<float>(DamageDataKeys.MaxHp, 0f);
-        playerHealthLabel.Text = FormattableString.Invariant($"HP {currentHp:0}/{maxHp:0}");
+        var isDead = player.Data.Get<bool>(DamageDataKeys.IsDead, false) || currentHp <= 0f;
+        playerHealthLabel.Text = isDead ? "DEAD" : FormattableString.Invariant($"HP {currentHp:0}/{maxHp:0}");
         playerHealthLabel.SetMeta("CurrentHp", currentHp);
         playerHealthLabel.SetMeta("MaxHp", maxHp);
+        playerHealthLabel.SetMeta("Dead", isDead);
 
         var level = ReadIntMeta(player, "Level", 1);
         var experience = ReadIntMeta(player, "Experience", 0);

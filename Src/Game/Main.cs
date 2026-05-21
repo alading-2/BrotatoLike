@@ -46,6 +46,7 @@ public partial class Main : Node
     /// <inheritdoc />
     public override async void _Ready()
     {
+        GD.Print("=== MainTEST LOG ===");
         if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--gameos-smoke-exit") < 0)
         {
             var runtime = StartGameRuntime();

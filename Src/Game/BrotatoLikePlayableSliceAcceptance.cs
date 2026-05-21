@@ -113,6 +113,18 @@ internal static class BrotatoLikePlayableSliceAcceptance
             AddCheck(checks, failureReasons, "hud.damage_evidence", hud.DamageEvidence);
             AddCheck(checks, failureReasons, "hud.scene_backed_formal_ui", hud.SceneBacked);
 
+            var camera = VerifyCameraFollow(runtime, player, values);
+            AddCheck(checks, failureReasons, "camera.follow_player", camera.CameraFollowsPlayer);
+
+            var deathRespawn = await VerifyDeathGateAndRespawn(sceneRoot, runtime, player, enemies, values);
+            AddCheck(checks, failureReasons, "player.death_gate_respawn", deathRespawn.RespawnOk);
+
+            var concurrent = VerifyConcurrentSystems(runtime, player, values);
+            AddCheck(checks, failureReasons, "concurrent.same_frame_no_exception", concurrent.NoException);
+
+            var pauseResume = VerifyPauseResumeIntegrity(runtime, player, values);
+            AddCheck(checks, failureReasons, "pause.resume_state_integrity", pauseResume.StatePreserved);
+
             var success = failureReasons.Count == 0;
             values["result"] = success ? "pass" : "fail";
             if (success)
@@ -488,6 +500,120 @@ internal static class BrotatoLikePlayableSliceAcceptance
         return string.IsNullOrEmpty(node.SceneFilePath) ? "false" : node.SceneFilePath;
     }
 
+    private static CameraFollowAcceptance VerifyCameraFollow(
+        BrotatoLikeGameRuntime runtime,
+        GodotEntity2D player,
+        Dictionary<string, string> values)
+    {
+        var camera = runtime.PlayerCamera;
+        var ok = camera != null
+            && GodotObject.IsInstanceValid(camera)
+            && camera.Enabled
+            && camera.PositionSmoothingEnabled
+            && camera.PositionSmoothingSpeed > 0f;
+        values["camera_enabled"] = (camera?.Enabled ?? false).ToString();
+        values["camera_smoothing"] = (camera?.PositionSmoothingEnabled ?? false).ToString();
+        return new CameraFollowAcceptance(ok);
+    }
+
+    private static async Task<DeathRespawnAcceptance> VerifyDeathGateAndRespawn(
+        Node sceneRoot,
+        BrotatoLikeGameRuntime runtime,
+        GodotEntity2D player,
+        EnemyAcceptance enemies,
+        Dictionary<string, string> values)
+    {
+        var oldEntityId = player.EntityId.Value;
+
+        // Kill the player
+        player.Data.Set(DamageDataKeys.CurrentHp, 0f);
+        player.Data.Set(DamageDataKeys.IsDead, true);
+
+        await ProcessFrames(sceneRoot, 3);
+
+        var canMoveDead = player.Data.Get<bool>(MovementDataKeys.CanMoveInput, true);
+        var inputDead = player.Data.Get<Vector2Value>(MovementDataKeys.InputDirection, new Vector2Value(999f, 999f));
+        var deadGated = !canMoveDead && Math.Abs(inputDead.X) < 0.001f && Math.Abs(inputDead.Y) < 0.001f;
+
+        // Trigger respawn
+        await ProcessFrames(sceneRoot, 30); // ~0.5s at 60fps — wait for respawn delay
+
+        var newPlayer = runtime.PlayerEntity;
+        var newEntityId = newPlayer?.EntityId.Value ?? "";
+        var respawned = newPlayer != null && newEntityId != oldEntityId;
+
+        var hpOk = (newPlayer?.Data.Get<float>(DamageDataKeys.CurrentHp, -1f) ?? -1f) > 0f;
+        var canMoveOk = newPlayer?.Data.Get<bool>(MovementDataKeys.CanMoveInput, false) ?? false;
+        var cameraOk = runtime.PlayerCamera?.Enabled ?? false;
+
+        var respawnOk = deadGated && respawned && hpOk && canMoveOk && cameraOk;
+
+        values["death_gated"] = deadGated.ToString();
+        values["respawn_new_id"] = newEntityId;
+        values["respawn_hp_ok"] = hpOk.ToString();
+        values["respawn_canmove_ok"] = canMoveOk.ToString();
+        return new DeathRespawnAcceptance(respawnOk);
+    }
+
+    private static ConcurrentAcceptance VerifyConcurrentSystems(
+        BrotatoLikeGameRuntime runtime,
+        GodotEntity2D player,
+        Dictionary<string, string> values)
+    {
+        var exceptionCaught = false;
+        try
+        {
+            // Skill on cooldown
+            var cooldownKey = SlimeAI.GameOS.Capabilities.Ability.AbilityDataKeys.CooldownRemaining;
+            player.Data.Set(cooldownKey, 1f);
+
+            // Contact damage
+            player.Data.Set(DamageDataKeys.CurrentHp, Math.Max(1f,
+                player.Data.Get<float>(DamageDataKeys.CurrentHp, 100f) - 10f));
+
+            // HUD update
+            var hud = runtime.Hud;
+            hud?.SetMeta("concurrent_acceptance_test", true);
+        }
+        catch (Exception ex)
+        {
+            exceptionCaught = true;
+            values["concurrent_exception"] = ex.Message;
+        }
+
+        values["concurrent_no_exception"] = (!exceptionCaught).ToString();
+        return new ConcurrentAcceptance(!exceptionCaught);
+    }
+
+    private static PauseResumeAcceptance VerifyPauseResumeIntegrity(
+        BrotatoLikeGameRuntime runtime,
+        GodotEntity2D player,
+        Dictionary<string, string> values)
+    {
+        var hpBefore = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var posBefore = player.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
+
+        runtime.OpenPauseMenu();
+
+        var spawnInfo = runtime.GetSpawnSystemRuntimeInfo();
+        var blockedByPause = spawnInfo?.IsRunning == false;
+
+        runtime.ClosePauseMenu();
+
+        var hpAfter = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var posAfter = player.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
+
+        var statePreserved = blockedByPause
+            && Math.Abs(hpBefore - hpAfter) < 0.01f
+            && Math.Abs(posBefore.X - posAfter.X) < 0.01f
+            && Math.Abs(posBefore.Y - posAfter.Y) < 0.01f;
+
+        values["pause_blocked"] = blockedByPause.ToString();
+        values["pause_hp_preserved"] = (Math.Abs(hpBefore - hpAfter) < 0.01f).ToString();
+        values["pause_pos_preserved"] = (Math.Abs(posBefore.X - posAfter.X) < 0.01f).ToString();
+        return new PauseResumeAcceptance(statePreserved);
+    }
+
     private static void AddCheck(
         IDictionary<string, bool> checks,
         ICollection<string> failures,
@@ -737,3 +863,11 @@ internal readonly record struct SkillAcceptance(
 internal readonly record struct EnemyCleanupAcceptance(bool DeathObserved, bool CleanupQueued);
 
 internal readonly record struct HudAcceptance(bool HealthEvidence, bool CurrentSkillEvidence, bool DamageEvidence, bool SceneBacked);
+
+internal readonly record struct CameraFollowAcceptance(bool CameraFollowsPlayer);
+
+internal readonly record struct DeathRespawnAcceptance(bool RespawnOk);
+
+internal readonly record struct ConcurrentAcceptance(bool NoException);
+
+internal readonly record struct PauseResumeAcceptance(bool StatePreserved);

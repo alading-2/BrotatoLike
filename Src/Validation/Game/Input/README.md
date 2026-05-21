@@ -31,6 +31,38 @@ Tools/run-godot-scene.sh run res://Src/Validation/Game/Input/BrotatoLikeInputEve
 - PASS marker: `BrotatoLike Game Input validation PASS`
 - FAIL marker: `BrotatoLike Game Input validation FAIL`
 
+## Standard answer
+
+### expectedInputs
+
+- `BrotatoLikePlayerInputComponent` with `AutoTick=false` and a validation player entity.
+- `InputNextSkill`、`InputPreviousSkill` and `InputUseSkill` game-side events.
+- `GodotActiveSkillInputComponent` with validation ability actions.
+
+### expectedObservations
+
+- movement input writes `MovementDataKeys.InputDirection` on the player entity.
+- skill input events belong to `BrotatoLike.Game.Events` rather than framework Runtime events.
+- active skill input switches selected ability and triggers the current skill.
+
+### passCriteria
+
+- `index.json` 对应 entry `status=passed` 且 `exitCode=0`。
+- per-scene `result.json` `status=passed`，`firstError=null`。
+- artifact `status=pass`，`failureReasons=[]`，五个标准答案字段非空。
+- `checks[]` 包含 `input_component_writes_movement_and_events` 和 `active_skill_component_switches_and_triggers`。
+- stdout 含 `BrotatoLike Game Input validation PASS`。
+
+### failCriteria
+
+- stdout 含 `BrotatoLike Game Input validation FAIL`。
+- movement write、game event ownership 或 active skill trigger check 失败。
+- artifact `status=fail`、`failureReasons` 非空或标准答案字段缺失。
+
+### artifactPath
+
+`artifacts/brotatolike-input-event-validation.json`
+
 ## Artifact
 
 `artifacts/brotatolike-input-event-validation.json`

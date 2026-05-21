@@ -108,6 +108,11 @@ public partial class BrotatoLikeGameRuntime : Node
     /// </summary>
     public SystemExecuteResult<BrotatoLikeSpawnTickResult> LastSpawnTickResult { get; private set; }
 
+    /// <summary>
+    /// 当前玩家跟随镜头（供验证场景检查状态）。
+    /// </summary>
+    public Camera2D? PlayerCamera => playerCamera;
+
     /// <inheritdoc />
     public override void _Ready()
     {
@@ -162,8 +167,9 @@ public partial class BrotatoLikeGameRuntime : Node
             return false;
         }
 
-        // 死亡后禁止移动
+        // 死亡后禁止移动和输入
         playerEntity.Data.Set(MovementDataKeys.CanMoveInput, false);
+        playerEntity.Data.Set(MovementDataKeys.InputDirection, Vector2Value.Zero);
         deathElapsedSeconds += deltaSeconds;
 
         if (deathElapsedSeconds < RespawnDelaySeconds)
@@ -175,6 +181,20 @@ public partial class BrotatoLikeGameRuntime : Node
         RespawnPlayer();
         deathElapsedSeconds = 0f;
         return false;
+    }
+
+    /// <summary>
+    /// 立即重生玩家（供验证场景快进使用；正规流程中 HandleDeathAndRespawn 会自动调用）。
+    /// </summary>
+    public void ForceRespawnForValidation()
+    {
+        if (playerEntity != null && GodotObject.IsInstanceValid(playerEntity))
+        {
+            playerEntity.Data.Set(DamageDataKeys.IsDead, true);
+            playerEntity.Data.Set(DamageDataKeys.CurrentHp, 0f);
+        }
+
+        deathElapsedSeconds = RespawnDelaySeconds;
     }
 
     private void RespawnPlayer()
@@ -196,6 +216,7 @@ public partial class BrotatoLikeGameRuntime : Node
     public void InitializeFromDataOS(int wave = 1, Node? enemyParent = null)
     {
         Initialize(BrotatoLikeDataOSBootstrap.LoadFromResource(), wave, enemyParent);
+        RuntimeWorld.Default.Schedule.PrintStatus();
     }
 
     /// <summary>
@@ -322,6 +343,9 @@ public partial class BrotatoLikeGameRuntime : Node
         // 写入 DataOS 玩家数据
         bootstrap.ApplyRecordToData("unit.player", recordId, entity.Data);
         entity.Data.Set(MovementDataKeys.Position, new Vector2Value(position.X, position.Y));
+        entity.Data.Set(MovementDataKeys.CanMoveInput, true);
+        entity.Data.Set(MovementDataKeys.InputDirection, Vector2Value.Zero);
+        entity.Data.Set(DamageDataKeys.IsDead, false);
 
         var composition = GodotUnitComposer.Compose(entity, BrotatoLikeUnitProfiles.Player);
         if (!composition.Success)
@@ -361,7 +385,15 @@ public partial class BrotatoLikeGameRuntime : Node
             };
         }
 
-        playerCamera.Reparent(entity, false);
+        if (playerCamera.GetParent() == null)
+        {
+            entity.AddChild(playerCamera);
+        }
+        else if (playerCamera.GetParent() != entity)
+        {
+            playerCamera.Reparent(entity, false);
+        }
+
         playerCamera.Enabled = true;
 
         EnsureBrotatoLikeGameServices();

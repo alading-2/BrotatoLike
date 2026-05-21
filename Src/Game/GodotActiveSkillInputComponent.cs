@@ -3,6 +3,8 @@ using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Events;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
+using SlimeAI.GameOS.Capabilities.Damage;
+using SlimeAI.GameOS.Capabilities.Movement;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
 
@@ -52,7 +54,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 
     private void OnUseSkill(InputUseSkill data)
     {
-        if (entity == null)
+        if (entity == null || !CanUseSkill())
         {
             return;
         }
@@ -101,7 +103,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 
     private void OnPreviousSkill(InputPreviousSkill data)
     {
-        if (entity == null)
+        if (entity == null || !CanUseSkill())
         {
             return;
         }
@@ -119,7 +121,7 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
 
     private void OnNextSkill(InputNextSkill data)
     {
-        if (entity == null)
+        if (entity == null || !CanUseSkill())
         {
             return;
         }
@@ -133,6 +135,26 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
         var currentIndex = entity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         var newIndex = Mathf.PosMod(currentIndex + 1, ownedIds.Count);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, newIndex);
+    }
+
+    private bool CanUseSkill()
+    {
+        if (entity == null)
+        {
+            return false;
+        }
+
+        if (entity.Data.Get<bool>(DamageDataKeys.IsDead, false))
+        {
+            return false;
+        }
+
+        if (!entity.Data.Get<bool>(MovementDataKeys.CanMoveInput, true))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private BrotatoLikeTargetingController? TryFindTargetingController()

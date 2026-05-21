@@ -10,14 +10,15 @@ default_godot="/home/slime/Code/Godot/GodotEngine/4.x/Godot_v4.6.2-stable_mono_l
 usage() {
     cat >&2 <<'USAGE'
 Usage:
-  Tools/run-godot-scene.sh list [--filter <text>]
+  Tools/run-godot-scene.sh list [--filter <text>] [--manifest DocsAI/ValidationManifest.json] [--release-batch] [--tag <tag>] [--scope <scope>]
   Tools/run-godot-scene.sh run <res://scene.tscn> [--build] [--godot <path>] [--timeout <seconds>] [--log-dir <path>] [--attempts <1-3>] [--full-logs] [--errors-only] [--log-retention-days <days>] [-- <scene args...>]
   Tools/run-godot-scene.sh run-many <scene...> [--build] [--continue-on-fail] [runner options]
-  Tools/run-godot-scene.sh run-all [--build] [--continue-on-fail] [--filter <text>] [runner options]
+  Tools/run-godot-scene.sh run-all [--build] [--continue-on-fail] [--filter <text>] [--manifest DocsAI/ValidationManifest.json] [--release-batch] [--tag <tag>] [--scope <scope>] [runner options]
   Tools/run-godot-scene.sh run-main-smoke [--godot <path>] [--timeout <seconds>] [--log-dir <path>]
 
 Examples:
   Tools/run-godot-scene.sh list
+  Tools/run-godot-scene.sh list --manifest DocsAI/ValidationManifest.json --release-batch
   Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-temp/scene-tests/runs
   Tools/run-godot-scene.sh run-main-smoke --log-dir .ai-temp/scene-tests/runs
 USAGE
