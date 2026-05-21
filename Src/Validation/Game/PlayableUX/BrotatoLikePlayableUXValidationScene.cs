@@ -64,6 +64,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             expectedObservations: new[]
             {
                 "formal HUD host exposes player HP, skill slots, selection, cooldown and progression nodes",
+                "skill bar exposes loadout source, visible active slots, selected ability id, owned ids and total count",
+                "validation override loadout can own more than four abilities while exposing only four visible active slots",
                 "enemy head health bars update, clean up and match camera-aware canvas coordinates from runtime HP/death state",
                 "real input actions drive skill UX, point targeting, camera-aware damage/heal numbers and visible movement",
                 "formal UI nodes (HUD root, skill slots, head health bars, damage numbers, targeting indicator) have non-empty SceneFilePath"
@@ -88,6 +90,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         validation.Check("enemy_head_health_bar_updates_and_cleans", "HealthBar", () => Result(values, "enemy_head_health_bar_updates_and_cleans"));
         validation.Check("enemy_head_health_bar_canvas_coordinates", "HealthBar", () => Result(values, "enemy_head_health_bar_canvas_coordinates"));
         validation.Check("skill_bar_action_input_updates", "SkillBar", () => Result(values, "skill_bar_action_input_updates"));
+        validation.Check("validation_loadout_override_visible_slots", "SkillBar", () => Result(values, "validation_loadout_override_visible_slots"));
         validation.Check("point_targeting_indicator_session", "Targeting", () => Result(values, "point_targeting_indicator_session"));
         validation.Check("damage_and_heal_numbers_lifecycle", "CombatFeedback", () => Result(values, "damage_and_heal_numbers_lifecycle"));
         validation.Check("damage_and_heal_numbers_canvas_coordinates", "CombatFeedback", () => Result(values, "damage_and_heal_numbers_canvas_coordinates"));
@@ -279,6 +282,16 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["skill_old_index"] = oldIndex;
         values["skill_next_index"] = nextIndex;
         values["skill_previous_index"] = previousIndex;
+        values["skill_loadout_source"] = ReadStringMeta(skillBar, "LoadoutSource");
+        values["skill_owned_ids"] = ReadStringMeta(skillBar, "OwnedAbilityIds");
+        values["skill_visible_slot_ids"] = ReadStringMeta(skillBar, "VisibleSlotIds");
+        values["skill_selected_id"] = ReadStringMeta(skillBar, "SelectedAbilityId");
+        values["skill_total_owned_count"] = ReadIntMeta(skillBar, "TotalOwnedCount");
+        values["skill_visible_slot_count"] = ReadIntMeta(skillBar, "VisibleSlotCount");
+        values["skill_hidden_owned_count"] = ReadIntMeta(skillBar, "HiddenOwnedCount");
+        values["skill_available_pool_ids"] = player.HasMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta)
+            ? player.GetMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta).AsString()
+            : string.Empty;
 
         var selectedAbility = ownedIds.Count > 0 ? EntityManager.Get(ownedIds[Mathf.Clamp(previousIndex, 0, ownedIds.Count - 1)]) : null;
         var cooldownBeforeUse = selectedAbility?.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f) ?? 0f;
@@ -383,7 +396,12 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && ownedIds.Count >= 2
             && nextIndex != oldIndex
             && previousIndex == oldIndex
-            && cooldownAfterUse > cooldownBeforeUse;
+            && cooldownAfterUse > cooldownBeforeUse
+            && ReadStringMeta(skillBar, "LoadoutSource") == BrotatoLikeSkillLoadoutAuthoring.SourceDefault
+            && ReadIntMeta(skillBar, "TotalOwnedCount") == ownedIds.Count
+            && ReadIntMeta(skillBar, "VisibleSlotCount") <= BrotatoLikeSkillLoadoutAuthoring.VisibleActiveSlotCapacity
+            && !string.IsNullOrWhiteSpace(ReadStringMeta(skillBar, "VisibleSlotIds"))
+            && !string.IsNullOrWhiteSpace(ReadStringMeta(skillBar, "SelectedAbilityId"));
         values["point_targeting_indicator_session"] = targetIndicator != null
             && pointAbility != null
             && targetingStarted
@@ -417,7 +435,50 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && ReadSceneBacked(values, "scene_backed_damage_number")
             && ReadSceneBacked(values, "scene_backed_indicator");
 
+        await RecordValidationLoadoutProbe(runtime, values);
+
         return values;
+    }
+
+    private async Task RecordValidationLoadoutProbe(
+        BrotatoLikeGameRuntime runtime,
+        Dictionary<string, object?> values)
+    {
+        var validationPlayer = runtime.SpawnPlayerWithValidationLoadout(
+            BrotatoLikeSkillLoadoutAuthoring.ValidationAllSkillAbilityIds,
+            "deluyi",
+            new Vector2(320f, 0f));
+        await ProcessFrames(4);
+
+        var skillBar = FindDescendant(this, "ActiveSkillBar");
+        var ownedIds = validationPlayer.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        var source = ReadStringMeta(skillBar, "LoadoutSource");
+        var visibleSlotIds = ReadStringMeta(skillBar, "VisibleSlotIds");
+        var selectedId = ReadStringMeta(skillBar, "SelectedAbilityId");
+        var totalOwnedCount = ReadIntMeta(skillBar, "TotalOwnedCount");
+        var visibleSlotCount = ReadIntMeta(skillBar, "VisibleSlotCount");
+        var hiddenOwnedCount = ReadIntMeta(skillBar, "HiddenOwnedCount");
+
+        values["validation_loadout_source"] = source;
+        values["validation_loadout_owned_count"] = ownedIds.Count;
+        values["validation_loadout_total_owned_count"] = totalOwnedCount;
+        values["validation_loadout_visible_slot_count"] = visibleSlotCount;
+        values["validation_loadout_hidden_owned_count"] = hiddenOwnedCount;
+        values["validation_loadout_visible_slot_ids"] = visibleSlotIds;
+        values["validation_loadout_selected_id"] = selectedId;
+        values["validation_loadout_available_pool_ids"] = validationPlayer.HasMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta)
+            ? validationPlayer.GetMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta).AsString()
+            : string.Empty;
+        values["validation_loadout_passive_ids"] = validationPlayer.HasMeta(BrotatoLikeSkillLoadoutAuthoring.PassiveSkillIdsMeta)
+            ? validationPlayer.GetMeta(BrotatoLikeSkillLoadoutAuthoring.PassiveSkillIdsMeta).AsString()
+            : string.Empty;
+        values["validation_loadout_override_visible_slots"] = source == BrotatoLikeSkillLoadoutAuthoring.SourceValidationOverride
+            && totalOwnedCount == BrotatoLikeSkillLoadoutAuthoring.ValidationAllSkillAbilityIds.Length
+            && ownedIds.Count == totalOwnedCount
+            && visibleSlotCount == BrotatoLikeSkillLoadoutAuthoring.VisibleActiveSlotCapacity
+            && hiddenOwnedCount == totalOwnedCount - visibleSlotCount
+            && !string.IsNullOrWhiteSpace(visibleSlotIds)
+            && !string.IsNullOrWhiteSpace(selectedId);
     }
 
     private async Task ProcessFrames(int count)
@@ -491,6 +552,23 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         }
 
         return node.GetMeta(key).AsString();
+    }
+
+    private static int ReadIntMeta(Node? node, string key)
+    {
+        if (node == null || !node.HasMeta(key))
+        {
+            return 0;
+        }
+
+        var value = node.GetMeta(key);
+        return value.VariantType switch
+        {
+            Variant.Type.Int => value.AsInt32(),
+            Variant.Type.Float => Mathf.RoundToInt(value.AsSingle()),
+            Variant.Type.String => int.TryParse(value.AsString(), out var parsed) ? parsed : 0,
+            _ => 0
+        };
     }
 
     private static Node? FindDescendant(Node root, string name)

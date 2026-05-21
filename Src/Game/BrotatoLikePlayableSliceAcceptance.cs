@@ -595,6 +595,16 @@ internal static class BrotatoLikePlayableSliceAcceptance
         values["formal_hud_head_health_bar_count"] = headHealthBarCount.ToString(CultureInfo.InvariantCulture);
         values["formal_hud_progression_summary"] = progressionSummary?.Text ?? string.Empty;
         values["damage_log_count"] = damageLogs.Count.ToString(CultureInfo.InvariantCulture);
+        values["skill_loadout_source"] = ReadStringMeta(skillBar, "LoadoutSource");
+        values["skill_owned_ids"] = ReadStringMeta(skillBar, "OwnedAbilityIds");
+        values["skill_visible_slot_ids"] = ReadStringMeta(skillBar, "VisibleSlotIds");
+        values["skill_selected_id"] = ReadStringMeta(skillBar, "SelectedAbilityId");
+        values["skill_total_owned_count"] = ReadIntMeta(skillBar, "TotalOwnedCount").ToString(CultureInfo.InvariantCulture);
+        values["skill_visible_slot_count"] = ReadIntMeta(skillBar, "VisibleSlotCount").ToString(CultureInfo.InvariantCulture);
+        values["skill_hidden_owned_count"] = ReadIntMeta(skillBar, "HiddenOwnedCount").ToString(CultureInfo.InvariantCulture);
+        values["skill_available_pool_ids"] = player.HasMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta)
+            ? player.GetMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta).AsString()
+            : string.Empty;
 
         values["scene_backed_hud"] = FormatSceneBacked(hud);
         values["scene_backed_health"] = FormatSceneBacked(health);
@@ -620,7 +630,10 @@ internal static class BrotatoLikePlayableSliceAcceptance
             skillBar != null
                 && selectedIndex >= 0
                 && !string.IsNullOrWhiteSpace(currentSkillName)
-                && progressionSummary != null,
+                && progressionSummary != null
+                && ReadStringMeta(skillBar, "LoadoutSource") == BrotatoLikeSkillLoadoutAuthoring.SourceDefault
+                && ReadIntMeta(skillBar, "TotalOwnedCount") > 0
+                && !string.IsNullOrWhiteSpace(ReadStringMeta(skillBar, "VisibleSlotIds")),
             damageLogs.Count > 0
                 && damageLayer != null
                 && damageNumberCount > 0
@@ -666,6 +679,33 @@ internal static class BrotatoLikePlayableSliceAcceptance
         }
 
         return null;
+    }
+
+    private static string ReadStringMeta(Node? node, string key)
+    {
+        if (node == null || !node.HasMeta(key))
+        {
+            return string.Empty;
+        }
+
+        return node.GetMeta(key).AsString();
+    }
+
+    private static int ReadIntMeta(Node? node, string key)
+    {
+        if (node == null || !node.HasMeta(key))
+        {
+            return 0;
+        }
+
+        var value = node.GetMeta(key);
+        return value.VariantType switch
+        {
+            Variant.Type.Int => value.AsInt32(),
+            Variant.Type.Float => Mathf.RoundToInt(value.AsSingle()),
+            Variant.Type.String => int.TryParse(value.AsString(), out var parsed) ? parsed : 0,
+            _ => 0
+        };
     }
 
     private static CameraFollowAcceptance VerifyCameraFollow(
@@ -911,6 +951,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         "player runtime data records input direction, last move direction, and changed position",
         "DataOS-spawned enemies chase, apply contact damage, and expose resource path evidence",
         "formal HUD, head health bar, skill bar, damage number and progression summary nodes expose player-facing evidence",
+        "skill bar records loadout source, owned ability ids, visible active slots, selected ability id and total owned count",
         "slam, chain and point-target abilities produce input-action damage, cooldown, targeting and visual evidence",
         "chain lightning line VFX records scene path, source/target ids, start/end world positions, Line2D points, duration and cleanup evidence for each bounce",
         "formal composite UI nodes (player health bar, skill bar, head health bar and damage number) have non-empty SceneFilePath",
@@ -928,6 +969,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         "any criteria entry has status fail",
         "player, enemy, ability, damage, or HUD evidence is missing",
+        "skill bar loadout source, visible slot ids, selected ability id, or total owned count is missing",
         "chain lightning line VFX is missing, unbound, not multi-bounce, or not cleaned up",
         "formal composite UI node has empty SceneFilePath (code-created, not scene-backed)",
         "respawn moves the player away from the death position or does not restore input",

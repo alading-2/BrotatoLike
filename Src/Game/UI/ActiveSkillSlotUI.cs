@@ -29,7 +29,15 @@ public partial class ActiveSkillSlotUI : Control
     /// <summary>
     /// 绑定技能名称、按键提示、冷却和充能状态。
     /// </summary>
-    public void Bind(string skillName, string keyHint, float cooldownFraction, int charges, int maxCharges, bool selected)
+    public void Bind(
+        string skillName,
+        string keyHint,
+        float cooldownFraction,
+        int charges,
+        int maxCharges,
+        bool selected,
+        string abilityEntityId = "",
+        int visibleSlotIndex = -1)
     {
         if (skillNameLabel != null) skillNameLabel.Text = skillName;
         if (keyHintLabel != null) keyHintLabel.Text = keyHint;
@@ -44,6 +52,10 @@ public partial class ActiveSkillSlotUI : Control
         {
             background.Modulate = selected ? new Color(1f, 0.9f, 0.5f, 1f) : new Color(0.3f, 0.3f, 0.35f, 1f);
         }
+
+        SetMeta("AbilityEntityId", abilityEntityId);
+        SetMeta("VisibleSlotIndex", visibleSlotIndex);
+        SetMeta("Selected", selected);
     }
 
     /// <summary>
@@ -55,5 +67,8 @@ public partial class ActiveSkillSlotUI : Control
         if (keyHintLabel != null) keyHintLabel.Text = string.Empty;
         if (chargeLabel != null) chargeLabel.Text = string.Empty;
         if (cooldownOverlay != null) cooldownOverlay.Visible = false;
+        SetMeta("AbilityEntityId", string.Empty);
+        SetMeta("VisibleSlotIndex", -1);
+        SetMeta("Selected", false);
     }
 }

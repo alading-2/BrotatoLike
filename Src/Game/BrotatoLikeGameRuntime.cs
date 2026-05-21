@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Progression;
 using BrotatoLike.Game.UI;
@@ -277,6 +278,7 @@ public partial class BrotatoLikeGameRuntime : Node
         Shutdown();
         bootstrap = dataBootstrap;
         bootstrap.RegisterResources();
+        BrotatoLikeSkillLoadoutAuthoring.ValidateAvailableSkillPool(bootstrap);
         spawnCatalog = bootstrap.BuildEnemySpawnCatalog(wave);
         spawnScheduleConfig = bootstrap.BuildSpawnSystemScheduleConfig();
         EnsureRuntimeDrivers();
@@ -364,6 +366,26 @@ public partial class BrotatoLikeGameRuntime : Node
     /// <returns>生成的玩家 GodotEntity2D。</returns>
     public GodotEntity2D SpawnPlayer(string recordId = "deluyi", Vector2? spawnPosition = null)
     {
+        return SpawnPlayerCore(recordId, spawnPosition, BrotatoLikeSkillLoadoutAuthoring.CreateDefault());
+    }
+
+    /// <summary>
+    /// 使用确定性验证 loadout 生成玩家，供后续逐技能 validation 场景复用。
+    /// </summary>
+    /// <param name="abilityIds">要授予玩家的 ability record id 列表。</param>
+    /// <param name="recordId">DataOS unit.player 记录 Id，默认 deluyi。</param>
+    /// <param name="spawnPosition">玩家生成位置。</param>
+    /// <returns>生成的玩家 GodotEntity2D。</returns>
+    public GodotEntity2D SpawnPlayerWithValidationLoadout(
+        IReadOnlyList<string> abilityIds,
+        string recordId = "deluyi",
+        Vector2? spawnPosition = null)
+    {
+        return SpawnPlayerCore(recordId, spawnPosition, BrotatoLikeSkillLoadoutAuthoring.CreateValidationOverride(abilityIds));
+    }
+
+    private GodotEntity2D SpawnPlayerCore(string recordId, Vector2? spawnPosition, BrotatoLikeSkillLoadout loadout)
+    {
         if (bootstrap == null)
         {
             throw new InvalidOperationException("BrotatoLikeGameRuntime 尚未初始化，无法生成玩家。");
@@ -399,15 +421,27 @@ public partial class BrotatoLikeGameRuntime : Node
             throw new InvalidOperationException(composition.FailureReason);
         }
 
-        // 从 DataOS 创建初始技能实体
+        // 从集中 loadout authoring 创建技能实体
         var ownedAbilityIds = EntityIdList.Empty;
-        ownedAbilityIds = SpawnPlayerAbility(entity, "slam", ownedAbilityIds);
-        ownedAbilityIds = SpawnPlayerAbility(entity, "chain_lightning", ownedAbilityIds);
-        ownedAbilityIds = SpawnPlayerAbility(entity, "target_point_skill", ownedAbilityIds);
-        ownedAbilityIds = SpawnPlayerAbility(entity, "dash", ownedAbilityIds);
+        var visibleActiveEntityIds = EntityIdList.Empty;
+        for (var i = 0; i < loadout.AbilityIds.Count; i++)
+        {
+            var abilityId = loadout.AbilityIds[i];
+            if (!bootstrap.HasRecord("ability", abilityId))
+            {
+                throw new InvalidOperationException($"BrotatoLike loadout references missing DataOS ability id: {abilityId}");
+            }
+
+            ownedAbilityIds = SpawnPlayerAbility(entity, abilityId, ownedAbilityIds);
+            if (ContainsRecordId(loadout.VisibleActiveAbilityIds, abilityId))
+            {
+                visibleActiveEntityIds = visibleActiveEntityIds.Add(new EntityId(BuildPlayerAbilityEntityId(recordId, abilityId)));
+            }
+        }
 
         entity.Data.Set(AbilityDataKeys.OwnedAbilityIds, ownedAbilityIds);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, 0);
+        WriteLoadoutMetadata(entity, loadout, ownedAbilityIds, visibleActiveEntityIds);
         entity.SetMeta("Level", 1);
         entity.SetMeta("Experience", 0);
         entity.SetMeta("NextLevelExperience", 5);
@@ -456,9 +490,56 @@ public partial class BrotatoLikeGameRuntime : Node
 
     private EntityIdList SpawnPlayerAbility(GodotEntity2D player, string abilityRecordId, EntityIdList ownedIds)
     {
-        var abilityEntityId = $"ability-{abilityRecordId}-{player.EntityId}";
+        var abilityEntityId = BuildPlayerAbilityEntityId(player, abilityRecordId);
         var ability = bootstrap!.SpawnEntityFromRecord("ability", abilityRecordId, abilityEntityId);
         return ownedIds.Add(ability.EntityId);
+    }
+
+    private static string BuildPlayerAbilityEntityId(GodotEntity2D player, string abilityRecordId)
+    {
+        return $"ability-{abilityRecordId}-{player.EntityId.Value}";
+    }
+
+    private static string BuildPlayerAbilityEntityId(string playerRecordId, string abilityRecordId)
+    {
+        return $"ability-{abilityRecordId}-player-{playerRecordId}";
+    }
+
+    private static void WriteLoadoutMetadata(
+        GodotEntity2D player,
+        BrotatoLikeSkillLoadout loadout,
+        EntityIdList ownedAbilityIds,
+        EntityIdList visibleActiveEntityIds)
+    {
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.LoadoutSourceMeta, loadout.Source);
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.DefaultActiveAbilityIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(BrotatoLikeSkillLoadoutAuthoring.DefaultActiveAbilityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolAbilityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.PassiveSkillIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(BrotatoLikeSkillLoadoutAuthoring.PassiveAbilityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.OwnedAbilityEntityIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(ownedAbilityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.VisibleActiveAbilityEntityIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(visibleActiveEntityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.VisibleActiveAbilityRecordIdsMeta,
+            BrotatoLikeSkillLoadoutAuthoring.JoinIds(loadout.VisibleActiveAbilityIds));
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.TotalOwnedCountMeta, ownedAbilityIds.Count);
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.VisibleSlotCountMeta, visibleActiveEntityIds.Count);
+        player.SetMeta(BrotatoLikeSkillLoadoutAuthoring.HiddenOwnedCountMeta, Math.Max(0, ownedAbilityIds.Count - visibleActiveEntityIds.Count));
+    }
+
+    private static bool ContainsRecordId(IReadOnlyList<string> recordIds, string abilityRecordId)
+    {
+        for (var i = 0; i < recordIds.Count; i++)
+        {
+            if (string.Equals(recordIds[i], abilityRecordId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void EnsureBrotatoLikeGameServices()

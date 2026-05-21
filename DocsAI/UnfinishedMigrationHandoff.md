@@ -1,7 +1,7 @@
 # BrotatoLike 未完成迁移接手文档
 
 > 更新日期：2026-05-21  
-> 当前游戏仓基线：`9fa6ab4 Fix respawn HUD and health bar migration gaps`  
+> 当前游戏仓基线：以当前 `Games/BrotatoLike` 仓库 HEAD 为准；继续前请先运行 `git log -1 --oneline` 和 `git status --short`。  
 > 用途：给新对话继续拆分 BrotatoLike 旧框架迁移、可玩体验补完和验收修复时使用。  
 > 重要边界：本文是接手导航，不是完成声明。凡是写为“存在”“已接入 DataOS”“handler 已有”的项目，都还需要看对应 artifact 或补专项验证，不能直接当作玩家可玩功能完成。
 
@@ -45,6 +45,7 @@
 - HUD：正式 `BrotatoLikeHud`，左上角状态面板、玩家 HP、progression summary、底部四槽技能栏。
 - 血条：`HealthBarKind.Player / Enemy / Neutral`，玩家绿色、敌人红色、通用语义入口已经存在。
 - 技能栏：普通玩家默认四槽为 `slam / chain_lightning / target_point_skill / dash`。
+- 技能 loadout：`BrotatoLikeSkillLoadoutAuthoring` 已把默认四槽、12 项 available skill pool、passive ids 和 deterministic validation override 集中到游戏侧 authoring；`ActiveSkillBarUI` artifact 可区分 visible active slots、total owned abilities 和 selected ability。
 - 技能输入：`UseSkill / PreviousSkill / NextSkill` action 可驱动当前技能栏状态；Dash 已有通过技能栏 input path 触发并位移的 GameLifecycle 专项证据。
 - 点选技能：`target_point_skill` 有指示器、确认、取消和死亡清理。
 - 伤害反馈：敌人头顶血条、伤害数字、治疗数字有 scene-backed UI。
@@ -64,7 +65,7 @@
 后续最容易误判的是下面几类：
 
 - `DataOS-only` 不等于可玩。`DataOS/Authoring/BrotatoLike.seed.sql` 有记录，只能说明 authoring 和 snapshot 字段存在。
-- handler 存在不等于玩家可释放。`BrotatoLikeAbilityHandlers.cs` 有执行逻辑，也可能没有装入玩家普通 loadout 或没有主场景输入验收。
+- handler 或 skill pool 存在不等于玩家可释放。`BrotatoLikeAbilityHandlers.cs` 有执行逻辑，`BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolAbilityIds` 也可能只表示可获得候选或 validation loadout 候选；是否成为普通局内技能仍要看获得流程、visible slot 和 artifact。
 - scene 存在不等于视觉完整。`Scenes/VFX/LightningLineEffect.tscn` 已通过 Main artifact 验证端点、生命周期和节点清理；屏幕像素级门禁仍是可选增强。
 - runner `Input.ActionPress` 不等于真实设备 QA。真实手柄、鼠标、窗口焦点、焦点导航仍要单独验。
 - 旧 resource path 分类不等于旧功能完成。`legacyStatus` 只保证旧路径被分类，不代表可加载或可用。
@@ -115,16 +116,20 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 
 ## 5. P1 接手项：玩家技能体验还没完整迁完
 
-### 5.1 默认四槽以外的技能还没进入普通局内体验
+### 5.1 默认四槽以外的技能已有 pool / validation loadout，仍缺逐技能体验验收
 
 现状：
 
-- 玩家默认技能在 `Src/Game/BrotatoLikeGameRuntime.cs` 的 `SpawnPlayer()` 附近装配：
+- 玩家默认技能由 `Src/Game/BrotatoLikeSkillLoadoutAuthoring.cs` 集中装配，并在 `BrotatoLikeGameRuntime.SpawnPlayer()` 使用：
   - `slam`
   - `chain_lightning`
   - `target_point_skill`
   - `dash`
-- DataOS 和 handler 已存在但不在普通四槽默认体验里的技能：
+- `BrotatoLikeSkillLoadoutAuthoring.AvailableSkillPoolAbilityIds` 已显式列出完整可获得候选：
+  - `slam`
+  - `chain_lightning`
+  - `target_point_skill`
+  - `dash`
   - `sine_wave_shot`
   - `boomerang_throw`
   - `bezier_shot`
@@ -133,12 +138,24 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
   - `orbit_skill`
   - `circle_damage`
   - `aura_shield`
+- passive ids 当前为：
+  - `orbit_skill`
+  - `circle_damage`
+  - `aura_shield`
+- deterministic validation loadout 可生成 12 个 owned ability entity，但 UI 只暴露 4 个 visible active slots，隐藏/被动技能不会被普通 `NextSkill/UseSkill` 误选或误触发。
 
-缺什么：
+已验证：
 
-- 设计这些技能如何进入玩家局内：初始 loadout、升级选项、商店购买、调试切换，还是独立验证场景。
+- Build：`cd /home/slime/Code/SlimeAI/Games/BrotatoLike && Tools/run-build.sh` PASS（26 个既有 XML comment warnings，0 errors）。
+- PlayableUX：`.ai-temp/scene-tests/runs/2026-05-21/16-01-37/index.json` PASS；artifact `validation_loadout_override_visible_slots=pass`，记录 12 owned / 4 visible / 8 hidden。
+- Main：`.ai-temp/scene-tests/runs/2026-05-21/16-05-14/index.json` PASS；artifact 记录 `skill_loadout_source=default`、owned ids、visible slot ids、selected id、total count 和 12 项 `skill_available_pool_ids`。
+- Scene gate 已检查上述 run 的 `index.json`、per-scene `result.json` 和 scene artifact；`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空，analyzer `gate-report.json` 为 `pass`。
+
+仍缺什么：
+
 - 每个技能的主场景或专项 scene-backed 验收：能释放、能命中、能看到视觉、能清理、UI cooldown 正常。
-- 不要只把技能塞进四槽；四槽数量、切换规则、技能栏 UI、选择系统都要一起设计。
+- 普通局内获得流程：升级选项、商店购买、替换选择、分页或 passive panel 还未实现。
+- 不要把 available skill pool 写成“已可玩”；它目前是可获得候选和 validation loadout 来源。
 
 关键路径：
 
@@ -162,9 +179,8 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-run-dir> --manifest DocsAI/Vali
 
 建议拆分：
 
-- OpenSpec `expand-brotatolike-skill-loadout`：定义玩家如何获得剩余技能。
-- OpenSpec `validate-brotatolike-projectile-skills`：逐个验收 projectile 技能轨迹、命中、生命周期。
-- OpenSpec `validate-brotatolike-passive-skills`：验收 `orbit_skill / circle_damage / aura_shield` 的持续效果和清理。
+- OpenSpec `expand-brotatolike-skill-loadout`：已定义默认四槽、available skill pool、passive ids 和 deterministic validation loadout。
+- OpenSpec `validate-brotatolike-projectile-and-passive-skills`：下一步逐个验收 projectile 技能轨迹、命中、生命周期，以及 `orbit_skill / circle_damage / aura_shield` 的持续效果和清理。
 
 ### 5.2 Dash 玩家输入位移专项验收已补齐
 
@@ -437,9 +453,9 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 3. `restore-brotatolike-chain-lightning-line-vfx`（已完成；等待归档）
    - 结果：链电线段端点、生命周期、多段弹跳和清理专项验收已由 Main artifact 覆盖。
 4. `expand-brotatolike-skill-loadout`
-   - 目标：设计剩余技能进入局内体验的方式，并补技能栏/选择 UI。
+   - 状态：已完成。默认四槽、12 项 available skill pool、passive ids 和 validation override 均有 PlayableUX / Main artifact 证据。
 5. `validate-brotatolike-projectile-and-passive-skills`
-   - 目标：逐技能验收 projectile 轨迹、命中、持续效果、清理。
+   - 目标：复用 deterministic validation loadout，逐技能验收 projectile 轨迹、命中、持续效果、清理。
 6. `design-brotatolike-levelup-choice-loop`
    - 目标：升级三选一、经验条、选择后应用 feature modifier。
 7. `design-brotatolike-shop-item-loop`

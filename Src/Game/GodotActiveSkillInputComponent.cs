@@ -59,19 +59,20 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             return;
         }
 
-        var ownedIds = entity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds.Count == 0)
+        var selectableIds = BrotatoLikeSkillLoadoutAuthoring.ResolveSelectableAbilityEntityIds(entity);
+        if (selectableIds.Count == 0)
         {
             return;
         }
 
         var currentIndex = entity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
-        if (currentIndex < 0 || currentIndex >= ownedIds.Count)
+        if (currentIndex < 0 || currentIndex >= selectableIds.Count)
         {
             currentIndex = 0;
+            entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, currentIndex);
         }
 
-        var abilityId = ownedIds[currentIndex];
+        var abilityId = selectableIds[currentIndex];
         var ability = EntityManager.Get(abilityId);
         if (ability == null)
         {
@@ -108,14 +109,14 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             return;
         }
 
-        var ownedIds = entity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds.Count == 0)
+        var selectableIds = BrotatoLikeSkillLoadoutAuthoring.ResolveSelectableAbilityEntityIds(entity);
+        if (selectableIds.Count == 0)
         {
             return;
         }
 
         var currentIndex = entity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
-        var newIndex = Mathf.PosMod(currentIndex - 1, ownedIds.Count);
+        var newIndex = Mathf.PosMod(currentIndex - 1, selectableIds.Count);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, newIndex);
     }
 
@@ -126,14 +127,14 @@ public partial class GodotActiveSkillInputComponent : Node, IGodotComponent
             return;
         }
 
-        var ownedIds = entity.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
-        if (ownedIds.Count == 0)
+        var selectableIds = BrotatoLikeSkillLoadoutAuthoring.ResolveSelectableAbilityEntityIds(entity);
+        if (selectableIds.Count == 0)
         {
             return;
         }
 
         var currentIndex = entity.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
-        var newIndex = Mathf.PosMod(currentIndex + 1, ownedIds.Count);
+        var newIndex = Mathf.PosMod(currentIndex + 1, selectableIds.Count);
         entity.Data.Set(AbilityDataKeys.CurrentAbilityIndex, newIndex);
     }
 

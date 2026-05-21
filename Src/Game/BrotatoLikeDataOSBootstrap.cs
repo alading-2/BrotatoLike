@@ -88,6 +88,16 @@ public sealed class BrotatoLikeDataOSBootstrap
     }
 
     /// <summary>
+    /// 检查 snapshot 是否包含指定 table / record。
+    /// </summary>
+    /// <param name="tableId">DataOS 表 Id。</param>
+    /// <param name="recordIdOrName">记录 Id 或显示名。</param>
+    public bool HasRecord(string tableId, string recordIdOrName)
+    {
+        return snapshot.TryFindRecord(tableId, recordIdOrName, out _);
+    }
+
+    /// <summary>
     /// 按 DataOS 生成当前波次可用的敌人生成规则。
     /// </summary>
     /// <param name="wave">当前波次，1 起始。</param>

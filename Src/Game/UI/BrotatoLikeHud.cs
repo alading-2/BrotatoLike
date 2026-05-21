@@ -236,8 +236,15 @@ public partial class BrotatoLikeHud : CanvasLayer
         }
 
         var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+        var visibleIds = BrotatoLikeSkillLoadoutAuthoring.ResolveSelectableAbilityEntityIds(player);
         var selectedIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
-        for (var i = 0; i < 4; i++)
+        if (selectedIndex < 0 || selectedIndex >= Math.Max(1, visibleIds.Count))
+        {
+            selectedIndex = 0;
+            player.Data.Set(AbilityDataKeys.CurrentAbilityIndex, selectedIndex);
+        }
+
+        for (var i = 0; i < ActiveSkillBarUI.VisibleSlotCapacity; i++)
         {
             var slot = activeSkillBar.GetSlot(i);
             if (slot == null)
@@ -245,16 +252,16 @@ public partial class BrotatoLikeHud : CanvasLayer
                 continue;
             }
 
-            if (i >= ownedIds.Count)
+            if (i >= visibleIds.Count)
             {
                 slot.Clear();
                 continue;
             }
 
-            var ability = EntityManager.Get(ownedIds[i]);
+            var ability = EntityManager.Get(visibleIds[i]);
             if (ability == null)
             {
-                slot.Bind("-", $"{i + 1}", 0f, 0, 0, i == selectedIndex);
+                slot.Bind("-", $"{i + 1}", 0f, 0, 0, i == selectedIndex, visibleIds[i].Value, i);
                 continue;
             }
 
@@ -269,11 +276,13 @@ public partial class BrotatoLikeHud : CanvasLayer
             var cooldownFraction = cooldownMax > 0f ? Mathf.Clamp(cooldown / cooldownMax, 0f, 1f) : 0f;
             var charges = ability.Data.Get<int>(AbilityDataKeys.CurrentCharges, 0);
             var maxCharges = ability.Data.Get<int>(AbilityDataKeys.MaxCharges, 0);
-            slot.Bind(name, $"{i + 1}", cooldownFraction, charges, maxCharges, i == selectedIndex);
+            slot.Bind(name, $"{i + 1}", cooldownFraction, charges, maxCharges, i == selectedIndex, ability.EntityId.Value, i);
         }
 
-        activeSkillBar.SetMeta("SelectedIndex", selectedIndex);
-        activeSkillBar.SetMeta("SlotCount", Math.Min(4, ownedIds.Count));
+        var loadoutSource = player.HasMeta(BrotatoLikeSkillLoadoutAuthoring.LoadoutSourceMeta)
+            ? player.GetMeta(BrotatoLikeSkillLoadoutAuthoring.LoadoutSourceMeta).AsString()
+            : BrotatoLikeSkillLoadoutAuthoring.SourceDefault;
+        activeSkillBar.SetLoadoutEvidence(loadoutSource, ownedIds, visibleIds, selectedIndex);
     }
 
     private void UpdateHeadHealthBars()
