@@ -15,7 +15,7 @@
 - `death_blocks_movement_input`: Death sets CanMoveInput=false and clears InputDirection
 - `death_blocks_skill_input`: Skill events (NextSkill/PreviousSkill/UseSkill) are ignored on dead player
 - `death_camera_stays_enabled`: Camera2D remains Enabled=true during death
-- `death_auto_respawn`: Respawn restores HP=MaxHp, position=(0,0), CanMoveInput=true, Camera enabled
+- `death_auto_respawn`: Respawn HP increases during the delay, then restores HP=MaxHp at the death position with CanMoveInput=true and Camera enabled
 - `camera_follows_player`: Camera2D has Enabled=true, PositionSmoothingEnabled=true, PositionSmoothingSpeed>0
 - `concurrent_systems_no_conflict`: Skill cooldown + contact damage + enemy loot + HUD update in same frame without exceptions
 - `pause_resume_state_integrity`: HP, position, and cooldown values are identical before and after pause/resume cycle

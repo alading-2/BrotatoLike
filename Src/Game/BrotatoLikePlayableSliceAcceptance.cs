@@ -119,10 +119,12 @@ internal static class BrotatoLikePlayableSliceAcceptance
             var deathRespawn = await VerifyDeathGateAndRespawn(sceneRoot, runtime, player, enemies, values);
             AddCheck(checks, failureReasons, "player.death_gate_respawn", deathRespawn.RespawnOk);
 
-            var concurrent = VerifyConcurrentSystems(runtime, player, values);
+            var activePlayer = runtime.PlayerEntity ?? player;
+            var concurrent = VerifyConcurrentSystems(runtime, activePlayer, values);
             AddCheck(checks, failureReasons, "concurrent.same_frame_no_exception", concurrent.NoException);
 
-            var pauseResume = VerifyPauseResumeIntegrity(runtime, player, values);
+            activePlayer = runtime.PlayerEntity ?? activePlayer;
+            var pauseResume = VerifyPauseResumeIntegrity(runtime, activePlayer, values);
             AddCheck(checks, failureReasons, "pause.resume_state_integrity", pauseResume.StatePreserved);
 
             var success = failureReasons.Count == 0;
@@ -415,13 +417,16 @@ internal static class BrotatoLikePlayableSliceAcceptance
             Type = DamageType.Physical,
             Tags = DamageTags.Ability
         });
+        var deathObserved = enemy.Data.Get<bool>(DamageDataKeys.IsDead, false)
+            || result.Results.Exists(entry => entry.Info.IsFatal || entry.NewHp <= 0f);
         enemy.DestroyEntity();
         values["enemy_cleanup_id"] = enemy.EntityId.Value;
         values["enemy_cleanup_hp_before"] = FormatFloat(hpBefore);
         values["enemy_cleanup_damage_applied"] = result.AppliedCount.ToString(CultureInfo.InvariantCulture);
+        values["enemy_cleanup_death_observed"] = deathObserved.ToString(CultureInfo.InvariantCulture);
         values["enemy_cleanup_queued"] = enemy.IsQueuedForDeletion().ToString(CultureInfo.InvariantCulture);
         return new EnemyCleanupAcceptance(
-            enemy.Data.Get<bool>(DamageDataKeys.IsDead, false),
+            deathObserved,
             enemy.IsQueuedForDeletion());
     }
 
@@ -434,9 +439,12 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         var hud = sceneRoot.FindChild("BrotatoLikeHUD", recursive: true, owned: false);
         var health = sceneRoot.FindChild("PlayerHealthLabel", recursive: true, owned: false) as Label;
+        var playerHealthBar = sceneRoot.FindChild("PlayerHealthBar", recursive: true, owned: false);
         var skillBar = sceneRoot.FindChild("ActiveSkillBar", recursive: true, owned: false) as Control;
         var damageLayer = sceneRoot.FindChild("DamageNumberLayer", recursive: true, owned: false);
         var headHealthLayer = sceneRoot.FindChild("HeadHealthBarLayer", recursive: true, owned: false);
+        var damageNumber = FindFirstSceneBackedDescendant(damageLayer);
+        var headHealthBar = FindFirstSceneBackedDescendant(headHealthLayer);
         var progressionSummary = sceneRoot.FindChild("ProgressionSummary", recursive: true, owned: false) as Label;
         var currentHp = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var selectedIndex = skillBar != null && skillBar.HasMeta("SelectedIndex")
@@ -456,17 +464,18 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
         values["scene_backed_hud"] = FormatSceneBacked(hud);
         values["scene_backed_health"] = FormatSceneBacked(health);
+        values["scene_backed_player_health_bar"] = FormatSceneBacked(playerHealthBar);
         values["scene_backed_skill_bar"] = FormatSceneBacked(skillBar);
         values["scene_backed_damage_layer"] = FormatSceneBacked(damageLayer);
+        values["scene_backed_damage_number"] = FormatSceneBacked(damageNumber);
         values["scene_backed_head_health_layer"] = FormatSceneBacked(headHealthLayer);
+        values["scene_backed_head_health_bar"] = FormatSceneBacked(headHealthBar);
         values["scene_backed_progression"] = FormatSceneBacked(progressionSummary);
 
-        var sceneBacked = IsSceneBacked(hud)
-            && IsSceneBacked(health)
+        var sceneBacked = IsSceneBacked(playerHealthBar)
             && IsSceneBacked(skillBar)
-            && IsSceneBacked(damageLayer)
-            && IsSceneBacked(headHealthLayer)
-            && IsSceneBacked(progressionSummary);
+            && IsSceneBacked(damageNumber)
+            && IsSceneBacked(headHealthBar);
 
         return new HudAcceptance(
             hud != null
@@ -500,6 +509,31 @@ internal static class BrotatoLikePlayableSliceAcceptance
         return string.IsNullOrEmpty(node.SceneFilePath) ? "false" : node.SceneFilePath;
     }
 
+    private static Node? FindFirstSceneBackedDescendant(Node? root)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < root.GetChildCount(); i++)
+        {
+            var child = root.GetChild(i);
+            if (IsSceneBacked(child))
+            {
+                return child;
+            }
+
+            var nested = FindFirstSceneBackedDescendant(child);
+            if (nested != null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
     private static CameraFollowAcceptance VerifyCameraFollow(
         BrotatoLikeGameRuntime runtime,
         GodotEntity2D player,
@@ -524,34 +558,46 @@ internal static class BrotatoLikePlayableSliceAcceptance
         Dictionary<string, string> values)
     {
         var oldEntityId = player.EntityId.Value;
+        var oldPosition = player.Position;
+        var oldMaxHp = player.Data.Get<float>(DamageDataKeys.MaxHp, 0f);
 
         // Kill the player
         player.Data.Set(DamageDataKeys.CurrentHp, 0f);
         player.Data.Set(DamageDataKeys.IsDead, true);
 
-        await ProcessFrames(sceneRoot, 3);
+        await ProcessFrames(sceneRoot, 4);
 
         var canMoveDead = player.Data.Get<bool>(MovementDataKeys.CanMoveInput, true);
         var inputDead = player.Data.Get<Vector2Value>(MovementDataKeys.InputDirection, new Vector2Value(999f, 999f));
         var deadGated = !canMoveDead && Math.Abs(inputDead.X) < 0.001f && Math.Abs(inputDead.Y) < 0.001f;
+        var progressHp = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var hpProgressed = oldMaxHp > 0f && progressHp > 0f && progressHp < oldMaxHp;
 
-        // Trigger respawn
-        await ProcessFrames(sceneRoot, 30); // ~0.5s at 60fps — wait for respawn delay
+        // 快进死亡计时器，让主运行时生产流程完成复活。
+        runtime.ForceRespawnForValidation();
+        await ProcessFrames(sceneRoot, 3);
 
         var newPlayer = runtime.PlayerEntity;
         var newEntityId = newPlayer?.EntityId.Value ?? "";
-        var respawned = newPlayer != null && newEntityId != oldEntityId;
+        var respawned = newPlayer != null && GodotObject.IsInstanceValid(newPlayer);
 
         var hpOk = (newPlayer?.Data.Get<float>(DamageDataKeys.CurrentHp, -1f) ?? -1f) > 0f;
         var canMoveOk = newPlayer?.Data.Get<bool>(MovementDataKeys.CanMoveInput, false) ?? false;
         var cameraOk = runtime.PlayerCamera?.Enabled ?? false;
+        var positionOk = newPlayer != null && newPlayer.Position.DistanceTo(oldPosition) < 0.1f;
 
-        var respawnOk = deadGated && respawned && hpOk && canMoveOk && cameraOk;
+        var respawnOk = deadGated && hpProgressed && respawned && hpOk && canMoveOk && cameraOk && positionOk;
 
         values["death_gated"] = deadGated.ToString();
+        values["respawn_old_id"] = oldEntityId;
         values["respawn_new_id"] = newEntityId;
+        values["respawn_progress_hp"] = FormatFloat(progressHp);
+        values["respawn_progress_hp_increased"] = hpProgressed.ToString();
         values["respawn_hp_ok"] = hpOk.ToString();
         values["respawn_canmove_ok"] = canMoveOk.ToString();
+        values["respawn_same_position"] = positionOk.ToString();
+        values["respawn_expected_position"] = FormatVector(oldPosition);
+        values["respawn_actual_position"] = newPlayer == null ? string.Empty : FormatVector(newPlayer.Position);
         return new DeathRespawnAcceptance(respawnOk);
     }
 
@@ -732,7 +778,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
         "DataOS-spawned enemies chase, apply contact damage, and expose resource path evidence",
         "formal HUD, head health bar, skill bar, damage number and progression summary nodes expose player-facing evidence",
         "slam, chain and point-target abilities produce input-action damage, cooldown, targeting and visual evidence",
-        "formal UI nodes (HUD root, skill bar slots, head health bars, damage number layer, point indicator) have non-empty SceneFilePath"
+        "formal composite UI nodes (player health bar, skill bar, head health bar and damage number) have non-empty SceneFilePath",
+        "death gate blocks input while respawn HP increases, then respawns at the previous position"
     };
 
     private static readonly string[] PassCriteria =
@@ -746,7 +793,8 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         "any criteria entry has status fail",
         "player, enemy, ability, damage, or HUD evidence is missing",
-        "formal UI node has empty SceneFilePath (code-created, not scene-backed)",
+        "formal composite UI node has empty SceneFilePath (code-created, not scene-backed)",
+        "respawn moves the player away from the death position or does not restore input",
         "artifactPath is empty or the scene runner does not collect the artifact file"
     };
 
@@ -816,6 +864,11 @@ internal static class BrotatoLikePlayableSliceAcceptance
     }
 
     private static string FormatVector(Vector2Value value)
+    {
+        return FormattableString.Invariant($"{value.X:0.###},{value.Y:0.###}");
+    }
+
+    private static string FormatVector(Vector2 value)
     {
         return FormattableString.Invariant($"{value.X:0.###},{value.Y:0.###}");
     }

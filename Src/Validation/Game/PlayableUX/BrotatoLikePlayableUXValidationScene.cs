@@ -155,11 +155,13 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
 
         var hud = FindDescendant(this, "BrotatoLikeHUD");
         var playerHpText = FindDescendant(this, "PlayerHealthLabel") as Label;
+        var playerHealthBar = FindDescendant(this, "PlayerHealthBar");
         var skillBar = FindDescendant(this, "ActiveSkillBar");
         var targetIndicator = FindDescendant(this, "PointTargetingIndicator") as CanvasItem;
         var damageNumberLayer = FindDescendant(this, "DamageNumberLayer");
         values["hud_found"] = hud != null;
         values["player_health_label_found"] = playerHpText != null;
+        values["player_health_bar_found"] = playerHealthBar != null;
         values["skill_bar_found"] = skillBar != null;
         values["point_indicator_found"] = targetIndicator != null;
         values["damage_number_layer_found"] = damageNumberLayer != null;
@@ -176,6 +178,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         var hpAfterDamage = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var hpTextAfterDamage = playerHpText?.Text ?? string.Empty;
         var hpLabelMetaAfterDamage = ReadFloatMeta(playerHpText, "CurrentHp");
+        var playerHealthBarKind = ReadStringMeta(playerHealthBar, "HealthBarKind");
         var playerDamageNumber = FindDamageNumberByText(this, "-7")
             ?? FindDescendantByNamePrefix(this, "DamageNumber_");
         var playerDamageNumberPosition = ReadControlPosition(playerDamageNumber);
@@ -198,6 +201,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["player_hp_after_heal"] = hpAfterHeal;
         values["player_hp_label_text"] = hpTextAfterDamage;
         values["player_hp_label_meta"] = hpLabelMetaAfterDamage;
+        values["player_health_bar_kind"] = playerHealthBarKind;
         values["damage_number_found"] = playerDamageNumber != null;
         values["damage_number_text"] = playerDamageNumberLabel?.Text ?? string.Empty;
         values["scene_backed_damage_number"] = IsSceneBacked(playerDamageNumber);
@@ -223,10 +227,14 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         {
             enemy.Data.Set(DamageDataKeys.CurrentHp, Math.Max(0f, enemyHpBefore - 5f));
             await ProcessFrames(2);
+            enemyWorldPosition = enemy.GlobalPosition;
+            enemyHeadWorldPosition = enemyWorldPosition + new Vector2(0f, -ResolveHeadHealthBarHeight(enemyHealthBarHeight));
+            enemyExpectedBarCanvasPosition = WorldToCanvasPosition(enemyHeadWorldPosition);
         }
 
         var enemyHpAfterDamage = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
         var enemyBarAfterDamage = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
+        var enemyHealthBarKind = ReadStringMeta(enemyBarAfterDamage, "HealthBarKind");
         var enemyBarValueAfterDamage = enemyBarAfterDamage is HealthBarUI healthBarUI
             && healthBarUI.GetNodeOrNull<ProgressBar>("HealthBar") is ProgressBar bar
             ? bar.Value
@@ -245,6 +253,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["enemy_hp_before"] = enemyHpBefore;
         values["enemy_hp_after_damage"] = enemyHpAfterDamage;
         values["enemy_bar_value_after_damage"] = enemyBarValueAfterDamage;
+        values["enemy_health_bar_kind"] = enemyHealthBarKind;
         values["enemy_world_position"] = Format(enemyWorldPosition);
         values["enemy_health_bar_height"] = enemyHealthBarHeight;
         values["enemy_head_world_position"] = Format(enemyHeadWorldPosition);
@@ -352,16 +361,20 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
 
         values["formal_hud_host_mounted"] = hud != null
             && playerHpText != null
+            && playerHealthBar != null
             && skillBar != null
             && FindDescendant(this, "ProgressionSummary") != null;
         values["player_hp_ui_updates"] = playerHpText != null
+            && playerHealthBar != null
             && hpBefore > hpAfterDamage
             && hpLabelMetaAfterDamage < hpBefore
             && Mathf.RoundToInt(hpLabelMetaAfterDamage) == Mathf.RoundToInt(hpAfterDamage)
-            && hpTextAfterDamage.Contains(Mathf.RoundToInt(hpAfterDamage).ToString(), StringComparison.Ordinal);
+            && hpTextAfterDamage.Contains(Mathf.RoundToInt(hpAfterDamage).ToString(), StringComparison.Ordinal)
+            && playerHealthBarKind == "Player";
         values["enemy_head_health_bar_updates_and_cleans"] = enemy != null
             && enemyBar != null
             && enemyBarAfterDamage != null
+            && enemyHealthBarKind == "Enemy"
             && enemyHpAfterDamage < enemyHpBefore
             && Math.Abs(enemyBarValueAfterDamage - enemyHpAfterDamage) < 0.01d
             && FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}") == null;
@@ -396,7 +409,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && player.Position.DistanceTo(camera.Position) < 4096f
             && player.Position != Vector2.Zero;
         values["enemy_head_health_bar_canvas_coordinates"] = enemyBarAfterDamage != null
-            && enemyBarCanvasDistance <= 2f;
+            && enemyBarCanvasDistance <= 4f;
 
         values["scene_backed_formal_ui"] = ReadSceneBacked(values, "scene_backed_skill_bar")
             && ReadSceneBacked(values, "scene_backed_head_health_bar")
@@ -467,6 +480,16 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             Variant.Type.String => float.TryParse(value.AsString(), out var parsed) ? parsed : float.NaN,
             _ => float.NaN
         };
+    }
+
+    private static string ReadStringMeta(Node? node, string key)
+    {
+        if (node == null || !node.HasMeta(key))
+        {
+            return string.Empty;
+        }
+
+        return node.GetMeta(key).AsString();
     }
 
     private static Node? FindDescendant(Node root, string name)

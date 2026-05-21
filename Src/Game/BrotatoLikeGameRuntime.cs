@@ -113,6 +113,27 @@ public partial class BrotatoLikeGameRuntime : Node
     /// </summary>
     public Camera2D? PlayerCamera => playerCamera;
 
+    /// <summary>
+    /// 玩家是否处于死亡后的复活等待阶段。
+    /// </summary>
+    public bool IsPlayerRespawning => playerEntity != null
+        && GodotObject.IsInstanceValid(playerEntity)
+        && playerEntity.Data.Get<bool>(DamageDataKeys.IsDead, false);
+
+    /// <summary>
+    /// 当前复活进度，0 到 1。
+    /// </summary>
+    public float RespawnProgress => IsPlayerRespawning
+        ? Mathf.Clamp(deathElapsedSeconds / RespawnDelaySeconds, 0f, 1f)
+        : 0f;
+
+    /// <summary>
+    /// 复活剩余秒数。
+    /// </summary>
+    public float RespawnRemainingSeconds => IsPlayerRespawning
+        ? Mathf.Max(0f, RespawnDelaySeconds - deathElapsedSeconds)
+        : 0f;
+
     /// <inheritdoc />
     public override void _Ready()
     {
@@ -168,9 +189,17 @@ public partial class BrotatoLikeGameRuntime : Node
         }
 
         // 死亡后禁止移动和输入
+        playerEntity.Data.Set(DamageDataKeys.IsDead, true);
         playerEntity.Data.Set(MovementDataKeys.CanMoveInput, false);
         playerEntity.Data.Set(MovementDataKeys.InputDirection, Vector2Value.Zero);
         deathElapsedSeconds += deltaSeconds;
+
+        var maxHp = playerEntity.Data.Get<float>(DamageDataKeys.MaxHp, 0f);
+        if (maxHp > 0f)
+        {
+            var respawnHp = maxHp * RespawnProgress;
+            playerEntity.Data.Set(DamageDataKeys.CurrentHp, respawnHp);
+        }
 
         if (deathElapsedSeconds < RespawnDelaySeconds)
         {
@@ -199,7 +228,15 @@ public partial class BrotatoLikeGameRuntime : Node
 
     private void RespawnPlayer()
     {
-        SpawnPlayer();
+        if (playerEntity == null || !GodotObject.IsInstanceValid(playerEntity))
+        {
+            SpawnPlayer();
+            return;
+        }
+
+        var state = CaptureRespawnState(playerEntity);
+        var respawned = SpawnPlayer(spawnPosition: state.Position);
+        ApplyRespawnState(respawned, state);
     }
 
     /// <inheritdoc />
@@ -465,6 +502,51 @@ public partial class BrotatoLikeGameRuntime : Node
         AbilityService.Instance.TickCooldowns(abilities, deltaSeconds);
     }
 
+    private static PlayerRespawnState CaptureRespawnState(GodotEntity2D player)
+    {
+        return new PlayerRespawnState(
+            player.Position,
+            ReadIntMeta(player, "Level", 1),
+            ReadIntMeta(player, "Experience", 0),
+            ReadIntMeta(player, "NextLevelExperience", 5));
+    }
+
+    private static void ApplyRespawnState(GodotEntity2D player, PlayerRespawnState state)
+    {
+        player.Position = state.Position;
+        player.Data.Set(MovementDataKeys.Position, new Vector2Value(state.Position.X, state.Position.Y));
+        player.Data.Set(MovementDataKeys.CanMoveInput, true);
+        player.Data.Set(MovementDataKeys.InputDirection, Vector2Value.Zero);
+        player.Data.Set(DamageDataKeys.IsDead, false);
+
+        var maxHp = player.Data.Get<float>(DamageDataKeys.MaxHp, 0f);
+        if (maxHp > 0f)
+        {
+            player.Data.Set(DamageDataKeys.CurrentHp, maxHp);
+        }
+
+        player.SetMeta("Level", state.Level);
+        player.SetMeta("Experience", state.Experience);
+        player.SetMeta("NextLevelExperience", state.NextLevelExperience);
+    }
+
+    private static int ReadIntMeta(Node node, string key, int fallback)
+    {
+        if (!node.HasMeta(key))
+        {
+            return fallback;
+        }
+
+        var value = node.GetMeta(key);
+        return value.VariantType switch
+        {
+            Variant.Type.Int => value.AsInt32(),
+            Variant.Type.Float => Mathf.RoundToInt(value.AsSingle()),
+            Variant.Type.String => int.TryParse(value.AsString(), out var parsed) ? parsed : fallback,
+            _ => fallback
+        };
+    }
+
     /// <summary>
     /// 清理当前 RuntimeSchedule 和玩家。
     /// </summary>
@@ -538,4 +620,10 @@ public partial class BrotatoLikeGameRuntime : Node
             AddChild(timerDriver);
         }
     }
+
+    private readonly record struct PlayerRespawnState(
+        Vector2 Position,
+        int Level,
+        int Experience,
+        int NextLevelExperience);
 }

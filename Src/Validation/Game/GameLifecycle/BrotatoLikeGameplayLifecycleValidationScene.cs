@@ -232,6 +232,16 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
     private static async Task TestAutoRespawn(BrotatoLikeGameRuntime runtime, GodotEntity2D oldPlayer, Dictionary<string, object?> values)
     {
         var oldEntityId = oldPlayer.EntityId.Value;
+        var respawnPosition = new Vector2(96f, -48f);
+        oldPlayer.Position = respawnPosition;
+        oldPlayer.Data.Set(MovementDataKeys.Position, new Vector2Value(respawnPosition.X, respawnPosition.Y));
+        oldPlayer.Data.Set(DamageDataKeys.CurrentHp, 0f);
+        oldPlayer.Data.Set(DamageDataKeys.IsDead, true);
+
+        await ProcessFrames(4);
+        var progressHp = oldPlayer.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var oldMaxHp = oldPlayer.Data.Get<float>(DamageDataKeys.MaxHp, 0f);
+        var hpProgressedDuringRespawn = progressHp > 0f && progressHp < oldMaxHp;
 
         // 快进死亡计时器，等待生产 _Process 调用 RespawnPlayer。
         runtime.ForceRespawnForValidation();
@@ -250,7 +260,7 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
         var newCameraEnabled = newCamera != null && GodotObject.IsInstanceValid(newCamera) && newCamera.Enabled;
         var newCameraAttached = newCamera != null && newPlayer != null && newCamera.GetParent() == newPlayer;
         var newPosition = newPlayer?.Position ?? Vector2.One * 9999f;
-        var atOrigin = Math.Abs(newPosition.X) < 0.01f && Math.Abs(newPosition.Y) < 0.01f;
+        var sameRespawnPosition = newPosition.DistanceTo(respawnPosition) < 0.1f;
         var inputNodeExists = newPlayer?.GetNodeOrNull<BrotatoLikePlayerInputComponent>("PlayerInput") != null;
         var skillNodeExists = newPlayer?.GetNodeOrNull<GodotActiveSkillInputComponent>("ActiveSkillInput") != null;
 
@@ -288,10 +298,11 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
 
         var respawnOk = respawned
             && hpRestored
+            && hpProgressedDuringRespawn
             && canMove
             && newCameraEnabled
             && newCameraAttached
-            && atOrigin
+            && sameRespawnPosition
             && inputNodeExists
             && skillNodeExists
             && inputDirectionWritten
@@ -304,10 +315,14 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
         values["respawn_entity_reference_changed"] = newPlayer != null && !ReferenceEquals(newPlayer, oldPlayer);
         values["respawn_hp"] = newHp;
         values["respawn_max_hp"] = newMaxHp;
+        values["respawn_progress_hp"] = progressHp;
+        values["respawn_progress_hp_increased"] = hpProgressedDuringRespawn;
         values["respawn_can_move"] = canMove;
         values["respawn_camera_enabled"] = newCameraEnabled;
         values["respawn_camera_attached"] = newCameraAttached;
-        values["respawn_at_origin"] = atOrigin;
+        values["respawn_expected_position"] = $"{respawnPosition.X:0.###},{respawnPosition.Y:0.###}";
+        values["respawn_actual_position"] = $"{newPosition.X:0.###},{newPosition.Y:0.###}";
+        values["respawn_same_position"] = sameRespawnPosition;
         values["respawn_input_node_exists"] = inputNodeExists;
         values["respawn_skill_node_exists"] = skillNodeExists;
         values["respawn_input_direction_written"] = inputDirectionWritten;
