@@ -65,7 +65,7 @@
 
 - `DataOS-only` 不等于可玩。`DataOS/Authoring/BrotatoLike.seed.sql` 有记录，只能说明 authoring 和 snapshot 字段存在。
 - handler 存在不等于玩家可释放。`BrotatoLikeAbilityHandlers.cs` 有执行逻辑，也可能没有装入玩家普通 loadout 或没有主场景输入验收。
-- scene 存在不等于视觉完整。`Scenes/VFX/LightningLineEffect.tscn` 已存在，但还要验证端点、生命周期、屏幕像素和节点清理。
+- scene 存在不等于视觉完整。`Scenes/VFX/LightningLineEffect.tscn` 已通过 Main artifact 验证端点、生命周期和节点清理；屏幕像素级门禁仍是可选增强。
 - runner `Input.ActionPress` 不等于真实设备 QA。真实手柄、鼠标、窗口焦点、焦点导航仍要单独验。
 - 旧 resource path 分类不等于旧功能完成。`legacyStatus` 只保证旧路径被分类，不代表可加载或可用。
 - 不要直接改 `Games/BrotatoLike/SlimeAI/` 里的框架代码。框架改动要去 `/home/slime/Code/SlimeAI/SlimeAI`，再按 submodule 流程更新游戏仓指针。
@@ -201,22 +201,29 @@ Tools/run-godot-scene.sh run res://Scenes/Main.tscn --timeout 10 --log-dir .ai-t
 Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 ```
 
-### 5.3 Chain Lightning 连线视觉是“部分恢复”，不是完成
+### 5.3 Chain Lightning 连线视觉已恢复到 headless artifact 完成状态
 
 现状：
 
 - DataOS 已有：
   - `ability_line_effect('chain_lightning', 'res://Scenes/VFX/LightningLineEffect.tscn')`
   - `Ability.LineEffectScenePath`
-- `Scenes/VFX/LightningLineEffect.tscn` 和 `Src/Game/VFX/LightningLineEffect.cs` 已存在。
-- `BrotatoLikeChainLightningHandler.SpawnLineEffect()` 会通过 `EffectTool.Spawn()` 生成 chain effect。
-- `BrotatoLikePlayableSliceAcceptance` 已把 `LineEffectScenePath` 纳入 structured evidence。
+- `Scenes/VFX/LightningLineEffect.tscn` 和 `Src/Game/VFX/LightningLineEffect.cs` 已存在，并设置非零 Line2D width/color。
+- `BrotatoLikeGameRuntime` 常驻 `GodotProjectileEffectSpawner` 与游戏侧 `BrotatoLikeChainLightningVfxBinder`。
+- `BrotatoLikeChainLightningHandler.SpawnLineEffect()` 会通过 `EffectTool.Spawn()` 生成 finite-duration chain effect。
+- `BrotatoLikeChainLightningVfxBinder` 从 Runtime effect typed `SourceEntity / TargetEntity` 读取端点，调用 `LightningLineEffect.SetLine(from, to)`，并通过销毁 effect entity 触发通用 spawner 清理节点。
+- `BrotatoLikePlayableSliceAcceptance` 已把 `LineEffectScenePath`、source/target ids、start/end world positions、Line2D local/world points、duration 和 cleanup 纳入 structured evidence。
 
-缺什么：
+已验证：
 
-- `LightningLineEffect.SetLine(from, to)` 当前没有从通用 spawner 传入端点的证据。
-- `GodotProjectileEffectSpawner` 目前按 `EffectDataKeys.Position` 放节点并播放 `AnimatedSprite2D`，不会自动调用游戏侧 `LightningLineEffect.SetLine()`。
-- 还缺视觉专项：线段端点是否连接 from/target、持续时间是否合理、弹跳多段是否正确、节点是否清理、headless artifact 是否能证明非空视觉。
+- Main run `.ai-temp/scene-tests/runs/2026-05-21/15-43-35/index.json` PASS。
+- `scene-acceptance.json(status=pass)` 中 `skill.chain_line_vfx_bound / cleanup / multi_bounce` 全部通过。
+- artifact 记录 expected `3`、recorded `3`、bound `3`、cleanup `3`，scene path 为 `res://Scenes/VFX/LightningLineEffect.tscn`，duration 为 `0.2;0.2;0.2`。
+- Scene gate 已检查 `index.json`、per-scene `result.json` 和 scene artifact，`expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空；analyzer `gate-report.json` verdict `pass`。
+
+仍可增强：
+
+- 截图像素门禁、闪电材质/动画、淡出和更完整美术表现尚未做；这不再阻断当前链电连线迁移完成。
 
 关键路径：
 
@@ -229,9 +236,8 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
 
 建议拆分：
 
-- OpenSpec `restore-brotatolike-chain-lightning-line-vfx`
-- 如果只改游戏侧，可让 chain handler 或游戏侧 VFX adapter 在 effect spawned 后设置端点。
-- 如果改通用 spawner，需要设计跨游戏通用数据，不要把 `LightningLineEffect` 类型硬编码进框架。
+- OpenSpec `restore-brotatolike-chain-lightning-line-vfx` 已完成实现与验证，后续应归档到 baseline。
+- 如果未来要上提通用端点数据，需要另开框架级 change；不要把 `LightningLineEffect` 类型硬编码进框架。
 
 ## 6. P1 接手项：商店、道具、升级选择和 meta progression 还没迁
 
@@ -428,8 +434,8 @@ Tools/analyze-godot-scene-logs.sh --run-dir <new-main-run-dir>
    - 目标：重跑 release-batch，修复 Progression/PlayableUX blocker，更新 gate evidence。
 2. `validate-brotatolike-dash-main-skill`
    - 目标：玩家真实技能栏触发 Dash，验证位移、冷却、暂停/复活交互。
-3. `restore-brotatolike-chain-lightning-line-vfx`
-   - 目标：链电线段端点、生命周期、视觉和清理专项验收。
+3. `restore-brotatolike-chain-lightning-line-vfx`（已完成；等待归档）
+   - 结果：链电线段端点、生命周期、多段弹跳和清理专项验收已由 Main artifact 覆盖。
 4. `expand-brotatolike-skill-loadout`
    - 目标：设计剩余技能进入局内体验的方式，并补技能栏/选择 UI。
 5. `validate-brotatolike-projectile-and-passive-skills`

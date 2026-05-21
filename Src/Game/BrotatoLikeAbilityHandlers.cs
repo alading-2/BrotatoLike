@@ -792,8 +792,14 @@ public sealed class BrotatoLikeChainLightningHandler : IFeatureHandler
             EntityId = new EntityId($"{cast.Ability.EntityId}.chain-effect.{Guid.NewGuid():N}"),
             ScenePath = scenePath,
             Position = target.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero),
-            Duration = -1f
+            Duration = ResolveLineEffectDuration(cast.Ability)
         });
+    }
+
+    private static float ResolveLineEffectDuration(IEntity ability)
+    {
+        var chainDelay = ability.Data.Get<float>(AbilityDataKeys.ChainDelay, 0.2f);
+        return Math.Max(0.05f, chainDelay);
     }
 
     private static IEntity? FindNearestEnemy(IEntity caster, Vector2Value origin, float range, HashSet<EntityId> excludedIds)

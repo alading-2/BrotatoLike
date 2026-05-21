@@ -6,7 +6,7 @@
 
 | 场景路径 | 能力 | expectedInputs | expectedObservations | passCriteria | failCriteria | artifactPath |
 |---|---|---|---|---|---|---|
-| `res://Scenes/Main.tscn` | Game/Main playable slice | `GODOT_SCENE_TEST_ARTIFACT_DIR`、DataOS snapshot、确定性 MoveRight/MoveUp 输入 | 玩家输入与位置变化、DataOS 敌人追逐和接触伤害、slam/chain ability 与 HUD 证据 | stdout 含 `BrotatoLike playable slice PASS`、artifact `status: pass`、`failureReasons` 为空 | stdout 含 `BrotatoLike playable slice FAIL`、任一 criteria 失败或标准答案字段缺失 | `artifacts/scene-acceptance.json` |
+| `res://Scenes/Main.tscn` | Game/Main playable slice | `GODOT_SCENE_TEST_ARTIFACT_DIR`、DataOS snapshot、确定性 MoveRight/MoveUp 输入 | 玩家输入与位置变化、DataOS 敌人追逐和接触伤害、slam/chain ability、Chain Lightning Line2D 端点/清理与 HUD 证据 | stdout 含 `BrotatoLike playable slice PASS`、artifact `status: pass`、`failureReasons` 为空，`skill.chain_line_vfx_bound / cleanup / multi_bounce` 通过 | stdout 含 `BrotatoLike playable slice FAIL`、任一 criteria 失败或标准答案字段缺失 | `artifacts/scene-acceptance.json` |
 | `res://Scenes/Main.tscn --gameos-smoke-exit` | Game/Main smoke | smoke 命令行参数、Main smoke probes、workspace SlimeAI.GameOS project reference | Runtime core、GodotBridge、Pool、DataOS、Ability、Projectile、Effect、AI、Attack、input probes 通过 | stdout 含 `BrotatoLike GameOS smoke PASS`、`scene-smoke.json` 与 `eventbus-dump.json` 被收集 | stdout 含 `BrotatoLike GameOS smoke FAIL`、任一 probe 失败或标准答案字段缺失 | `artifacts/scene-smoke.json` |
 | `res://Src/Validation/Game/UnitComposition/BrotatoLikeUnitCompositionValidation.tscn` | Game/UnitComposition | BrotatoLikeGameRuntime、DataOS unit.player/unit.enemy records、BrotatoLikeUnitProfiles、Godot process frames | 玩家 profile 保留游戏侧输入/技能 adapter、真实 process 输入移动、敌人 AIControlled 追逐、动画播放、contact damage bridge | stdout 含 `BrotatoLike UnitComposition validation PASS`、artifact `status: pass`、`failureReasons` 为空 | stdout 含 `BrotatoLike UnitComposition validation FAIL`、任一 player/enemy/process/animation/contact check 失败或标准答案字段缺失 | `artifacts/brotatolike-unit-composition-validation.json` |
 | `res://Src/Validation/Game/Input/BrotatoLikeInputEventValidation.tscn` | Game/Input | 玩家输入事件、BrotatoLike 输入 adapter、主动技能输入 adapter | 输入事件桥接到 game-side EventBus、移动方向写入、技能切换与触发可验证 | stdout 含 `BrotatoLike Game Input validation PASS`、artifact `status: pass`、`failureReasons` 为空、标准答案字段非空 | stdout 含 `BrotatoLike Game Input validation FAIL`、artifact `status: fail` 或标准答案字段缺失 | `artifacts/brotatolike-input-event-validation.json` |
@@ -16,6 +16,13 @@
 | `res://Src/Validation/Game/LegacyResources/BrotatoLikeLegacyResourceClassificationValidation.tscn` | Game/Legacy resource classification | DataOS snapshot `resources[]`、`legacyStatus`、Godot `ResourceLoader.Exists` active resource check | 旧 `res://Src/...` / `res://Data/...` 路径全部分类，missing legacy path 不可 active，输出 legacy counts | stdout 含 `BrotatoLike Legacy Resource Classification validation PASS`、artifact `status: pass`、`unsupportedStatusCount=0`、`missingActiveLegacyCount=0` | unsupported `legacyStatus`、missing old path 仍被标记 active、artifact 标准答案字段缺失 | `artifacts/brotatolike-legacy-resource-classification-validation.json` |
 
 ## 最新证据
+
+2026-05-21 `restore-brotatolike-chain-lightning-line-vfx`：
+
+- Main playable：`.ai-temp/scene-tests/runs/2026-05-21/15-43-35/index.json`，artifact `scene-acceptance.json` 为 `status=pass`、`failureReasons=[]`；新增 `skill.chain_line_vfx_bound / cleanup / multi_bounce` 全部通过。
+- Chain Lightning line VFX evidence：artifact 记录 expected `3`、recorded `3`、bound `3`、cleanup `3`，scene path 为 `res://Scenes/VFX/LightningLineEffect.tscn`，source/target 为 `player-deluyi->spawn-chailangren-1;spawn-chailangren-1->spawn-chailangren-2;spawn-chailangren-2->spawn-yuren-3`，Line2D local points 和 world points 与 start/end positions 匹配，duration 为 `0.2;0.2;0.2`。
+- Analyzer：`.ai-temp/scene-tests/runs/2026-05-21/15-43-35/gate-report.json` verdict `pass`。
+- Scene gate 手动检查：本次 run 的 `index.json`、per-scene `result.json` 和 scene artifact 均通过，artifact `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。
 
 2026-05-21 `validate-brotatolike-dash-main-skill`：
 

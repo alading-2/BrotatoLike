@@ -2,6 +2,7 @@ using System;
 using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Progression;
 using BrotatoLike.Game.UI;
+using BrotatoLike.Game.VFX;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Damage;
@@ -25,6 +26,8 @@ public partial class BrotatoLikeGameRuntime : Node
     private SystemConfig? spawnScheduleConfig;
     private GodotMovementDriver? movementDriver;
     private GameOSTimerDriver? timerDriver;
+    private GodotProjectileEffectSpawner? projectileEffectSpawner;
+    private BrotatoLikeChainLightningVfxBinder? chainLightningVfxBinder;
     private GodotEntity2D? playerEntity;
     private BrotatoLikeHud? hud;
     private BrotatoLikeTargetingController? targetingController;
@@ -87,6 +90,11 @@ public partial class BrotatoLikeGameRuntime : Node
     /// 当前 Movement Driver。
     /// </summary>
     public GodotMovementDriver? MovementDriver => movementDriver;
+
+    /// <summary>
+    /// 链电 VFX 端点绑定器。
+    /// </summary>
+    public BrotatoLikeChainLightningVfxBinder? ChainLightningVfxBinder => chainLightningVfxBinder;
 
     /// <summary>
     /// 正式 HUD。
@@ -571,6 +579,20 @@ public partial class BrotatoLikeGameRuntime : Node
             timerDriver = null;
         }
 
+        if (chainLightningVfxBinder != null)
+        {
+            chainLightningVfxBinder.Unsubscribe();
+            chainLightningVfxBinder.QueueFree();
+            chainLightningVfxBinder = null;
+        }
+
+        if (projectileEffectSpawner != null)
+        {
+            projectileEffectSpawner.Unsubscribe();
+            projectileEffectSpawner.QueueFree();
+            projectileEffectSpawner = null;
+        }
+
         if (hud != null)
         {
             hud.QueueFree();
@@ -619,6 +641,18 @@ public partial class BrotatoLikeGameRuntime : Node
         {
             timerDriver = new GameOSTimerDriver { Name = "TimerDriver" };
             AddChild(timerDriver);
+        }
+
+        if (projectileEffectSpawner == null || !GodotObject.IsInstanceValid(projectileEffectSpawner))
+        {
+            projectileEffectSpawner = new GodotProjectileEffectSpawner { Name = "ProjectileEffectSpawner" };
+            AddChild(projectileEffectSpawner);
+        }
+
+        if (chainLightningVfxBinder == null || !GodotObject.IsInstanceValid(chainLightningVfxBinder))
+        {
+            chainLightningVfxBinder = new BrotatoLikeChainLightningVfxBinder { Name = "ChainLightningVfxBinder" };
+            AddChild(chainLightningVfxBinder);
         }
     }
 

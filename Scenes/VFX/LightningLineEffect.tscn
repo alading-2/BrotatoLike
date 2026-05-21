@@ -3,4 +3,6 @@
 [ext_resource type="Script" path="res://Src/Game/VFX/LightningLineEffect.cs" id="1"]
 
 [node name="LightningLineEffect" type="Line2D"]
+width = 4.0
+default_color = Color(0.35, 0.85, 1, 0.9)
 script = ExtResource("1")

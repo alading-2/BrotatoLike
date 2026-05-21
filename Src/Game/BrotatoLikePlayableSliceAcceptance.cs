@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using BrotatoLike.Game.Bridge;
+using BrotatoLike.Game.VFX;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Attack;
@@ -99,6 +100,9 @@ internal static class BrotatoLikePlayableSliceAcceptance
             AddCheck(checks, failureReasons, "skill.chain_target_selected", skills.ChainTargetSelected);
             AddCheck(checks, failureReasons, "skill.chain_hit", skills.ChainHit);
             AddCheck(checks, failureReasons, "skill.chain_structured_evidence", skills.ChainStructuredEvidence);
+            AddCheck(checks, failureReasons, "skill.chain_line_vfx_bound", skills.ChainLineVfxBound);
+            AddCheck(checks, failureReasons, "skill.chain_line_vfx_cleanup", skills.ChainLineVfxCleanup);
+            AddCheck(checks, failureReasons, "skill.chain_line_vfx_multi_bounce", skills.ChainLineVfxMultiBounce);
             AddCheck(checks, failureReasons, "skill.point_targeting_started", skills.PointTargetingStarted);
             AddCheck(checks, failureReasons, "skill.point_targeting_confirmed", skills.PointTargetingConfirmed);
             AddCheck(checks, failureReasons, "skill.real_input_action_path", skills.RealInputActionPath);
@@ -323,18 +327,38 @@ internal static class BrotatoLikePlayableSliceAcceptance
 
         AbilityService.Instance.TickCooldowns([slam], slamCooldown + 0.1f);
 
+        var expectedChainBounces = Math.Max(1, chain.Data.Get<int>(AbilityDataKeys.ChainCount, 1));
+        var chainTargets = PrepareChainTargets(enemies.Enemies, playerPosition, expectedChainBounces, values);
+        if (chainTargets.Count > 0)
+        {
+            target = chainTargets[0];
+        }
+
         await PressAction(sceneRoot, "NextSkill");
         var currentIndex = player.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
         AbilityTargetingTool.TryBuildContext(player, chain, out var chainContext);
         var chainHpBefore = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
+        var chainLineRecordsBefore = runtime.ChainLightningVfxBinder?.Records.Count ?? 0;
+        var chainDelay = Math.Max(0f, chain.Data.Get<float>(AbilityDataKeys.ChainDelay, 0f));
         await PressAction(sceneRoot, "UseSkill");
-        TimerManager.Instance.Tick(chain.Data.Get<float>(AbilityDataKeys.ChainDelay, 0f) + 0.05f);
-        await ProcessFrames(sceneRoot, 2);
+        for (var i = 1; i < expectedChainBounces; i++)
+        {
+            TimerManager.Instance.Tick(chainDelay + 0.05f);
+            await ProcessFrames(sceneRoot, 2);
+        }
+
         var chainHpAfter = target.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var chainCooldown = chain.Data.Get<float>(AbilityDataKeys.CooldownRemaining, 0f);
         var chainReport = inputComponent.LastTriggerReport;
         await PressAction(sceneRoot, "UseSkill");
         var chainCooldownReport = inputComponent.LastTriggerReport;
+        TimerManager.Instance.Tick(Math.Max(0.05f, chain.Data.Get<float>(AbilityDataKeys.ChainDelay, 0.2f)) + 0.05f);
+        await ProcessFrames(sceneRoot, 2);
+        var chainLineVfx = CaptureChainLineVfxEvidence(
+            runtime.ChainLightningVfxBinder,
+            chainLineRecordsBefore,
+            expectedChainBounces,
+            values);
 
         AbilityService.Instance.TickCooldowns([chain], chainCooldown + 0.1f);
         await PressAction(sceneRoot, "NextSkill");
@@ -391,12 +415,122 @@ internal static class BrotatoLikePlayableSliceAcceptance
             ChainTargetSelected: chainContext?.Targets != null && chainContext.Targets.Count > 0,
             ChainHit: chainHpAfter < chainHpBefore,
             ChainStructuredEvidence: chainHpAfter < chainHpBefore && !string.IsNullOrWhiteSpace(chain.Data.Get(AbilityDataKeys.LineEffectScenePath, string.Empty)),
+            ChainLineVfxBound: chainLineVfx.Bound,
+            ChainLineVfxCleanup: chainLineVfx.Cleanup,
+            ChainLineVfxMultiBounce: chainLineVfx.MultiBounce,
             PointTargetingStarted: pointTargetingStarted && Math.Abs(pointCooldownAfterStart - pointCooldownBeforeStart) < 0.001f,
             PointTargetingConfirmed: pointReport?.Result == AbilityTriggerResult.Success
                 && pointCooldownAfterConfirm > 0f
                 && pointHpAfter < pointHpBefore,
             RealInputActionPath: true,
             CurrentSkillName: point.Data.Get(AbilityDataKeys.Name, point.EntityId.Value));
+    }
+
+    private static List<GodotEntity2D> PrepareChainTargets(
+        IReadOnlyList<GodotEntity2D> enemies,
+        Vector2Value playerPosition,
+        int expectedCount,
+        Dictionary<string, string> values)
+    {
+        var targets = new List<GodotEntity2D>();
+        var preparedCount = Math.Min(expectedCount, enemies.Count);
+        for (var i = 0; i < enemies.Count; i++)
+        {
+            var enemy = enemies[i];
+            var position = i < preparedCount
+                ? playerPosition + new Vector2Value(24f + (i * 72f), 0f)
+                : playerPosition + new Vector2Value(1200f + (i * 80f), 0f);
+            enemy.Data.Set(MovementDataKeys.Position, position);
+            enemy.Data.Set(DamageDataKeys.IsDead, false);
+            enemy.Data.Set(DamageDataKeys.CurrentHp, 200f);
+            enemy.Position = new Vector2(position.X, position.Y);
+            if (i < preparedCount)
+            {
+                targets.Add(enemy);
+            }
+        }
+
+        values["skill_chain_prepared_targets"] = string.Join(",", targets.ConvertAll(target => target.EntityId.Value));
+        return targets;
+    }
+
+    private static ChainLineVfxAcceptance CaptureChainLineVfxEvidence(
+        BrotatoLikeChainLightningVfxBinder? binder,
+        int startIndex,
+        int expectedCount,
+        Dictionary<string, string> values)
+    {
+        var records = new List<BrotatoLikeChainLightningLineVfxRecord>();
+        if (binder != null)
+        {
+            for (var i = Math.Max(0, startIndex); i < binder.Records.Count; i++)
+            {
+                records.Add(binder.Records[i]);
+            }
+        }
+
+        var boundCount = 0;
+        var cleanupCount = 0;
+        var scenePaths = new List<string>();
+        var sourceTargets = new List<string>();
+        var starts = new List<string>();
+        var ends = new List<string>();
+        var points = new List<string>();
+        var worldPoints = new List<string>();
+        var durations = new List<string>();
+        var cleanup = new List<string>();
+        var failures = new List<string>();
+
+        for (var i = 0; i < records.Count; i++)
+        {
+            var record = records[i];
+            if (record.Bound)
+            {
+                boundCount++;
+            }
+
+            if (record.CleanupObserved && !record.NodeRegisteredAfterCleanup)
+            {
+                cleanupCount++;
+            }
+
+            scenePaths.Add(record.ScenePath);
+            sourceTargets.Add($"{record.SourceEntityId.Value}->{record.TargetEntityId.Value}");
+            starts.Add(FormatVector(record.StartPosition));
+            ends.Add(FormatVector(record.EndPosition));
+            durations.Add(FormatFloat(record.DurationSeconds));
+            cleanup.Add($"{record.EffectEntityId.Value}:{record.CleanupObserved}:{record.NodeRegisteredAfterCleanup}");
+            if (!string.IsNullOrWhiteSpace(record.FailureReason))
+            {
+                failures.Add($"{record.EffectEntityId.Value}:{record.FailureReason}");
+            }
+
+            points.Add(record.LocalPoints.Length >= 2
+                ? $"{FormatVector(record.LocalPoints[0])}->{FormatVector(record.LocalPoints[1])}"
+                : "missing");
+            worldPoints.Add(record.LocalPoints.Length >= 2
+                ? $"{FormatVector(record.WorldPointStart)}->{FormatVector(record.WorldPointEnd)}"
+                : "missing");
+        }
+
+        values["skill_chain_line_scene_path"] = string.Join(";", scenePaths);
+        values["skill_chain_line_expected_count"] = expectedCount.ToString(CultureInfo.InvariantCulture);
+        values["skill_chain_line_recorded_count"] = records.Count.ToString(CultureInfo.InvariantCulture);
+        values["skill_chain_line_bound_count"] = boundCount.ToString(CultureInfo.InvariantCulture);
+        values["skill_chain_line_cleanup_count"] = cleanupCount.ToString(CultureInfo.InvariantCulture);
+        values["skill_chain_line_source_targets"] = string.Join(";", sourceTargets);
+        values["skill_chain_line_start_positions"] = string.Join(";", starts);
+        values["skill_chain_line_end_positions"] = string.Join(";", ends);
+        values["skill_chain_line_points"] = string.Join(";", points);
+        values["skill_chain_line_world_points"] = string.Join(";", worldPoints);
+        values["skill_chain_line_durations"] = string.Join(";", durations);
+        values["skill_chain_line_cleanup"] = string.Join(";", cleanup);
+        values["skill_chain_line_failures"] = string.Join(";", failures);
+
+        return new ChainLineVfxAcceptance(
+            Bound: records.Count >= expectedCount && boundCount >= expectedCount,
+            Cleanup: records.Count >= expectedCount && cleanupCount >= expectedCount,
+            MultiBounce: expectedCount > 1 && records.Count >= expectedCount);
     }
 
     private static EnemyCleanupAcceptance VerifyDeathAndCleanup(
@@ -778,6 +912,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
         "DataOS-spawned enemies chase, apply contact damage, and expose resource path evidence",
         "formal HUD, head health bar, skill bar, damage number and progression summary nodes expose player-facing evidence",
         "slam, chain and point-target abilities produce input-action damage, cooldown, targeting and visual evidence",
+        "chain lightning line VFX records scene path, source/target ids, start/end world positions, Line2D points, duration and cleanup evidence for each bounce",
         "formal composite UI nodes (player health bar, skill bar, head health bar and damage number) have non-empty SceneFilePath",
         "death gate blocks input while respawn HP increases, then respawns at the previous position"
     };
@@ -793,6 +928,7 @@ internal static class BrotatoLikePlayableSliceAcceptance
     {
         "any criteria entry has status fail",
         "player, enemy, ability, damage, or HUD evidence is missing",
+        "chain lightning line VFX is missing, unbound, not multi-bounce, or not cleaned up",
         "formal composite UI node has empty SceneFilePath (code-created, not scene-backed)",
         "respawn moves the player away from the death position or does not restore input",
         "artifactPath is empty or the scene runner does not collect the artifact file"
@@ -905,13 +1041,18 @@ internal readonly record struct SkillAcceptance(
     bool ChainTargetSelected,
     bool ChainHit,
     bool ChainStructuredEvidence,
+    bool ChainLineVfxBound,
+    bool ChainLineVfxCleanup,
+    bool ChainLineVfxMultiBounce,
     bool PointTargetingStarted,
     bool PointTargetingConfirmed,
     bool RealInputActionPath,
     string CurrentSkillName)
 {
-    public static SkillAcceptance Empty => new(false, false, false, false, false, false, false, false, false, false, false, false, string.Empty);
+    public static SkillAcceptance Empty => new(false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, string.Empty);
 }
+
+internal readonly record struct ChainLineVfxAcceptance(bool Bound, bool Cleanup, bool MultiBounce);
 
 internal readonly record struct EnemyCleanupAcceptance(bool DeathObserved, bool CleanupQueued);
 
