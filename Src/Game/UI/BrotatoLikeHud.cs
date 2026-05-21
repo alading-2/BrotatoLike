@@ -16,6 +16,9 @@ namespace BrotatoLike.Game.UI;
 /// </summary>
 public partial class BrotatoLikeHud : CanvasLayer
 {
+    private const float DefaultHeadHealthBarHeight = 36f;
+    private const float DamageNumberWorldYOffset = 36f;
+
     private readonly Dictionary<EntityId, HealthBarUI> headHealthBars = new();
     private readonly Dictionary<EntityId, float> lastHpByEntity = new();
     private readonly List<DamageNumberUI> activeDamageNumbers = new();
@@ -247,12 +250,18 @@ public partial class BrotatoLikeHud : CanvasLayer
 
             liveEnemyIds.Add(node.EntityId);
             var bar = EnsureHeadHealthBar(node);
+            var healthBarHeight = ResolveHeadHealthBarHeight(node.Data.Get<float>(UnitDataKeys.HealthBarHeight, 0f));
+            var headWorldPosition = node.GlobalPosition + new Vector2(0f, -healthBarHeight);
+            var canvasPosition = WorldToCanvasPosition(headWorldPosition);
             bar.BindHealth(currentHp, maxHp);
-            bar.SetWorldPosition(node.GlobalPosition);
+            bar.SetCanvasPosition(canvasPosition);
             bar.SetMeta("EntityId", node.EntityId.Value);
             bar.SetMeta("CurrentHp", currentHp);
             bar.SetMeta("MaxHp", maxHp);
             bar.SetMeta("WorldPosition", $"{node.GlobalPosition.X:0.###},{node.GlobalPosition.Y:0.###}");
+            bar.SetMeta("HeadWorldPosition", $"{headWorldPosition.X:0.###},{headWorldPosition.Y:0.###}");
+            bar.SetMeta("CanvasPosition", $"{canvasPosition.X:0.###},{canvasPosition.Y:0.###}");
+            bar.SetMeta("HealthBarHeight", healthBarHeight);
 
             TrackHpChange(node);
         }
@@ -327,16 +336,19 @@ public partial class BrotatoLikeHud : CanvasLayer
         }
 
         var position = entity.Data.Get<Vector2Value>(MovementDataKeys.Position, Vector2Value.Zero);
-        var worldPosition = new Vector2(position.X, position.Y - 36f);
+        var worldPosition = new Vector2(position.X, position.Y - DamageNumberWorldYOffset);
+        var canvasPosition = WorldToCanvasPosition(worldPosition);
         var damageNumber = damageNumberScene.Instantiate<DamageNumberUI>();
         var isHeal = hpDelta > 0f;
         damageNumber.Name = isHeal ? $"HealNumber_Player_{activeDamageNumbers.Count}" : $"DamageNumber_Enemy_{activeDamageNumbers.Count}";
-        damageNumber.ShowDamage(hpDelta, worldPosition);
         damageNumber.TreeExiting += () =>
         {
             activeDamageNumbers.Remove(damageNumber);
         };
         damageNumberLayer.AddChild(damageNumber);
+        damageNumber.ShowDamage(hpDelta, canvasPosition);
+        damageNumber.SetMeta("WorldPosition", $"{worldPosition.X:0.###},{worldPosition.Y:0.###}");
+        damageNumber.SetMeta("CanvasPosition", $"{canvasPosition.X:0.###},{canvasPosition.Y:0.###}");
         activeDamageNumbers.Add(damageNumber);
     }
 
@@ -368,5 +380,15 @@ public partial class BrotatoLikeHud : CanvasLayer
             Variant.Type.String => int.TryParse(value.AsString(), out var parsed) ? parsed : fallback,
             _ => fallback
         };
+    }
+
+    private Vector2 WorldToCanvasPosition(Vector2 worldPosition)
+    {
+        return GetViewport().GetCanvasTransform() * worldPosition;
+    }
+
+    private static float ResolveHeadHealthBarHeight(float configuredHeight)
+    {
+        return configuredHeight > 0f ? configuredHeight : DefaultHeadHealthBarHeight;
     }
 }

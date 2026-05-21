@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-21（SystemAgent integrated validation governance）
+> 更新日期：2026-05-21（lifecycle regression fix）
 
 ## 当前状态
 
@@ -8,7 +8,8 @@
 
 本轮追加：
 
-- **SystemAgent integrated validation governance**：OpenSpec change `systemagent-integrated-validation-governance` 将 BrotatoLike Godot 验证纳入 manifest / batch runner / analyzer / scene-gate 证据闭环。`DocsAI/ValidationManifest.json` 是 release-batch 权威选择源，当前包含 25 个 `releaseBatch=true` 场景；`Tools/run-godot-scene.sh run-all --manifest DocsAI/ValidationManifest.json --release-batch` 会写入结构化 `index.json`，analyzer 会写入 `gate-report.json` 并检查 README 五字段、`index.json`、per-scene `result.json`、scene artifact 五字段、manifest checks、catalog 和 freshness。GameLifecycle 已补 catalog 和新 PASS artifact；当前 release-batch 被 PlayableUX / Progression 两个 feature-slice artifact 失败阻断，详见“最新验证”。
+- **Lifecycle regression fix**：OpenSpec change `fix-brotatolike-lifecycle-regressions` 已修复 Main 运行中暴露的三条生命周期回归。复活路径通过框架 `GodotBridgeContext.DestroyEntity()` 同步注销 Runtime Entity、node registry 和 adapter registry 后再 `QueueFree()`，同 EntityId 新玩家可重新绑定 `BrotatoLikePlayerInputComponent` 与 `GodotActiveSkillInputComponent`；AI target selector 会过滤无有效 team / HP evidence 的非战斗实体，避免敌人攻击 ability-like entity；HUD 头顶血条和伤害/治疗飘字改由 `BrotatoLikeHud` 基于当前 viewport canvas transform 统一做 world-to-canvas 映射。Targeted 验证见“最新验证”。
+- **SystemAgent integrated validation governance**：OpenSpec change `systemagent-integrated-validation-governance` 将 BrotatoLike Godot 验证纳入 manifest / batch runner / analyzer / scene-gate 证据闭环。`DocsAI/ValidationManifest.json` 是 release-batch 权威选择源，当前包含 25 个 `releaseBatch=true` 场景；`Tools/run-godot-scene.sh run-all --manifest DocsAI/ValidationManifest.json --release-batch` 会写入结构化 `index.json`，analyzer 会写入 `gate-report.json` 并检查 README 五字段、`index.json`、per-scene `result.json`、scene artifact 五字段、manifest checks、catalog 和 freshness。历史 release-batch `2026-05-21/10-13-37` 被 PlayableUX / Progression 两个 feature-slice artifact 失败阻断；其中 PlayableUX 已在 `fix-brotatolike-lifecycle-regressions` targeted run 中通过，完整 release-batch 与 Progression 仍需后续重跑确认。
 - **DataOS table-first authoring**：OpenSpec change `refactor-dataos-table-authoring` 已把 BrotatoLike seed 从手写 `data_field` 业务行迁到清晰业务表：`unit_player / unit_enemy / unit_targeting_indicator / ability / ability_effect / ability_projectile / ability_movement_* / feature_definition / feature_modifier / system_config / system_preset / spawn_config`。`runtime_snapshot.json` shape 保持 `manifest / descriptors / records / resources`，unit / ability 的 `table/id/field/type/value` 归一化对比无差异（16 条记录、497 个字段行一致）；`resource_entry` 收敛为 ResourceCatalog lookup / legacy 分类面，content-owned effect/projectile/unit visual 路径改由业务表持有，snapshot resources 从 27 收敛到 18。
 - **restore-brotatolike-playable-ux**：OpenSpec change `restore-brotatolike-playable-ux` 已把审计中 P0/P1 体验缺口按 AI-first 游戏侧实现补齐到可验证状态。普通 `Scenes/Main.tscn` 现在由正式 `BrotatoLikeHUD` 暴露玩家 HP、当前技能、四槽技能栏、头顶血条、伤害/治疗飘字和 progression summary；玩家默认技能扩展为 `slam / chain_lightning / target_point_skill / dash`；`GodotActiveSkillInputComponent` 通过真实 Godot input action 触发技能，Point 目标技能进入游戏侧 `BrotatoLikeTargetingController`，确认后才调用 `AbilityService.TryTrigger`，取消/死亡会清理指示器和会话；游戏侧 `BrotatoLikeProgressionService` 记录 wave runtime state、暂停菜单、pause schedule gate、HP recovery、dead skip、经验拾取、经验/等级和 level-up 反馈；legacy `resources[]` 路径新增 `legacyStatus` 分类门禁，25 个旧 `res://Src/...` / `res://Data/...` 路径已通过分类验证。验证证据见“最新验证”。
 - **typed `EntityId` 同步（P2a）**：框架仓 OpenSpec change `refactor-runtime-entity-id-typed-value` 把 Runtime Entity 引用从 raw `string` 升级为 `readonly record struct EntityId`，所有 IEntity / RuntimeEntity / EntityManager / EntitySpawnConfig / Capability DataKey / Event payload / GodotBridge adapter 已 typed 化。BrotatoLike submodule 工作树已 rsync 同步框架最新 GameOS / Tests / SceneTests，游戏侧 `Src/Game/*.cs` 已 typed 适配（`new EntityId("...")` 字面量、`.Value` 适配 string-based registry / Relationship 调用、`HashSet<string>` 改 `HashSet<EntityId>`、`DataKey<IEntity?>` 改 `DataKey<EntityId?>`）。BrotatoLike `Tools/run-build.sh` 0 errors，`Tools/run-godot-scene.sh run-main-smoke` PASS（`BrotatoLike GameOS smoke PASS`，artifact 写到 `.ai-temp/scene-tests/runs/2026-05-15/06-34-59/`）。submodule 指针未 commit / push，仅工作树同步（默认开发期策略）。
@@ -72,7 +73,7 @@
 
 ## 下一步
 
-1. 修复当前 release-batch blocker：`BrotatoLikePlayableUXValidation` 的 `scene_backed_formal_ui`，以及 `BrotatoLikeProgressionLoopValidation` 的 `pause_menu_blocks_and_resumes_tick` / `scene_backed_pause_menu`；修复后必须重新跑 manifest release-batch 并引用新的 `gate-report.json`。
+1. 重跑 manifest release-batch 并引用新的 `gate-report.json`：`BrotatoLikePlayableUXValidation` 已在 targeted run 中通过并补齐坐标 checks，历史 release-batch 中 `BrotatoLikeProgressionLoopValidation` 的 `pause_menu_blocks_and_resumes_tick` / `scene_backed_pause_menu` 仍需后续修复或复验。
 2. 跟进 passing scenes 中的诊断 stderr：Game/Input 的 `Parameter "data.tree" is null` 和框架 UnitComposition 的 Godot RID leak；这两项当前不覆盖 artifact oracle，但不能作为“无 error”证明。
 3. 扩展剩余玩家可用技能装配与逐技能主场景体验验收：`sine_wave_shot / boomerang_throw / arc_shot / bezier_shot / parabola_shot / orbit_skill / circle_damage / aura_shield` 当前主要是 handler/smoke 证据，还没有全部成为玩家普通局内可选技能。
 4. 补 Chain Lightning 连线视觉、更多投射物/特效动画生命周期和样式验收；当前连锁伤害闭环已验证，但 `LineEffectScenePath` 仍未恢复为正式可视线效果。
@@ -80,6 +81,28 @@
 6. 继续做手动设备专项：物理手柄 LB/RB/X、摇杆、鼠标/手柄 Point target 细节和窗口焦点问题，作为自动 `Input.ActionPress` 之外的人工 QA 或专门设备测试。
 
 ## 最新验证
+
+**fix-brotatolike-lifecycle-regressions（2026-05-21）**
+
+```bash
+cd /home/slime/Code/SlimeAI/SlimeAI
+Tools/run-build.sh
+Tools/run-tests.sh
+
+cd /home/slime/Code/SlimeAI/Games/BrotatoLike
+Tools/run-build.sh
+```
+
+结果：框架 build PASS（`0 Warning(s), 0 Error(s)`）；框架 tests 全部 PASS，包含 `AI service finds nearest target`；BrotatoLike build PASS（DataOS validation PASS，`0 Warning(s), 0 Error(s)`）。
+
+Targeted Godot evidence：
+
+- AI Capability：`.ai-temp/scene-tests/runs/2026-05-21/12-37-18/index.json`，artifact `ai-capability-validation.json` 为 `status=pass`、`failureReasons=[]`，`injected_target_query_nearest_target` 选择 `ai-scene-near` 并忽略 `ai-scene-ability-entity`。
+- GameLifecycle：`.ai-temp/scene-tests/runs/2026-05-21/12-39-21/index.json`，artifact `brotatolike-gameplay-lifecycle-validation.json` 为 `status=pass`、`failureReasons=[]`，`death_auto_respawn` 记录复活后输入/技能节点存在、真实 MoveRight 写入输入并驱动位移。
+- PlayableUX：`.ai-temp/scene-tests/runs/2026-05-21/12-39-37/index.json`，artifact `brotatolike-playable-ux-validation.json` 为 `status=pass`、`failureReasons=[]`，`enemy_head_health_bar_canvas_coordinates` 与 `damage_and_heal_numbers_canvas_coordinates` 通过，飘字 canvas distance 为 0。
+- Main smoke：`.ai-temp/scene-tests/runs/2026-05-21/12-39-58/index.json`，artifact `scene-smoke.json` 为 `status=pass`、`failureReasons=[]`。
+
+Scene gate 手动检查已覆盖上述四个 run 的 `index.json`、per-scene `result.json` 和 scene artifact；artifact 中 `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 均非空。
 
 **systemagent-integrated-validation-governance（2026-05-21）**
 

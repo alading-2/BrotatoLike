@@ -13,15 +13,15 @@ public partial class DamageNumberUI : Control
     /// <inheritdoc />
     public override void _Ready()
     {
-        damageLabel = GetNode<Label>("DamageLabel");
-        animPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
+        CacheNodes();
     }
 
     /// <summary>
-    /// 绑定伤害数值、位置并播放动画。
+    /// 绑定伤害数值、CanvasLayer 内位置并播放动画。
     /// </summary>
-    public void ShowDamage(float amount, Vector2 worldPosition, bool isCrit = false)
+    public void ShowDamage(float amount, Vector2 canvasPosition, bool isCrit = false)
     {
+        CacheNodes();
         if (damageLabel == null || animPlayer == null)
         {
             return;
@@ -31,7 +31,9 @@ public partial class DamageNumberUI : Control
         damageLabel.Text = isHeal ? $"+{amount:0}" : $"{amount:0}";
         damageLabel.SetMeta("Value", amount);
         damageLabel.SetMeta("DamageType", isHeal ? "Heal" : "Damage");
-        GlobalPosition = worldPosition;
+        SetMeta("Value", amount);
+        SetMeta("DamageType", isHeal ? "Heal" : "Damage");
+        Position = canvasPosition;
 
         var animName = isCrit ? "float_up_crit" : "float_up";
         if (animPlayer.HasAnimation(animName))
@@ -54,5 +56,11 @@ public partial class DamageNumberUI : Control
         }
 
         QueueFree();
+    }
+
+    private void CacheNodes()
+    {
+        damageLabel ??= GetNodeOrNull<Label>("DamageLabel");
+        animPlayer ??= GetNodeOrNull<AnimationPlayer>("AnimationPlayer");
     }
 }

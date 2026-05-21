@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using BrotatoLike.Game;
+using BrotatoLike.Game.Bridge;
 using BrotatoLike.Game.Events;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
@@ -250,8 +251,52 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
         var newCameraAttached = newCamera != null && newPlayer != null && newCamera.GetParent() == newPlayer;
         var newPosition = newPlayer?.Position ?? Vector2.One * 9999f;
         var atOrigin = Math.Abs(newPosition.X) < 0.01f && Math.Abs(newPosition.Y) < 0.01f;
+        var inputNodeExists = newPlayer?.GetNodeOrNull<BrotatoLikePlayerInputComponent>("PlayerInput") != null;
+        var skillNodeExists = newPlayer?.GetNodeOrNull<GodotActiveSkillInputComponent>("ActiveSkillInput") != null;
 
-        var respawnOk = respawned && hpRestored && canMove && newCameraEnabled && newCameraAttached && atOrigin;
+        var inputDirectionWritten = false;
+        var movedAfterInput = false;
+        var skillAdapterSwitches = false;
+        if (newPlayer != null)
+        {
+            Input.ActionRelease("MoveRight");
+            await ProcessFrames(1);
+            var beforeInputPosition = newPlayer.Position;
+            Input.ActionPress("MoveRight");
+            await ProcessFrames(12);
+            var inputAfterPress = newPlayer.Data.Get<Vector2Value>(MovementDataKeys.InputDirection, Vector2Value.Zero);
+            var afterInputPosition = newPlayer.Position;
+            Input.ActionRelease("MoveRight");
+            await ProcessFrames(2);
+
+            inputDirectionWritten = inputAfterPress.X > 0.5f && Math.Abs(inputAfterPress.Y) < 0.01f;
+            movedAfterInput = afterInputPosition.X > beforeInputPosition.X + 0.5f;
+
+            var ownedIds = newPlayer.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
+            var skillIndexBefore = newPlayer.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+            newPlayer.Events.Publish(new InputNextSkill(newPlayer));
+            var skillIndexAfter = newPlayer.Data.Get<int>(AbilityDataKeys.CurrentAbilityIndex, 0);
+            skillAdapterSwitches = ownedIds.Count > 1 && skillIndexAfter != skillIndexBefore;
+
+            values["respawn_input_direction_x"] = inputAfterPress.X;
+            values["respawn_input_direction_y"] = inputAfterPress.Y;
+            values["respawn_position_before_input"] = $"{beforeInputPosition.X:0.###},{beforeInputPosition.Y:0.###}";
+            values["respawn_position_after_input"] = $"{afterInputPosition.X:0.###},{afterInputPosition.Y:0.###}";
+            values["respawn_skill_index_before"] = skillIndexBefore;
+            values["respawn_skill_index_after"] = skillIndexAfter;
+        }
+
+        var respawnOk = respawned
+            && hpRestored
+            && canMove
+            && newCameraEnabled
+            && newCameraAttached
+            && atOrigin
+            && inputNodeExists
+            && skillNodeExists
+            && inputDirectionWritten
+            && movedAfterInput
+            && skillAdapterSwitches;
 
         values["death_auto_respawn"] = respawnOk;
         values["respawn_new_entity_id"] = newEntityId;
@@ -263,6 +308,11 @@ public partial class BrotatoLikeGameplayLifecycleValidationScene : Node
         values["respawn_camera_enabled"] = newCameraEnabled;
         values["respawn_camera_attached"] = newCameraAttached;
         values["respawn_at_origin"] = atOrigin;
+        values["respawn_input_node_exists"] = inputNodeExists;
+        values["respawn_skill_node_exists"] = skillNodeExists;
+        values["respawn_input_direction_written"] = inputDirectionWritten;
+        values["respawn_moved_after_input"] = movedAfterInput;
+        values["respawn_skill_adapter_switches"] = skillAdapterSwitches;
     }
 
     private static void TestCameraFollow(BrotatoLikeGameRuntime runtime, GodotEntity2D player, Dictionary<string, object?> values)

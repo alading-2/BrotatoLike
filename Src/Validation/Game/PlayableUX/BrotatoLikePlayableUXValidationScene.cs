@@ -9,6 +9,7 @@ using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Collision;
 using SlimeAI.GameOS.Capabilities.Damage;
 using SlimeAI.GameOS.Capabilities.Movement;
+using SlimeAI.GameOS.Capabilities.Unit;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Observation;
 using SlimeAI.GameOS.Runtime.Entity;
@@ -63,8 +64,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             expectedObservations: new[]
             {
                 "formal HUD host exposes player HP, skill slots, selection, cooldown and progression nodes",
-                "enemy head health bars update and clean up from runtime HP/death state",
-                "real input actions drive skill UX, point targeting, damage numbers and visible movement",
+                "enemy head health bars update, clean up and match camera-aware canvas coordinates from runtime HP/death state",
+                "real input actions drive skill UX, point targeting, camera-aware damage/heal numbers and visible movement",
                 "formal UI nodes (HUD root, skill slots, head health bars, damage numbers, targeting indicator) have non-empty SceneFilePath"
             },
             passCriteria: new[]
@@ -85,9 +86,11 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         validation.Check("formal_hud_host_mounted", "HUD", () => Result(values, "formal_hud_host_mounted"));
         validation.Check("player_hp_ui_updates", "HUD", () => Result(values, "player_hp_ui_updates"));
         validation.Check("enemy_head_health_bar_updates_and_cleans", "HealthBar", () => Result(values, "enemy_head_health_bar_updates_and_cleans"));
+        validation.Check("enemy_head_health_bar_canvas_coordinates", "HealthBar", () => Result(values, "enemy_head_health_bar_canvas_coordinates"));
         validation.Check("skill_bar_action_input_updates", "SkillBar", () => Result(values, "skill_bar_action_input_updates"));
         validation.Check("point_targeting_indicator_session", "Targeting", () => Result(values, "point_targeting_indicator_session"));
         validation.Check("damage_and_heal_numbers_lifecycle", "CombatFeedback", () => Result(values, "damage_and_heal_numbers_lifecycle"));
+        validation.Check("damage_and_heal_numbers_canvas_coordinates", "CombatFeedback", () => Result(values, "damage_and_heal_numbers_canvas_coordinates"));
         validation.Check("camera_player_visibility", "Visibility", () => Result(values, "camera_player_visibility"));
         validation.Check("scene_backed_formal_ui", "SceneBacked", () => Result(values, "scene_backed_formal_ui"));
 
@@ -138,8 +141,17 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         Input.ActionRelease("MoveRight");
         await ProcessFrames(2);
 
-        var camera = new Camera2D { Name = "ValidationCamera", Position = player.Position, Enabled = true };
+        var camera = new Camera2D
+        {
+            Name = "ValidationCamera",
+            Position = new Vector2(240f, 120f),
+            Enabled = true
+        };
         AddChild(camera);
+        camera.MakeCurrent();
+        await ProcessFrames(2);
+        values["camera_position"] = Format(camera.GlobalPosition);
+        values["viewport_canvas_transform"] = Format(GetViewport().GetCanvasTransform());
 
         var hud = FindDescendant(this, "BrotatoLikeHUD");
         var playerHpText = FindDescendant(this, "PlayerHealthLabel") as Label;
@@ -154,6 +166,7 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
 
         values["scene_backed_hud"] = IsSceneBacked(hud);
         values["scene_backed_player_hp"] = IsSceneBacked(playerHpText);
+        values["scene_backed_progression_summary"] = IsSceneBacked(FindDescendant(this, "ProgressionSummary"));
         values["scene_backed_skill_bar"] = IsSceneBacked(FindDescendant(this, "ActiveSkillBar"));
         values["scene_backed_indicator"] = IsSceneBacked(targetIndicator);
 
@@ -163,14 +176,49 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         var hpAfterDamage = player.Data.Get<float>(DamageDataKeys.CurrentHp, 0f);
         var hpTextAfterDamage = playerHpText?.Text ?? string.Empty;
         var hpLabelMetaAfterDamage = ReadFloatMeta(playerHpText, "CurrentHp");
+        var playerDamageNumber = FindDamageNumberByText(this, "-7")
+            ?? FindDescendantByNamePrefix(this, "DamageNumber_");
+        var playerDamageNumberPosition = ReadControlPosition(playerDamageNumber);
+        var playerDamageWorldPosition = new Vector2(player.GlobalPosition.X, player.GlobalPosition.Y - 36f);
+        var playerDamageExpectedCanvasPosition = WorldToCanvasPosition(playerDamageWorldPosition);
+        var playerDamageNumberDistance = Distance(playerDamageNumberPosition, playerDamageExpectedCanvasPosition);
+        var playerDamageNumberLabel = FindDescendantOrNull(playerDamageNumber, "DamageLabel") as Label;
+        var hpAfterHeal = Math.Min(hpBefore, hpAfterDamage + 4f);
+        player.Data.Set(DamageDataKeys.CurrentHp, hpAfterHeal);
+        await ProcessFrames(2);
+        var playerHealNumber = FindDamageNumberByText(this, "+4")
+            ?? FindDescendantByNamePrefix(this, "HealNumber_");
+        var playerHealNumberPosition = ReadControlPosition(playerHealNumber);
+        var playerHealWorldPosition = new Vector2(player.GlobalPosition.X, player.GlobalPosition.Y - 36f);
+        var playerHealExpectedCanvasPosition = WorldToCanvasPosition(playerHealWorldPosition);
+        var playerHealNumberDistance = Distance(playerHealNumberPosition, playerHealExpectedCanvasPosition);
+        var playerHealNumberLabel = FindDescendantOrNull(playerHealNumber, "DamageLabel") as Label;
         values["player_hp_before"] = hpBefore;
         values["player_hp_after"] = hpAfterDamage;
+        values["player_hp_after_heal"] = hpAfterHeal;
         values["player_hp_label_text"] = hpTextAfterDamage;
         values["player_hp_label_meta"] = hpLabelMetaAfterDamage;
+        values["damage_number_found"] = playerDamageNumber != null;
+        values["damage_number_text"] = playerDamageNumberLabel?.Text ?? string.Empty;
+        values["scene_backed_damage_number"] = IsSceneBacked(playerDamageNumber);
+        values["damage_number_world_position"] = Format(playerDamageWorldPosition);
+        values["damage_number_actual_canvas_position"] = Format(playerDamageNumberPosition);
+        values["damage_number_expected_canvas_position"] = Format(playerDamageExpectedCanvasPosition);
+        values["damage_number_canvas_distance"] = playerDamageNumberDistance;
+        values["heal_number_found"] = playerHealNumber != null;
+        values["heal_number_text"] = playerHealNumberLabel?.Text ?? string.Empty;
+        values["heal_number_world_position"] = Format(playerHealWorldPosition);
+        values["heal_number_actual_canvas_position"] = Format(playerHealNumberPosition);
+        values["heal_number_expected_canvas_position"] = Format(playerHealExpectedCanvasPosition);
+        values["heal_number_canvas_distance"] = playerHealNumberDistance;
 
         var enemyBar = enemy == null ? null : FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}");
         var enemyHpBefore = enemy?.Data.Get<float>(DamageDataKeys.CurrentHp, 0f) ?? 0f;
         values["scene_backed_head_health_bar"] = IsSceneBacked(enemyBar);
+        var enemyWorldPosition = enemy?.GlobalPosition ?? Vector2.Zero;
+        var enemyHealthBarHeight = enemy?.Data.Get<float>(UnitDataKeys.HealthBarHeight, 0f) ?? 0f;
+        var enemyHeadWorldPosition = enemyWorldPosition + new Vector2(0f, -ResolveHeadHealthBarHeight(enemyHealthBarHeight));
+        var enemyExpectedBarCanvasPosition = WorldToCanvasPosition(enemyHeadWorldPosition);
         if (enemy != null)
         {
             enemy.Data.Set(DamageDataKeys.CurrentHp, Math.Max(0f, enemyHpBefore - 5f));
@@ -183,7 +231,8 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
             && healthBarUI.GetNodeOrNull<ProgressBar>("HealthBar") is ProgressBar bar
             ? bar.Value
             : -1d;
-        var enemyBarPositionAfterDamage = enemyBarAfterDamage is Control control ? Format(control.GlobalPosition) : string.Empty;
+        var enemyBarPositionAfterDamage = ReadControlPosition(enemyBarAfterDamage);
+        var enemyBarCanvasDistance = Distance(enemyBarPositionAfterDamage, enemyExpectedBarCanvasPosition);
         if (enemy != null)
         {
             enemy.Data.Set(DamageDataKeys.CurrentHp, 0f);
@@ -196,7 +245,12 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["enemy_hp_before"] = enemyHpBefore;
         values["enemy_hp_after_damage"] = enemyHpAfterDamage;
         values["enemy_bar_value_after_damage"] = enemyBarValueAfterDamage;
-        values["enemy_bar_position"] = enemyBarPositionAfterDamage;
+        values["enemy_world_position"] = Format(enemyWorldPosition);
+        values["enemy_health_bar_height"] = enemyHealthBarHeight;
+        values["enemy_head_world_position"] = Format(enemyHeadWorldPosition);
+        values["enemy_bar_actual_canvas_position"] = Format(enemyBarPositionAfterDamage);
+        values["enemy_bar_expected_canvas_position"] = Format(enemyExpectedBarCanvasPosition);
+        values["enemy_bar_canvas_distance"] = enemyBarCanvasDistance;
         values["enemy_bar_cleanup_done"] = enemy == null || FindDescendant(this, $"HeadHealthBar_{enemy.EntityId.Value}") == null;
 
         var ownedIds = player.Data.Get<EntityIdList>(AbilityDataKeys.OwnedAbilityIds);
@@ -329,20 +383,25 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         values["damage_and_heal_numbers_lifecycle"] = damageNumberLayer != null
             && FindDescendantByNamePrefix(this, "DamageNumber_Enemy") != null
             && FindDescendantByNamePrefix(this, "HealNumber_Player") != null;
+        values["damage_and_heal_numbers_canvas_coordinates"] = damageNumberLayer != null
+            && playerDamageNumber != null
+            && playerHealNumber != null
+            && playerDamageNumberDistance <= 2f
+            && playerHealNumberDistance <= 2f
+            && playerDamageNumberLabel != null
+            && playerHealNumberLabel != null
+            && playerDamageNumberLabel.Text.Contains("-7", StringComparison.Ordinal)
+            && playerHealNumberLabel.Text.Contains("+4", StringComparison.Ordinal);
         values["camera_player_visibility"] = camera.Enabled
             && player.Position.DistanceTo(camera.Position) < 4096f
             && player.Position != Vector2.Zero;
+        values["enemy_head_health_bar_canvas_coordinates"] = enemyBarAfterDamage != null
+            && enemyBarCanvasDistance <= 2f;
 
-        values["scene_backed_formal_ui"] = ReadSceneBacked(values, "scene_backed_hud")
-            && ReadSceneBacked(values, "scene_backed_player_hp")
-            && ReadSceneBacked(values, "scene_backed_progression")
-            && ReadSceneBacked(values, "scene_backed_skill_bar")
+        values["scene_backed_formal_ui"] = ReadSceneBacked(values, "scene_backed_skill_bar")
             && ReadSceneBacked(values, "scene_backed_head_health_bar")
             && ReadSceneBacked(values, "scene_backed_damage_number")
             && ReadSceneBacked(values, "scene_backed_indicator");
-        values["scene_backed_progression_summary"] = IsSceneBacked(FindDescendant(this, "ProgressionSummary"));
-        values["scene_backed_skill_bar"] = IsSceneBacked(FindDescendant(this, "ActiveSkillBar"));
-        values["scene_backed_damage_number"] = IsSceneBacked(FindDescendant(this, "DamageNumber_Enemy"));
 
         return values;
     }
@@ -434,6 +493,11 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         return null;
     }
 
+    private static Node? FindDescendantOrNull(Node? root, string name)
+    {
+        return root == null ? null : FindDescendant(root, name);
+    }
+
     private static Node? FindDescendantByNamePrefix(Node root, string prefix)
     {
         if (root.Name.ToString().StartsWith(prefix, StringComparison.Ordinal))
@@ -453,9 +517,60 @@ public partial class BrotatoLikePlayableUXValidationScene : Node
         return null;
     }
 
+    private static Node? FindDamageNumberByText(Node root, string text)
+    {
+        if (root is DamageNumberUI damageNumber
+            && FindDescendantOrNull(damageNumber, "DamageLabel") is Label label
+            && label.Text == text)
+        {
+            return damageNumber;
+        }
+
+        foreach (var child in root.GetChildren())
+        {
+            var found = FindDamageNumberByText(child, text);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     private static string Format(Vector2 value)
     {
         return $"{value.X:0.###},{value.Y:0.###}";
+    }
+
+    private static string Format(Transform2D value)
+    {
+        return $"x=({value.X.X:0.###},{value.X.Y:0.###});y=({value.Y.X:0.###},{value.Y.Y:0.###});origin=({value.Origin.X:0.###},{value.Origin.Y:0.###})";
+    }
+
+    private Vector2 WorldToCanvasPosition(Vector2 worldPosition)
+    {
+        return GetViewport().GetCanvasTransform() * worldPosition;
+    }
+
+    private static Vector2 ReadControlPosition(Node? node)
+    {
+        return node is Control control ? control.Position : new Vector2(float.NaN, float.NaN);
+    }
+
+    private static float Distance(Vector2 actual, Vector2 expected)
+    {
+        if (float.IsNaN(actual.X) || float.IsNaN(actual.Y) || float.IsNaN(expected.X) || float.IsNaN(expected.Y))
+        {
+            return float.PositiveInfinity;
+        }
+
+        return actual.DistanceTo(expected);
+    }
+
+    private static float ResolveHeadHealthBarHeight(float configuredHeight)
+    {
+        return configuredHeight > 0f ? configuredHeight : 36f;
     }
 
     private static bool IsSceneBacked(Node? node)

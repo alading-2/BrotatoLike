@@ -30,10 +30,10 @@ public partial class HealthBarUI : Control
     }
 
     /// <summary>
-    /// 设置血条世界位置，以 ProgressBar 中心对齐目标头上方。
+    /// 设置血条在 CanvasLayer 内的位置，以 ProgressBar 中心对齐目标头上方。
     /// </summary>
-    public void SetWorldPosition(Vector2 worldPosition)
+    public void SetCanvasPosition(Vector2 canvasPosition)
     {
-        Position = worldPosition + new Vector2(-50f, -36f);
+        Position = canvasPosition;
     }
 }

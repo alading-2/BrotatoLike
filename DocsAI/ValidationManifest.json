@@ -274,7 +274,7 @@
       "scope": "feature-slice",
       "tags": ["game", "playable-ux", "hud", "camera"],
       "relatedBddScenarios": ["HUD 血条跟随敌人世界位置", "飘字在正确位置显示", "镜头跟随玩家不中断"],
-      "checks": ["formal_hud_host_mounted", "player_hp_ui_updates", "enemy_head_health_bar_updates_and_cleans", "skill_bar_action_input_updates", "point_targeting_indicator_session", "damage_and_heal_numbers_lifecycle", "camera_player_visibility", "scene_backed_formal_ui"],
+      "checks": ["formal_hud_host_mounted", "player_hp_ui_updates", "enemy_head_health_bar_updates_and_cleans", "enemy_head_health_bar_canvas_coordinates", "skill_bar_action_input_updates", "point_targeting_indicator_session", "damage_and_heal_numbers_lifecycle", "damage_and_heal_numbers_canvas_coordinates", "camera_player_visibility", "scene_backed_formal_ui"],
       "artifactFilename": "brotatolike-playable-ux-validation.json",
       "catalogOwner": "game",
       "timeoutSeconds": 15,
