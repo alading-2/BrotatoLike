@@ -26,6 +26,21 @@ public enum BrotatoLikeWavePhase
     RewardShop,
 
     /// <summary>
+    /// 单局胜利终态。
+    /// </summary>
+    RunWon,
+
+    /// <summary>
+    /// 单局失败终态。
+    /// </summary>
+    RunLost,
+
+    /// <summary>
+    /// 正在重开并清理旧局状态。
+    /// </summary>
+    Restarting,
+
+    /// <summary>
     /// 正在切换到下一波。
     /// </summary>
     NextWave,

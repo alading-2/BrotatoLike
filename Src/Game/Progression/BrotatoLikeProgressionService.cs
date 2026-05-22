@@ -33,6 +33,7 @@ public partial class BrotatoLikeProgressionService : Node
     private float phaseElapsedSeconds;
     private int completedWaveIndex;
     private int defeatedCount;
+    private int restartCount;
     private BrotatoLikeWavePhase wavePhase = BrotatoLikeWavePhase.Preparing;
     private IReadOnlyList<BrotatoLikeLevelUpChoiceDefinition> pendingChoices = [];
 
@@ -211,6 +212,99 @@ public partial class BrotatoLikeProgressionService : Node
         var result = StartNextWave("validation");
         UpdateWaveState();
         return result;
+    }
+
+    /// <summary>
+    /// 进入失败终态，供完整 run lifecycle 和验证场景使用。
+    /// </summary>
+    /// <param name="reason">失败原因。</param>
+    public void EnterRunLostForValidation(string reason)
+    {
+        if (wavePhase == BrotatoLikeWavePhase.RunLost || wavePhase == BrotatoLikeWavePhase.RunWon)
+        {
+            return;
+        }
+
+        CleanupExpiredWaveEntities();
+        SetWavePhase(BrotatoLikeWavePhase.RunLost, reason);
+        WriteSummaryPayload("loss", reason, WaveIndex);
+    }
+
+    /// <summary>
+    /// 开始重开清理并返回新的状态节点，避免旧终态 metadata 污染新局。
+    /// </summary>
+    public Node BeginRestartForValidation()
+    {
+        restartCount++;
+        SetWavePhase(BrotatoLikeWavePhase.Restarting, "restart");
+        if (WaveRuntimeState != null && GodotObject.IsInstanceValid(WaveRuntimeState))
+        {
+            RemoveChild(WaveRuntimeState);
+            WaveRuntimeState.QueueFree();
+        }
+
+        var state = new Node { Name = "WaveRuntimeState" };
+        state.SetMeta("RestartCount", restartCount);
+        state.SetMeta("PreviousWavePhase", BrotatoLikeWavePhase.Restarting.ToString());
+        state.SetMeta("WavePhase", BrotatoLikeWavePhase.Restarting.ToString());
+        WaveRuntimeState = state;
+        AddChild(WaveRuntimeState);
+        return WaveRuntimeState;
+    }
+
+    /// <summary>
+    /// 完成重开，记录清理计数并回到 Running。
+    /// </summary>
+    public void CompleteRestartForValidation(Node restartState, int runtimeBefore, int runtimeAfter, string message)
+    {
+        forceWaveComplete = false;
+        elapsedSeconds = 0f;
+        phaseElapsedSeconds = 0f;
+        completedWaveIndex = 0;
+        defeatedCount = 0;
+        processedDrops.Clear();
+        restartState.SetMeta("RestartRuntimeEntityCountBefore", runtimeBefore);
+        restartState.SetMeta("RestartRuntimeEntityCountAfter", runtimeAfter);
+        restartState.SetMeta("RestartMessage", message);
+        restartState.SetMeta("RestartResult", true);
+        SetWavePhase(BrotatoLikeWavePhase.Running, "restart_complete");
+        UpdateWaveState();
+    }
+
+    /// <summary>
+    /// 清理 run 内瞬态 UI 与掉落层。
+    /// </summary>
+    public void ClearTransientRunState()
+    {
+        processedDrops.Clear();
+        if (ExperiencePickupLayer != null)
+        {
+            foreach (var child in ExperiencePickupLayer.GetChildren())
+            {
+                if (child is Node node && !node.IsQueuedForDeletion())
+                {
+                    node.QueueFree();
+                }
+            }
+        }
+
+        if (PauseMenu != null)
+        {
+            PauseMenu.HideMenu();
+        }
+
+        if (LevelUpFeedback != null)
+        {
+            LevelUpFeedback.Visible = false;
+        }
+
+        if (LevelUpChoicePanel != null)
+        {
+            LevelUpChoicePanel.HidePanel();
+        }
+
+        IsLevelUpChoicePending = false;
+        pendingChoices = [];
     }
 
     /// <summary>
@@ -543,6 +637,14 @@ public partial class BrotatoLikeProgressionService : Node
 
     private void UpdateWaveState()
     {
+        if (wavePhase == BrotatoLikeWavePhase.RunWon
+            || wavePhase == BrotatoLikeWavePhase.RunLost
+            || wavePhase == BrotatoLikeWavePhase.Restarting)
+        {
+            WriteWaveStateMeta(false);
+            return;
+        }
+
         if (wavePhase == BrotatoLikeWavePhase.Preparing)
         {
             SetWavePhase(BrotatoLikeWavePhase.Running, "initial_start");
@@ -562,9 +664,28 @@ public partial class BrotatoLikeProgressionService : Node
         {
             completedWaveIndex = WaveIndex;
             CleanupExpiredWaveEntities();
-            SetWavePhase(BrotatoLikeWavePhase.Completed, "completion");
+            var wave = ResolveWaveDefinition();
+            if (wave != null && string.Equals(wave.NextPhase, BrotatoLikeWavePhase.RunWon.ToString(), StringComparison.Ordinal))
+            {
+                SetWavePhase(BrotatoLikeWavePhase.RunWon, "final_wave_completed");
+                WriteSummaryPayload("win", "final_wave_completed", WaveIndex);
+            }
+            else
+            {
+                SetWavePhase(BrotatoLikeWavePhase.Completed, "completion");
+            }
         }
 
+        WriteWaveStateMeta(completed);
+    }
+
+    private void WriteWaveStateMeta(bool completed)
+    {
+        var totalSpawned = runtime?.LastSpawnTickResult.Value.TotalSpawned ?? 0;
+        var remainingEnemies = CountAliveEnemies();
+        var spawnCatalog = runtime?.SpawnCatalog;
+        var expectedSpawnCount = spawnCatalog?.ExpectedSpawnCount ?? -1;
+        var hasFiniteSpawnLimit = spawnCatalog?.HasFiniteSpawnLimit == true;
         WaveRuntimeState.SetMeta("WaveIndex", WaveIndex);
         WaveRuntimeState.SetMeta("WavePhase", wavePhase.ToString());
         WaveRuntimeState.SetMeta("PreviousWaveIndex", completedWaveIndex);
@@ -625,7 +746,17 @@ public partial class BrotatoLikeProgressionService : Node
         {
             WaveRuntimeState.SetMeta("NextWaveStarted", false);
             WaveRuntimeState.SetMeta("NextWaveMessage", message);
-            SetWavePhase(BrotatoLikeWavePhase.Ended, source);
+            var wave = ResolveWaveDefinition();
+            if (wave != null && string.Equals(wave.NextPhase, BrotatoLikeWavePhase.RunWon.ToString(), StringComparison.Ordinal))
+            {
+                SetWavePhase(BrotatoLikeWavePhase.RunWon, "final_wave_completed");
+                WriteSummaryPayload("win", "final_wave_completed", WaveIndex);
+            }
+            else
+            {
+                SetWavePhase(BrotatoLikeWavePhase.Ended, source);
+            }
+
             return false;
         }
 
@@ -638,6 +769,16 @@ public partial class BrotatoLikeProgressionService : Node
         WaveRuntimeState.SetMeta("NextWaveIndex", nextWave);
         SetWavePhase(BrotatoLikeWavePhase.Running, source);
         return true;
+    }
+
+    private void WriteSummaryPayload(string result, string reason, int finalWave)
+    {
+        WaveRuntimeState.SetMeta("RunTerminalReason", reason);
+        WaveRuntimeState.SetMeta("SummaryPayloadCreated", true);
+        WaveRuntimeState.SetMeta("SummaryResult", result);
+        WaveRuntimeState.SetMeta("SummaryFinalWave", finalWave);
+        WaveRuntimeState.SetMeta("SummaryElapsedSeconds", elapsedSeconds);
+        WaveRuntimeState.SetMeta("SummaryDefeatedCount", defeatedCount);
     }
 
     private BrotatoLikeWaveDefinition? ResolveWaveDefinition()

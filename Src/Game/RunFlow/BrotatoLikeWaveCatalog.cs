@@ -42,6 +42,11 @@ public sealed class BrotatoLikeWaveAuthoringSnapshot
 public sealed class BrotatoLikeWaveDefinition
 {
     /// <summary>
+    /// 所属 run id；旧 wave_authoring 未提供时为空。
+    /// </summary>
+    public string RunId { get; init; } = string.Empty;
+
+    /// <summary>
     /// 波次编号，1 起始。
     /// </summary>
     public int WaveId { get; init; }
@@ -97,6 +102,11 @@ public sealed class BrotatoLikeWaveDefinition
 /// </summary>
 public sealed class BrotatoLikeWaveEnemyEntry
 {
+    /// <summary>
+    /// 所属 run id；旧 wave_authoring 未提供时为空。
+    /// </summary>
+    public string RunId { get; init; } = string.Empty;
+
     /// <summary>
     /// 所属波次编号。
     /// </summary>
@@ -211,6 +221,15 @@ public sealed class BrotatoLikeWaveCatalog
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("BrotatoLike wave authoring JSON 解析失败。");
 
+        return FromSnapshot(snapshot);
+    }
+
+    /// <summary>
+    /// 从已反序列化的 authoring snapshot 构造 catalog。
+    /// </summary>
+    public static BrotatoLikeWaveCatalog FromSnapshot(BrotatoLikeWaveAuthoringSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
         var wavesById = new Dictionary<int, BrotatoLikeWaveDefinition>();
         for (var i = 0; i < snapshot.Waves.Count; i++)
         {
@@ -366,6 +385,153 @@ public sealed class BrotatoLikeWaveCatalog
         foreach (var waveId in wavesById.Keys)
         {
             result = Math.Max(result, waveId);
+        }
+
+        return result;
+    }
+}
+
+/// <summary>
+/// BrotatoLike 完整 run lifecycle authoring catalog。
+/// </summary>
+public sealed class BrotatoLikeRunCatalog
+{
+    /// <summary>
+    /// 默认 20 波验证 run id。
+    /// </summary>
+    public const string DefaultRunId = "validation_20_waves";
+
+    private readonly BrotatoLikeWaveCatalog waveCatalog;
+
+    private BrotatoLikeRunCatalog(string runId, BrotatoLikeWaveCatalog waveCatalog)
+    {
+        RunId = runId;
+        this.waveCatalog = waveCatalog;
+    }
+
+    /// <summary>
+    /// 当前 run id。
+    /// </summary>
+    public string RunId { get; }
+
+    /// <summary>
+    /// DataOS 导出的原始 run 快照。
+    /// </summary>
+    public BrotatoLikeWaveAuthoringSnapshot Snapshot => waveCatalog.Snapshot;
+
+    /// <summary>
+    /// 所有波次定义。
+    /// </summary>
+    public IReadOnlyCollection<BrotatoLikeWaveDefinition> Waves => waveCatalog.Waves;
+
+    /// <summary>
+    /// 从 Godot res:// 路径读取 run authoring。
+    /// </summary>
+    public static BrotatoLikeRunCatalog LoadFromResource(
+        string path = "res://DataOS/Snapshots/run_authoring.json",
+        string runId = DefaultRunId)
+    {
+        return FromJson(ReadResourceText(path), runId);
+    }
+
+    /// <summary>
+    /// 从 JSON 文本读取 run authoring。
+    /// </summary>
+    public static BrotatoLikeRunCatalog FromJson(string json, string runId = DefaultRunId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+
+        var source = JsonSerializer.Deserialize<BrotatoLikeWaveAuthoringSnapshot>(
+            json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? throw new InvalidOperationException("BrotatoLike run authoring JSON 解析失败。");
+        var snapshot = new BrotatoLikeWaveAuthoringSnapshot
+        {
+            SchemaVersion = source.SchemaVersion,
+            GeneratedAtUtc = source.GeneratedAtUtc,
+            Source = source.Source,
+            Waves = FilterWaves(source.Waves, runId),
+            Entries = FilterEntries(source.Entries, runId)
+        };
+
+        return new BrotatoLikeRunCatalog(runId, BrotatoLikeWaveCatalog.FromSnapshot(snapshot));
+    }
+
+    /// <summary>
+    /// 使用 DataOS bootstrap 和 ResourceLoader 校验 run authoring。
+    /// </summary>
+    public void Validate(BrotatoLikeDataOSBootstrap bootstrap)
+    {
+        waveCatalog.Validate(bootstrap);
+        if (waveCatalog.Waves.Count == 0)
+        {
+            throw new InvalidOperationException($"BrotatoLike run authoring has no waves: {RunId}");
+        }
+    }
+
+    /// <summary>
+    /// 查找波次定义。
+    /// </summary>
+    public bool TryGetWave(int waveId, out BrotatoLikeWaveDefinition definition)
+    {
+        return waveCatalog.TryGetWave(waveId, out definition);
+    }
+
+    /// <summary>
+    /// 查找下一个波次。
+    /// </summary>
+    public bool TryGetNextWaveId(int waveId, out int nextWaveId)
+    {
+        return waveCatalog.TryGetNextWaveId(waveId, out nextWaveId);
+    }
+
+    /// <summary>
+    /// 构造 SpawnSystem 消费的当前波次 catalog。
+    /// </summary>
+    public BrotatoLikeSpawnCatalog BuildSpawnCatalog(int waveId)
+    {
+        return waveCatalog.BuildSpawnCatalog(waveId);
+    }
+
+    private static string ReadResourceText(string path)
+    {
+        using var file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read);
+        if (file == null)
+        {
+            throw new InvalidOperationException($"BrotatoLike run authoring not found: {path}");
+        }
+
+        return file.GetAsText();
+    }
+
+    private static List<BrotatoLikeWaveDefinition> FilterWaves(
+        IReadOnlyList<BrotatoLikeWaveDefinition> waves,
+        string runId)
+    {
+        var result = new List<BrotatoLikeWaveDefinition>();
+        for (var i = 0; i < waves.Count; i++)
+        {
+            if (string.Equals(waves[i].RunId, runId, StringComparison.Ordinal))
+            {
+                result.Add(waves[i]);
+            }
+        }
+
+        return result;
+    }
+
+    private static List<BrotatoLikeWaveEnemyEntry> FilterEntries(
+        IReadOnlyList<BrotatoLikeWaveEnemyEntry> entries,
+        string runId)
+    {
+        var result = new List<BrotatoLikeWaveEnemyEntry>();
+        for (var i = 0; i < entries.Count; i++)
+        {
+            if (string.Equals(entries[i].RunId, runId, StringComparison.Ordinal))
+            {
+                result.Add(entries[i]);
+            }
         }
 
         return result;

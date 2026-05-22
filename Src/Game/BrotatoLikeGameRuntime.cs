@@ -11,7 +11,9 @@ using BrotatoLike.Game.VFX;
 using Godot;
 using SlimeAI.GameOS.Capabilities.Ability;
 using SlimeAI.GameOS.Capabilities.Damage;
+using SlimeAI.GameOS.Capabilities.Effect;
 using SlimeAI.GameOS.Capabilities.Movement;
+using SlimeAI.GameOS.Capabilities.Projectile;
 using SlimeAI.GameOS.Capabilities.Unit;
 using SlimeAI.GameOS.GodotBridge;
 using SlimeAI.GameOS.Runtime.Entity;
@@ -31,6 +33,7 @@ public partial class BrotatoLikeGameRuntime : Node
     private BrotatoLikeCharacterDefinition? selectedCharacter;
     private BrotatoLikeItemCatalog? itemCatalog;
     private BrotatoLikeWaveCatalog? waveCatalog;
+    private BrotatoLikeRunCatalog? runCatalog;
     private BrotatoLikeSpawnCatalog? spawnCatalog;
     private SystemConfig? spawnScheduleConfig;
     private Node? spawnParent;
@@ -102,6 +105,11 @@ public partial class BrotatoLikeGameRuntime : Node
     /// 当前 wave authoring catalog。
     /// </summary>
     public BrotatoLikeWaveCatalog? WaveCatalog => waveCatalog;
+
+    /// <summary>
+    /// 当前完整 run lifecycle authoring catalog；普通 Main 可为空。
+    /// </summary>
+    public BrotatoLikeRunCatalog? RunCatalog => runCatalog;
 
     /// <summary>
     /// 当前角色选择目录。
@@ -252,6 +260,13 @@ public partial class BrotatoLikeGameRuntime : Node
         playerEntity.Data.Set(DamageDataKeys.IsDead, true);
         playerEntity.Data.Set(MovementDataKeys.CanMoveInput, false);
         playerEntity.Data.Set(MovementDataKeys.InputDirection, Vector2Value.Zero);
+
+        if (HasMeta("DeathEndsRun") && GetMeta("DeathEndsRun").AsBool())
+        {
+            progressionService?.EnterRunLostForValidation("player_death");
+            return true;
+        }
+
         deathElapsedSeconds += deltaSeconds;
 
         var maxHp = playerEntity.Data.Get<float>(DamageDataKeys.MaxHp, 0f);
@@ -335,6 +350,7 @@ public partial class BrotatoLikeGameRuntime : Node
         itemCatalog = BrotatoLikeItemCatalog.LoadFromResource();
         waveCatalog = BrotatoLikeWaveCatalog.LoadFromResource();
         waveCatalog.Validate(bootstrap);
+        runCatalog = LoadRunCatalogIfRequested(bootstrap);
         BrotatoLikeSkillLoadoutAuthoring.ValidateAvailableSkillPool(bootstrap);
         spawnCatalog = BuildSpawnCatalogForWave(wave);
         spawnScheduleConfig = bootstrap.BuildSpawnSystemScheduleConfig();
@@ -356,6 +372,38 @@ public partial class BrotatoLikeGameRuntime : Node
     public void BeginGameplay()
     {
         schedule?.ProjectState.BeginGameplaySession();
+    }
+
+    /// <summary>
+    /// 重开当前 run，清理旧局实体与瞬态节点后回到第 1 波。
+    /// </summary>
+    public bool RestartRunForValidation()
+    {
+        if (bootstrap == null || schedule == null)
+        {
+            return false;
+        }
+
+        var restartState = progressionService?.BeginRestartForValidation();
+        if (restartState == null)
+        {
+            return false;
+        }
+
+        var runtimeBefore = EntityManager.GetAll().Count;
+        CleanupRunEntities();
+        if (!TryStartWave(1, out var message))
+        {
+            restartState.SetMeta("RestartResult", false);
+            restartState.SetMeta("RestartMessage", message);
+            return false;
+        }
+
+        deathElapsedSeconds = 0f;
+        BeginGameplay();
+        SpawnSelectedCharacter(Vector2.Zero);
+        progressionService?.CompleteRestartForValidation(restartState, runtimeBefore, EntityManager.GetAll().Count, message);
+        return true;
     }
 
     /// <summary>
@@ -735,6 +783,11 @@ public partial class BrotatoLikeGameRuntime : Node
     {
         nextWave = 0;
         var current = CurrentWave;
+        if (runCatalog != null && runCatalog.TryGetNextWaveId(current, out nextWave))
+        {
+            return TryStartWave(nextWave, out message);
+        }
+
         if (waveCatalog != null && waveCatalog.TryGetNextWaveId(current, out nextWave))
         {
             return TryStartWave(nextWave, out message);
@@ -758,6 +811,11 @@ public partial class BrotatoLikeGameRuntime : Node
     public bool TryGetWaveDefinition(int wave, out BrotatoLikeWaveDefinition definition)
     {
         definition = null!;
+        if (runCatalog?.TryGetWave(wave, out definition) == true)
+        {
+            return true;
+        }
+
         return waveCatalog?.TryGetWave(wave, out definition) == true;
     }
 
@@ -1135,6 +1193,7 @@ public partial class BrotatoLikeGameRuntime : Node
         characterCatalog = null;
         selectedCharacter = null;
         waveCatalog = null;
+        runCatalog = null;
         spawnCatalog = null;
         spawnScheduleConfig = null;
         spawnParent = null;
@@ -1143,6 +1202,11 @@ public partial class BrotatoLikeGameRuntime : Node
 
     private BrotatoLikeSpawnCatalog BuildSpawnCatalogForWave(int wave)
     {
+        if (runCatalog != null)
+        {
+            return runCatalog.BuildSpawnCatalog(wave);
+        }
+
         if (waveCatalog != null)
         {
             return waveCatalog.BuildSpawnCatalog(wave);
@@ -1164,6 +1228,99 @@ public partial class BrotatoLikeGameRuntime : Node
         }
 
         return GetNodeOrNull<Node>(EnemyParentPath) ?? this;
+    }
+
+    private BrotatoLikeRunCatalog? LoadRunCatalogIfRequested(BrotatoLikeDataOSBootstrap dataBootstrap)
+    {
+        if (!HasMeta("RunAuthoringPath") && !HasMeta("RunId"))
+        {
+            return null;
+        }
+
+        var path = HasMeta("RunAuthoringPath")
+            ? GetMeta("RunAuthoringPath").AsString()
+            : "res://DataOS/Snapshots/run_authoring.json";
+        var runId = HasMeta("RunId")
+            ? GetMeta("RunId").AsString()
+            : BrotatoLikeRunCatalog.DefaultRunId;
+        var catalog = BrotatoLikeRunCatalog.LoadFromResource(path, runId);
+        catalog.Validate(dataBootstrap);
+        return catalog;
+    }
+
+    private void CleanupRunEntities()
+    {
+        var runPlayerId = playerEntity?.EntityId ?? EntityId.Empty;
+        if (playerEntity != null && GodotObject.IsInstanceValid(playerEntity))
+        {
+            DestroyOwnedRuntimeEntities(playerEntity);
+        }
+
+        var entities = EntityManager.GetAll();
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i] is GodotEntity2D godotEntity
+                && GodotObject.IsInstanceValid(godotEntity)
+                && IsNodeOwnedByRuntime(godotEntity))
+            {
+                godotEntity.DestroyEntity();
+                continue;
+            }
+
+            if (IsTransientRunEntity(entities[i], runPlayerId))
+            {
+                EntityManager.Destroy(entities[i]);
+            }
+        }
+
+        playerEntity = null;
+        LastSpawnTickResult = default;
+
+        if (progressionService != null && GodotObject.IsInstanceValid(progressionService))
+        {
+            progressionService.ClearTransientRunState();
+        }
+    }
+
+    private static void DestroyOwnedRuntimeEntities(IEntity owner)
+    {
+        var ownedAbilities = owner.Data.Get(AbilityDataKeys.OwnedAbilityIds, EntityIdList.Empty);
+        for (var i = 0; i < ownedAbilities.Count; i++)
+        {
+            EntityManager.Destroy(ownedAbilities[i]);
+        }
+    }
+
+    private bool IsNodeOwnedByRuntime(Node node)
+    {
+        var current = node;
+        while (current != null)
+        {
+            if (current == this)
+            {
+                return true;
+            }
+
+            current = current.GetParent();
+        }
+
+        return false;
+    }
+
+    private static bool IsTransientRunEntity(IEntity entity, EntityId runPlayerId)
+    {
+        if (runPlayerId.IsEmpty)
+        {
+            return false;
+        }
+
+        if (entity.Data.Has(ProjectileDataKeys.ScenePath))
+        {
+            return entity.Data.Get<EntityId?>(ProjectileDataKeys.SourceEntity, null) == runPlayerId;
+        }
+
+        return entity.Data.Has(EffectDataKeys.ScenePath)
+            && entity.Data.Get<EntityId?>(EffectDataKeys.SourceEntity, null) == runPlayerId;
     }
 
     private void EnsureRuntimeDrivers()

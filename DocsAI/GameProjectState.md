@@ -1,6 +1,6 @@
 # BrotatoLike GameProjectState
 
-> 更新日期：2026-05-21（runtime pooling / input / survivor spawn / wave UI fix）
+> 更新日期：2026-05-22（run lifecycle 20 waves）
 
 ## 当前状态
 
@@ -8,6 +8,7 @@
 
 本轮追加：
 
+- **Run lifecycle 20 waves**：OpenSpec change `complete-brotatolike-run-lifecycle-20-waves` 已把完整单局生命周期推进到游戏侧 20 波验证闭环。普通 RunFlow / Main 继续使用开放式 `wave_authoring.json`，完整生命周期验证单独通过 `run_definition / run_enemy_entry` 和 `DataOS/Snapshots/run_authoring.json` 读取 `validation_20_waves`，避免把 20 波规则写入 GameOS 或普通玩法默认。`BrotatoLikeGameRuntime` 在设置 `RunAuthoringPath` / `RunId` 的 validation runtime 中加载 `BrotatoLikeRunCatalog`，优先按 run catalog 切换 wave；`BrotatoLikeProgressionService` 新增 `RunWon / RunLost / Restarting` 终态、死亡失败 reason、summary payload 和 validation restart 清理。新增 `res://Src/Validation/Game/RunLifecycle/BrotatoLikeRunLifecycle20WavesValidation.tscn`，artifact 覆盖 20 波 authoring、`RewardShop -> RunWon` phase sequence、死亡进入 `RunLost`、restart 清理旧实体实例并回到第 1 波、summary payload。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，生成 `run_authoring.json`，85 个既有 XML comment warnings，0 errors）；RunLifecycle validation `.ai-temp/scene-tests/runs/2026-05-22/07-42-13/index.json` PASS，per-scene `result.json` exitCode `0`、`firstError=null`，artifact `brotatolike-run-lifecycle-20-waves-validation.json` 为 `status=pass`、`failureReasons=[]`，五个标准答案字段非空。
 - **Runtime pooling / input / survivor spawn / wave UI fix**：OpenSpec change `fix-brotatolike-survivor-spawn-input-damage-feedback` 已把用户反馈收敛为 5 类回归，并新增 `DocsAI/BugReports/2026-05-21-runtime-pooling-input-wave-ui.md` 记录 bug、根因假设、旧项目参考范围和 `copiedCodeOrAssets: none`。框架侧 `GodotProjectileEffectSpawner` 现在对 Projectile / Effect visual 使用 scene-path keyed `GodotNodePool`，Runtime entity destroy 时注销 `GodotNodeRegistry` 并回池；finite Effect 优先按 `Effect.Duration`，否则可按非循环 `AnimatedSprite2D` 动画推导生命周期。游戏侧 HUD 的头顶血条和伤害/治疗飘字改为池化复用，`DamageNumberUI` 修复 animation finished 连接状态并加入 lifetime fallback。技能输入新增 `SkillSlot1..4` 数字键直选可见槽位，仍保留 `PreviousSkill / NextSkill / UseSkill` 旧路径；DataOS authoring 将 `yuren` 头顶血条高度校准为 `100`、`chailangren` 为 `120` 并由 build 重新生成 snapshot。普通 RunFlow / Main 现在采用开放式 wave authoring：`max_count=-1`、`ExpectedSpawnCount=-1`，验证 artifact 记录 spawned count 会超过首批 5 个敌人；有限 5 只只保留为历史 finite validation 证据，不再作为普通玩法口径。验证见“最新验证 / fix-brotatolike-survivor-spawn-input-damage-feedback”。
 - **Manual device QA**：OpenSpec change `brotatolike-manual-device-qa` 已新增 `DocsAI/ManualDeviceQA.md`，把真实设备 QA 从自动 scene runner evidence 中分离出来。文档记录 evidence boundary：automated runner / `Input.ActionPress` 只能证明 Godot input action 到 runtime、技能栏和 artifact oracle 的自动路径，不能替代真实键鼠、鼠标、手柄、窗口焦点、摇杆漂移、按钮映射或 UI 焦点 pass。Checklist 覆盖键鼠 movement、skill switching/release、point target confirm/cancel、pause/resume、death/respawn、UI focus，以及 gamepad stick/D-pad、previous/next skill、use skill、confirm/cancel、pause 和 UI focus。当前 agent session 没有物理设备，初始记录全部真实设备 workflow 均为 `not-tested`，没有新增真实设备 pass claim。
 - **Character selection**：OpenSpec change `brotatolike-character-selection` 已把 BrotatoLike 从固定默认玩家推进到首版 DataOS-backed 角色选择闭环。游戏侧 DataOS seed 新增 `character_definition / character_loadout / character_loadout_ability`，`Tools/run-dataos-snapshot.sh` 生成 `DataOS/Snapshots/character_authoring.json`；首批可选角色为 `deluyi`（默认 fallback，HP 100 / MoveSpeed 200 / Attack 10，loadout `slam,chain_lightning,target_point_skill,dash`）和 `guangfa`（HP 85 / MoveSpeed 185 / Attack 14，loadout `chain_lightning,sine_wave_shot,target_point_skill,dash`）。`BrotatoLikeCharacterCatalog` 校验 player record、visual scene 和 ability refs，`BrotatoLikeGameRuntime` 新增 `InitialCharacterId`、`TrySelectCharacter`、`SpawnCharacter`、`SpawnSelectedCharacter`，Main 启动路径改为默认角色选择 fallback 而不是直接固定 `SpawnPlayer()`；旧 `SpawnPlayer(recordId)` 保留为兼容和专项验证入口。新增 `Scenes/UI/CharacterSelectPanelUI.tscn` / `CharacterSelectCardUI.tscn` scene-backed UI。验证：`Tools/run-build.sh` PASS（DataOS validation PASS，85 个 XML comment warnings，0 errors）；CharacterSelection validation `.ai-temp/scene-tests/runs/2026-05-21/20-00-19/index.json` PASS，artifact 记录 invalid player/visual reject、UI scene path、visible ids `deluyi,guangfa`、按钮选择 `guangfa`、`player-guangfa`、visual path、starting skills、视觉/属性/loadout 差异，以及两名角色 input、active skill input、HUD、PlayerHealthBar、ActiveSkillBar、camera 绑定；analyzer gate report 为 `pass`，README 与 artifact 五字段非空。Main 回归 `.ai-temp/scene-tests/runs/2026-05-21/20-03-04/index.json` PASS，artifact 记录默认角色 fallback 的 `skill_loadout_source=character:deluyi`。
@@ -90,6 +91,18 @@
 4. 执行 `DocsAI/ManualDeviceQA.md` 的真实设备 checklist：当前文档已建立，但物理键鼠、鼠标点选、手柄和 UI 焦点结果仍是 `not-tested`，不能写成 pass。
 
 ## 最新验证
+
+**complete-brotatolike-run-lifecycle-20-waves（2026-05-22）**
+
+```bash
+cd /home/slime/Code/SlimeAI/Games/BrotatoLike
+Tools/run-build.sh
+Tools/run-godot-scene.sh run res://Src/Validation/Game/RunLifecycle/BrotatoLikeRunLifecycle20WavesValidation.tscn --timeout 25 --log-dir .ai-temp/scene-tests/runs
+```
+
+结果：`Tools/run-build.sh` PASS（DataOS validation PASS，生成 `runtime_snapshot.json`、`shop_item_authoring.json`、`wave_authoring.json`、`run_authoring.json`、`character_authoring.json`，85 个既有 XML comment warnings，0 errors）。RunLifecycle validation `.ai-temp/scene-tests/runs/2026-05-22/07-42-13/index.json` PASS；per-scene `result.json` 为 `status=passed`、`exitCode=0`、`firstError=null`；artifact `.ai-temp/scene-tests/runs/2026-05-22/07-42-13/001_Src_Validation_Game_RunLifecycle_BrotatoLikeRunLifecycle20WavesValidation.tscn_attempt1/artifacts/brotatolike-run-lifecycle-20-waves-validation.json` 为 `status=pass`、`failureReasons=[]`。
+
+关键 artifact 证据：`wave_count=20`、`max_wave_id=20`、`wave20_next_phase=RunWon`；`phase_sequence` 包含 `RewardShop` 并最终到 `RunWon`，`win_reason=final_wave_completed`、`win_summary_final_wave=20`、`win_summary_result=win`；死亡路径记录 `loss_final_phase=RunLost`、`loss_reason=player_death`、`loss_summary_result=loss`；restart 路径记录 `restart_result=true`、`restart_phase=Running`、`restart_count=1`、`restart_current_wave=1`、`restart_stale_enemy_count_after=0`、`restart_stale_projectile_effect_count_after=0`。Scene gate 手动检查已覆盖 `index.json`、per-scene `result.json` 和 scene artifact；artifact 的 `expectedInputs / expectedObservations / passCriteria / failCriteria / artifactPath` 非空，checks `twenty_wave_run_authoring_loaded / phase_sequence_reaches_run_won / death_enters_run_lost / restart_clears_run_state / summary_payload_created` 全部 pass。
 
 **fix-brotatolike-survivor-spawn-input-damage-feedback（2026-05-21）**
 

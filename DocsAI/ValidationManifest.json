@@ -317,6 +317,18 @@
       "releaseBatch": true
     },
     {
+      "scene": "res://Src/Validation/Game/RunLifecycle/BrotatoLikeRunLifecycle20WavesValidation.tscn",
+      "owner": "game",
+      "scope": "feature-slice",
+      "tags": ["game", "run-lifecycle", "wave", "restart"],
+      "relatedBddScenarios": ["20 波完整单局胜利", "玩家死亡进入失败终态", "重开清理旧局状态"],
+      "checks": ["twenty_wave_run_authoring_loaded", "phase_sequence_reaches_run_won", "death_enters_run_lost", "restart_clears_run_state", "summary_payload_created"],
+      "artifactFilename": "brotatolike-run-lifecycle-20-waves-validation.json",
+      "catalogOwner": "game",
+      "timeoutSeconds": 25,
+      "releaseBatch": true
+    },
+    {
       "scene": "res://Src/Validation/Game/CharacterSelection/BrotatoLikeCharacterSelectionValidation.tscn",
       "owner": "game",
       "scope": "feature-slice",

@@ -42,6 +42,21 @@ CREATE TABLE IF NOT EXISTS wave_definition (
     FOREIGN KEY (next_wave_id) REFERENCES wave_definition(wave_id)
 );
 
+CREATE TABLE IF NOT EXISTS run_definition (
+    run_id TEXT NOT NULL CHECK (trim(run_id) <> ''),
+    wave_id INTEGER NOT NULL CHECK (wave_id > 0),
+    display_name TEXT NOT NULL CHECK (trim(display_name) <> ''),
+    wave_duration REAL NOT NULL CHECK (wave_duration > 0),
+    reward_phase_seconds REAL NOT NULL DEFAULT 0 CHECK (reward_phase_seconds >= 0),
+    completion_mode TEXT NOT NULL CHECK (completion_mode IN ('AllEnemiesDefeated', 'DurationOrClear')),
+    next_wave_id INTEGER,
+    next_phase TEXT NOT NULL DEFAULT 'RewardShop' CHECK (next_phase IN ('RewardShop', 'NextWave', 'Ended', 'RunWon')),
+    reward_hook TEXT NOT NULL DEFAULT '',
+    shop_offer_set_id TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (run_id, wave_id)
+);
+
 CREATE TABLE IF NOT EXISTS wave_enemy_entry (
     wave_id INTEGER NOT NULL,
     slot_index INTEGER NOT NULL CHECK (slot_index >= 0),
@@ -55,6 +70,25 @@ CREATE TABLE IF NOT EXISTS wave_enemy_entry (
     weight INTEGER NOT NULL DEFAULT 1 CHECK (weight > 0),
     PRIMARY KEY (wave_id, slot_index),
     FOREIGN KEY (wave_id) REFERENCES wave_definition(wave_id) ON DELETE CASCADE,
+    FOREIGN KEY (enemy_id) REFERENCES unit_enemy(id)
+);
+
+CREATE TABLE IF NOT EXISTS run_enemy_entry (
+    run_id TEXT NOT NULL,
+    wave_id INTEGER NOT NULL,
+    slot_index INTEGER NOT NULL CHECK (slot_index >= 0),
+    enemy_id TEXT NOT NULL,
+    display_name TEXT NOT NULL CHECK (trim(display_name) <> ''),
+    visual_scene_path TEXT NOT NULL CHECK (trim(visual_scene_path) <> ''),
+    position_strategy TEXT NOT NULL CHECK (trim(position_strategy) <> ''),
+    spawn_interval REAL NOT NULL CHECK (spawn_interval > 0),
+    max_count INTEGER NOT NULL CHECK (max_count >= -1),
+    single_count INTEGER NOT NULL CHECK (single_count > 0),
+    single_variance INTEGER NOT NULL DEFAULT 0 CHECK (single_variance >= 0),
+    start_delay REAL NOT NULL DEFAULT 0 CHECK (start_delay >= 0),
+    weight INTEGER NOT NULL DEFAULT 1 CHECK (weight > 0),
+    PRIMARY KEY (run_id, wave_id, slot_index),
+    FOREIGN KEY (run_id, wave_id) REFERENCES run_definition(run_id, wave_id) ON DELETE CASCADE,
     FOREIGN KEY (enemy_id) REFERENCES unit_enemy(id)
 );
 
@@ -97,6 +131,8 @@ INSERT OR REPLACE INTO data_table(table_id, domain, description) VALUES
     ('shop.offer', 'shop', 'BrotatoLike deterministic shop offers exported to shop_item_authoring.json.'),
     ('wave.definition', 'schedule', 'BrotatoLike wave definitions exported to wave_authoring.json.'),
     ('wave.enemy_entry', 'schedule', 'BrotatoLike wave enemy composition exported to wave_authoring.json.'),
+    ('run.definition', 'schedule', 'BrotatoLike full run lifecycle definitions exported to run_authoring.json.'),
+    ('run.enemy_entry', 'schedule', 'BrotatoLike full run enemy composition exported to run_authoring.json.'),
     ('character.definition', 'unit', 'BrotatoLike selectable character definitions exported to character_authoring.json.'),
     ('character.loadout', 'ability', 'BrotatoLike character starting loadouts exported to character_authoring.json.'),
     ('feature.definition', 'feature', 'BrotatoLike feature definitions projected from feature_definition.'),
@@ -198,6 +234,79 @@ INSERT OR REPLACE INTO shop_offer(offer_set_id, slot_index, item_id, price_overr
     ('validation', 0, 'vital_seed', 12, 'DataOS:shop_offer.validation', 0),
     ('validation', 1, 'swift_boots', 8, 'DataOS:shop_offer.validation', 0),
     ('validation', 2, 'sharpening_stone', 20, 'DataOS:shop_offer.validation', 0);
+
+WITH RECURSIVE run_wave(wave_id, next_wave_id, next_phase, wave_duration, reward_phase_seconds, description) AS (
+    SELECT 1, 2, 'RewardShop', 24.0, 0.25, '第 1 波：20 波短局的起始波次，完成后进入奖励阶段。'
+    UNION ALL
+    SELECT
+        wave_id + 1,
+        CASE WHEN wave_id + 1 < 20 THEN wave_id + 2 ELSE NULL END,
+        CASE WHEN wave_id + 1 < 20 THEN 'RewardShop' ELSE 'RunWon' END,
+        CASE WHEN wave_id + 1 < 10 THEN 24.0 + (wave_id * 0.5) ELSE 28.0 + (wave_id * 0.75) END,
+        0.25,
+        CASE WHEN wave_id + 1 < 20
+            THEN printf('第 %d 波：20 波短局的中段波次，完成后进入奖励阶段。', wave_id + 1)
+            ELSE '第 20 波：20 波短局的最终波次，完成后直接进入胜利终态。'
+        END
+    FROM run_wave
+    WHERE wave_id < 20
+)
+INSERT OR REPLACE INTO run_definition(run_id, wave_id, display_name, wave_duration, reward_phase_seconds, completion_mode, next_wave_id, next_phase, reward_hook, shop_offer_set_id, description)
+SELECT
+    'validation_20_waves',
+    wave_id,
+    printf('第 %d 波', wave_id),
+    wave_duration,
+    reward_phase_seconds,
+    'DurationOrClear',
+    next_wave_id,
+    next_phase,
+    'shop_offer.validation',
+    'validation',
+    description
+FROM run_wave;
+
+WITH RECURSIVE run_wave_entries(wave_id) AS (
+    SELECT 1
+    UNION ALL
+    SELECT wave_id + 1
+    FROM run_wave_entries
+    WHERE wave_id < 20
+)
+INSERT OR REPLACE INTO run_enemy_entry(run_id, wave_id, slot_index, enemy_id, display_name, visual_scene_path, position_strategy, spawn_interval, max_count, single_count, single_variance, start_delay, weight)
+SELECT
+    'validation_20_waves',
+    wave_id,
+    0,
+    'chailangren',
+    enemy.name,
+    enemy.visual_scene_path,
+    'Circle',
+    CASE WHEN wave_id < 10 THEN 1.2 ELSE 1.0 END,
+    -1,
+    1,
+    0,
+    0.0,
+    10
+FROM run_wave_entries
+JOIN unit_enemy AS enemy ON enemy.id = 'chailangren'
+UNION ALL
+SELECT
+    'validation_20_waves',
+    wave_id,
+    1,
+    'yuren',
+    enemy.name,
+    enemy.visual_scene_path,
+    'Rectangle',
+    CASE WHEN wave_id < 10 THEN 1.6 ELSE 1.3 END,
+    -1,
+    1,
+    0,
+    0.25,
+    8
+FROM run_wave_entries
+JOIN unit_enemy AS enemy ON enemy.id = 'yuren';
 
 INSERT OR REPLACE INTO wave_definition(wave_id, display_name, wave_duration, reward_phase_seconds, completion_mode, next_wave_id, next_phase, reward_hook, shop_offer_set_id, description) VALUES
     (1, '第 1 波', 60.0, 0.25, 'DurationOrClear', 2, 'RewardShop', 'shop_offer.validation', 'validation', '普通玩法波次：开放式持续生成，验证通过 force-complete 进入奖励阶段。'),
